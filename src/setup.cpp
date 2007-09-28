@@ -568,8 +568,6 @@ READ-ONLY, and try again.", fileName);
  */
 void UpdateInfo(void)
 {
-	MessageBox(0,"","",0);
-	
 	if (g_noFiles) return;
 
 	EnableWindow(g_installButtonControl, FALSE);
