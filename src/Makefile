@@ -12,25 +12,53 @@ LPPNGDIB=soft\pngdib
 LPLIBPNG=soft\libpng-1.2.8-lib\lib
 LPZLIB=soft\zlib123-dll\lib
 
-all: apps
+all: dlls apps
 	if exist output (rd /S /Q output)
 	mkdir output
+	copy *.dll output
 	copy setup.exe output
+	
+all_dlls: dlls
+	if exist output (rd /S /Q output)
+	mkdir output
+	copy *.dll output
 	
 all_apps: apps
 	if exist output (rd /S /Q output)
 	mkdir output
 	copy setup.exe output
 
+dlls: kset.dll kload.dll
 apps: setup.exe
 
 release:
 	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD
 
 setup: setup.exe
+kset: kset.dll
+kload: kload.dll
 
 imageutil.obj: imageutil.cpp imageutil.h
 detect.obj: detect.cpp detect.h
+
+
+kload.lib: kload.obj
+kload.dll: kload.lib detect.obj imageutil.obj kload.res
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj kload.res $(LIBS)
+kload.obj: kload.cpp kload.h
+
+kload.res: 
+	$(RC) -r -fo kload.res kload.rc
+	
+
+kset.lib: kset.obj
+kset.dll: kset.lib detect.obj imageutil.obj kset.res
+	$(LINK) $(LFLAGS) /out:kset.dll /DLL kset.obj detect.obj imageutil.obj kset.res $(LIBS)
+kset.obj: kset.cpp kset.h
+
+kset.res: 
+	$(RC) -r -fo kset.res kset.rc
+
 
 setupgui.obj: setupgui.cpp setupgui.h
 setup.obj: setup.cpp setup.h setupgui.h
