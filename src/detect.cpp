@@ -22,9 +22,11 @@ int GetGameVersion(void)
 	HMODULE hMod = GetModuleHandle(NULL);
 	for (int i=0; i<sizeof(GAME_GUID)/sizeof(char*); i++)
 	{
-		char* guid = (char*)((DWORD)hMod + GAME_GUID_OFFSETS[i]);
-		if (strncmp(guid, GAME_GUID[i], lstrlen(GAME_GUID[i]))==0)
-			return i;
+		if (!IsBadReadPtr((BYTE*)hMod + GAME_GUID_OFFSETS[i], lstrlen(GAME_GUID[i]))) {
+			char* guid = (char*)((DWORD)hMod + GAME_GUID_OFFSETS[i]);
+			if (strncmp(guid, GAME_GUID[i], lstrlen(GAME_GUID[i]))==0)
+				return i;
+		}
 	}
 	return -1;
 }
