@@ -6,18 +6,18 @@
 #include "kload.h"
 
 // ADDRESSES
-#define CODELEN 2
+#define CODELEN 4
 enum {
-	C_CONTROLLERFIX1, C_CONTROLLERFIX2,
+	C_CONTROLLERFIX1, C_CONTROLLERFIX2, C_QUALITYCHECK1, C_QUALITYCHECK2,
 };
 
 DWORD codeArray[][CODELEN] = { 
   // PES2008 DEMO
 	{
-		0x86dd12, 0x86dd22,
+		0x86dd12, 0x86dd22, 0x904b0f, 0x904bc5,
 	},
 	// [Settings] PES2008 PC DEMO
-  {0,0,}
+  {0,0,0,0,}
 };
 
 #define DATALEN 1
@@ -37,7 +37,8 @@ DWORD code[CODELEN];
 DWORD data[DATALEN];
 
 // VARIABLES
-HINSTANCE hInst;
+HINSTANCE hInst = NULL;
+bool allQualities = true;
 
 // FUNCTIONS
 void fixControllerLimit();
@@ -71,13 +72,25 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
 
 void fixControllerLimit() {
+	DWORD protection = 0;
+	DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	BYTE* bptr = NULL;
+	
 	if (code[C_CONTROLLERFIX1] != 0 && code[C_CONTROLLERFIX2] != 0)	{
 		for (int i=0; i<2; i++) {
-			BYTE* bptr = (BYTE*)code[C_CONTROLLERFIX1 + i];
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+			bptr = (BYTE*)code[C_CONTROLLERFIX1 + i];
 	    if (VirtualProtect(bptr, 7, newProtection, &protection)) {
 	    	memset(bptr, 0x90, 7);
+			}
+		}
+	}
+	
+	if (allQualities && code[C_QUALITYCHECK1] != 0 && code[C_QUALITYCHECK2] != 0)	{
+		for (int i=0; i<2; i++) {
+			bptr = (BYTE*)code[C_QUALITYCHECK1 + i];
+	    if (VirtualProtect(bptr, 2, newProtection, &protection)) {
+	    	/* NOP */ bptr[0] = 0x90;
+	    	/* Jmp... */ bptr[1] = 0xe9;
 			}
 		}
 	}

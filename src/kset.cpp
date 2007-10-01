@@ -3,20 +3,21 @@
 #include <windows.h>
 #include "imageutil.h"
 #include "detect.h"
+#include "shared.h"
 #include "kset.h"
 
 // ADDRESSES
-#define CODELEN 3
+#define CODELEN 4
 enum {
-	C_CONTROLLERADDED, C_BEFORECONTROLLERADD, C_SOMEFUNCTION,
+	C_CONTROLLERADDED, C_BEFORECONTROLLERADD, C_SOMEFUNCTION, C_QUALITYCHECK, 
 };
 
 DWORD codeArray[][CODELEN] = { 
   // PES2008 DEMO
-  {0,0,0,},
+  {0,0,0,0,},
 	// [Settings] PES2008 PC DEMO
 	{
-		0x4049c9, 0x4048be, 0x415aaf,
+		0x4049c9, 0x4048be, 0x415aaf, 0x4159c0,
 	}
 };
 
@@ -37,8 +38,9 @@ DWORD code[CODELEN];
 DWORD data[DATALEN];
 
 // VARIABLES
-HINSTANCE hInst;
+HINSTANCE hInst = NULL;
 int controllerCount = 0;
+bool allQualities = true;
 
 
 // FUNCTIONS
@@ -61,6 +63,9 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		memcpy(code, codeArray[v], sizeof(code));
     memcpy(data, dataArray[v], sizeof(data));
     
+    allQualities = (MessageBox(0, "Do you want to enable ALL quality levels, including those\n\
+which aren't officially supported by your graphics card?", WINDOW_TITLE, MB_YESNO) == IDYES);
+    
     hookFunctions();
     
 	}
@@ -74,11 +79,12 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
 
 void hookFunctions() {
-	if (code[C_CONTROLLERADDED] != 0)	{
-		BYTE* bptr = (BYTE*)code[C_CONTROLLERADDED];
+	DWORD protection = 0;
+	DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	BYTE* bptr = NULL;
 	
-    DWORD protection = 0;
-    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	if (code[C_CONTROLLERADDED] != 0)	{
+		bptr = (BYTE*)code[C_CONTROLLERADDED];
     if (VirtualProtect(bptr, 8, newProtection, &protection)) {
         bptr[0] = 0xe8;
         bptr[5] = 0x90; bptr[6] = 0x90; bptr[7] = 0x90;
@@ -86,6 +92,15 @@ void hookFunctions() {
         ptr[0] = (DWORD)ksetControllerAdded - (DWORD)(code[C_CONTROLLERADDED] + 5);
     }
     VirtualProtect((BYTE*)data[CONTROLLER_NUMBER], 1, newProtection, &protection);
+	}
+
+	if (allQualities && code[C_QUALITYCHECK] != 0) {
+		bptr = (BYTE*)code[C_QUALITYCHECK];
+    if (VirtualProtect(bptr, 4, newProtection, &protection)) {
+        /* xor eax, eax */ bptr[0] = 0x33; bptr[1] = 0xc0;
+        /* inc eax */ bptr[2] = 0x40;
+        /* ret */ bptr[3] = 0xc3;
+    }
 	}
 }
 
