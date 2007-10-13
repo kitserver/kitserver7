@@ -28,7 +28,7 @@ all_apps: apps
 	mkdir output
 	copy setup.exe output
 
-dlls: kset.dll kload.dll
+dlls: kload.dll #kset.dll
 apps: setup.exe
 
 release:
@@ -44,7 +44,7 @@ detect.obj: detect.cpp detect.h
 
 kload.lib: kload.obj
 kload.dll: kload.lib detect.obj imageutil.obj kload.res
-	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj kload.res $(LIBS)
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj kload.res $(LIBS) d3dx9.lib
 kload.obj: kload.cpp kload.h
 
 kload.res: 
