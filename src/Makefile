@@ -40,11 +40,12 @@ kload: kload.dll
 
 imageutil.obj: imageutil.cpp imageutil.h
 detect.obj: detect.cpp detect.h
+lang.obj: lang.cpp lang.h
 
 
 kload.lib: kload.obj
-kload.dll: kload.lib detect.obj imageutil.obj kload.res
-	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj kload.res $(LIBS) d3dx9.lib
+kload.dll: kload.lib detect.obj imageutil.obj lang.obj log.obj kload.res
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj log.obj lang.obj kload.res $(LIBS) d3dx9.lib
 kload.obj: kload.cpp kload.h
 
 kload.res: 
@@ -52,8 +53,8 @@ kload.res:
 	
 
 kset.lib: kset.obj
-kset.dll: kset.lib detect.obj imageutil.obj kset.res
-	$(LINK) $(LFLAGS) /out:kset.dll /DLL kset.obj detect.obj imageutil.obj kset.res $(LIBS)
+kset.dll: kset.lib detect.obj imageutil.obj lang.obj kset.res
+	$(LINK) $(LFLAGS) /out:kset.dll /DLL kset.obj detect.obj imageutil.obj lang.obj kset.res $(LIBS)
 kset.obj: kset.cpp kset.h
 
 kset.res: 
@@ -62,8 +63,8 @@ kset.res:
 
 setupgui.obj: setupgui.cpp setupgui.h
 setup.obj: setup.cpp setup.h setupgui.h
-setup.exe: setup.obj detect.obj setupgui.obj imageutil.obj setup.res
-	$(LINK) $(LFLAGS) /out:setup.exe setup.obj detect.obj setupgui.obj imageutil.obj setup.res $(LIBS) shell32.lib
+setup.exe: lang.obj setup.obj detect.obj setupgui.obj imageutil.obj setup.res
+	$(LINK) $(LFLAGS) /out:setup.exe setup.obj detect.obj setupgui.obj imageutil.obj lang.obj setup.res $(LIBS) shell32.lib
 	
 setup.res: 
 	$(RC) -r -fo setup.res setup.rc

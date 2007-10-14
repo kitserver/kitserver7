@@ -1,6 +1,11 @@
+#define UNICODE
+
 #include <windows.h>
 #include <stdio.h>
 #include "setupgui.h"
+
+extern const wchar_t* getTransl(char* section, char* key);
+#define lang(s) getTransl("setup",s)
 
 HWND g_exeListControl;              // displays list of executable files
 HWND g_exeInfoControl;              // displays info about current executable file
@@ -39,14 +44,14 @@ bool BuildControls(HWND parent)
 	borH = spacer*5 + boxH*4 + 20;
 
 	HWND staticBorderTopControl = CreateWindowEx(
-			xstyle, "Static", "", WS_CHILD | WS_VISIBLE | SS_ETCHEDFRAME,
+			xstyle, L"Static", L"", WS_CHILD | WS_VISIBLE | SS_ETCHEDFRAME,
 			x, y, borW, borH,
 			parent, NULL, NULL, NULL);
 
 	x += spacer; y += spacer;
 
 	HWND topLabel = CreateWindowEx(
-			xstyle, "Static", "Game executable:", style,
+			xstyle, L"Static", lang("lGameExecutable"), style,
 			x, y+4, statW, statH, 
 			parent, NULL, NULL, NULL);
 
@@ -56,7 +61,7 @@ bool BuildControls(HWND parent)
 	style = WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL;
 
 	g_exeListControl = CreateWindowEx(
-			xstyle, "ComboBox", "", style | WS_TABSTOP,
+			xstyle, L"ComboBox", L"", style | WS_TABSTOP,
 			x, y, boxW, boxH * 6,
 			parent, NULL, NULL, NULL);
 
@@ -67,14 +72,14 @@ bool BuildControls(HWND parent)
 
 
 	HWND infoLabel = CreateWindowEx(
-			xstyle, "Static", "Current state:", style,
+			xstyle, L"Static", lang("lCurrentState"), style,
 			x, y+4, statW, statH, 
 			parent, NULL, NULL, NULL);
 
 	x += statW + spacer;
 
 	g_exeInfoControl = CreateWindowEx(
-			xstyle, "Static", "Information unavailable", style,
+			xstyle, L"Static", lang("InformationUnavailable"), style,
 			x, y+4, boxW, boxH + 10,
 			parent, NULL, NULL, NULL);
 
@@ -84,7 +89,7 @@ bool BuildControls(HWND parent)
 	// settings
 	
 	HWND setListLabel = CreateWindowEx(
-			xstyle, "Static", "Settings executable:", style,
+			xstyle, L"Static", lang("lSettingsExecutable"), style,
 			x, y+4, statW, statH, 
 			parent, NULL, NULL, NULL);
 
@@ -94,7 +99,7 @@ bool BuildControls(HWND parent)
 	style = WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL;
 
 	g_setListControl = CreateWindowEx(
-			xstyle, "ComboBox", "", style | WS_TABSTOP,
+			xstyle, L"ComboBox", L"", style | WS_TABSTOP,
 			x, y, boxW, boxH * 6,
 			parent, NULL, NULL, NULL);
 
@@ -104,14 +109,14 @@ bool BuildControls(HWND parent)
 	style = WS_CHILD | WS_VISIBLE;
 	
 	HWND infoSetLabel = CreateWindowEx(
-			xstyle, "Static", "Current state:", style,
+			xstyle, L"Static", lang("lCurrentState"), style,
 			x, y+4, statW, statH, 
 			parent, NULL, NULL, NULL);
 
 	x += statW + spacer;
 
 	g_setInfoControl = CreateWindowEx(
-			xstyle, "Static", "Information unavailable", style,
+			xstyle, L"Static", lang("InformationUnavailable"), style,
 			x, y+4, boxW, boxH + 10,
 			parent, NULL, NULL, NULL);
 
@@ -124,7 +129,7 @@ bool BuildControls(HWND parent)
 	x = WIN_WIDTH - spacer*2 - butW;
 
 	g_removeButtonControl = CreateWindowEx(
-			xstyle, "Button", "Remove", style | WS_TABSTOP,
+			xstyle, L"Button", lang("bRemove"), style | WS_TABSTOP,
 			x, y, butW, butH,
 			parent, NULL, NULL, NULL);
 
@@ -132,7 +137,7 @@ bool BuildControls(HWND parent)
 	x -= butW + spacer;
 
 	g_installButtonControl = CreateWindowEx(
-			xstyle, "Button", "Install", style | WS_TABSTOP,
+			xstyle, L"Button", lang("bInstall"), style | WS_TABSTOP,
 			x, y, butW, butH,
 			parent, NULL, NULL, NULL);
 
@@ -140,7 +145,7 @@ bool BuildControls(HWND parent)
 	x -= butW + spacer;
 
 	g_helpButtonControl = CreateWindowEx(
-			xstyle, "Button", "Help", style | WS_TABSTOP,
+			xstyle, L"Button", lang("bHelp"), style | WS_TABSTOP,
 			x, y, butW, butH,
 			parent, NULL, NULL, NULL);
 
@@ -148,7 +153,7 @@ bool BuildControls(HWND parent)
 	statW = WIN_WIDTH - spacer*5 - 220;
 
 	g_statusTextControl = CreateWindowEx(
-			xstyle, "Static", "", style,
+			xstyle, L"Static", L"", style,
 			x, y+6, statW, statH,
 			parent, NULL, NULL, NULL);
 

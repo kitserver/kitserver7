@@ -8,7 +8,7 @@
 
 // Returns the game version id
 int GetGameVersion(void);
-int GetGameVersion(char* filename);
+int GetGameVersion(wchar_t* filename);
 bool isGame(int gameVersion);
 
 #endif

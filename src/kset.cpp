@@ -1,41 +1,19 @@
 /* KitServer Settings Patcher */
 
+#define UNICODE
+
 #include <windows.h>
+#include "shared.h"
+#include "manage.h"
 #include "imageutil.h"
 #include "detect.h"
-#include "shared.h"
 #include "kset.h"
+#include "kset_addr.h"
+#include "dllinit.h"
+#include "lang.h"
+#define lang(s) getTransl("kset",s)
 
-// ADDRESSES
-#define CODELEN 4
-enum {
-	C_CONTROLLERADDED, C_BEFORECONTROLLERADD, C_SOMEFUNCTION, C_QUALITYCHECK, 
-};
 
-DWORD codeArray[][CODELEN] = { 
-  // PES2008 DEMO
-  {0,0,0,0,},
-	// [Settings] PES2008 PC DEMO
-	{
-		0x4049c9, 0x4048be, 0x415aaf, 0x4159c0,
-	}
-};
-
-#define DATALEN 1
-enum {
-	CONTROLLER_NUMBER,	
-};
-DWORD dataArray[][DATALEN] = {
-  // PES2008 DEMO
-  {0},
-	// [Settings] PES2008 PC DEMO
-	{
-		0x45a6a2,
-	}
-};
-
-DWORD code[CODELEN];
-DWORD data[DATALEN];
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -63,8 +41,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		memcpy(code, codeArray[v], sizeof(code));
     memcpy(data, dataArray[v], sizeof(data));
     
-    allQualities = (MessageBox(0, "Do you want to enable ALL quality levels, including those\n\
-which aren't officially supported by your graphics card?", WINDOW_TITLE, MB_YESNO) == IDYES);
+    allQualities = (MessageBox(0, lang("MsgEnableAllQual"), WINDOW_TITLE, MB_YESNO) == IDYES);
     
     hookFunctions();
     

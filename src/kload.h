@@ -1,14 +1,7 @@
 /* KitServer Loader Header-File */
-void kloadBeginRenderPlayer1();
-void kloadBeginRenderPlayer2();
-void kloadEndRenderPlayers();
 
-typedef void  (*BEGINRENDERPLAYER1)();
-typedef void  (*ENDRENDERPLAYERS)();
+#define KEXPORT EXTERN_C __declspec(dllexport)
 
-
-typedef struct _TexPlayerInfo {
-	DWORD dummy;
-	BYTE referee;
-	char* playerName;
-} TexPlayerInfo;
+KEXPORT PESINFO* getPesInfo();
+#define GETPESINFO
+KEXPORT void RegisterKModule(KMOD *k);
