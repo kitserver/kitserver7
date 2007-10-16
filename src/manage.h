@@ -11,9 +11,15 @@ typedef struct _KMOD {
 
 typedef struct _PESINFO {
 	wchar_t myDir[BUFLEN];
+	wchar_t processFile[BUFLEN];
+	wchar_t shortProcessFile[BUFLEN];
+	wchar_t shortProcessFileNoExt[BUFLEN];
+	wchar_t pesDir[BUFLEN];
 	wchar_t gdbDir[BUFLEN];
 	wchar_t logName[BUFLEN];
 	int gameVersion;
+	wchar_t lang[32];
+	HANDLE hProc;
 } PESINFO;
 
 enum {

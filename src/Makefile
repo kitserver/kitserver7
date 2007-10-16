@@ -17,18 +17,21 @@ all: dlls apps
 	mkdir output
 	copy *.dll output
 	copy setup.exe output
+	copy lang_*.txt output
 	
 all_dlls: dlls
 	if exist output (rd /S /Q output)
 	mkdir output
 	copy *.dll output
+	copy lang_*.txt output
 	
 all_apps: apps
 	if exist output (rd /S /Q output)
 	mkdir output
 	copy setup.exe output
+	copy lang_*.txt output
 
-dlls: kload.dll #kset.dll
+dlls: kload.dll kset.dll
 apps: setup.exe
 
 release:
@@ -41,11 +44,12 @@ kload: kload.dll
 imageutil.obj: imageutil.cpp imageutil.h
 detect.obj: detect.cpp detect.h
 lang.obj: lang.cpp lang.h
+configs.obj: configs.cpp configs.h
 
 
 kload.lib: kload.obj
-kload.dll: kload.lib detect.obj imageutil.obj lang.obj log.obj kload.res
-	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj log.obj lang.obj kload.res $(LIBS) d3dx9.lib
+kload.dll: kload.lib detect.obj imageutil.obj lang.obj log.obj configs.obj kload.res
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj kload.res $(LIBS) d3dx9.lib
 kload.obj: kload.cpp kload.h
 
 kload.res: 
@@ -53,8 +57,8 @@ kload.res:
 	
 
 kset.lib: kset.obj
-kset.dll: kset.lib detect.obj imageutil.obj lang.obj kset.res
-	$(LINK) $(LFLAGS) /out:kset.dll /DLL kset.obj detect.obj imageutil.obj lang.obj kset.res $(LIBS)
+kset.dll: kset.lib detect.obj imageutil.obj configs.obj lang.obj kset.res
+	$(LINK) $(LFLAGS) /out:kset.dll /DLL kset.obj detect.obj imageutil.obj configs.obj lang.obj kset.res $(LIBS)
 kset.obj: kset.cpp kset.h
 
 kset.res: 
@@ -63,8 +67,8 @@ kset.res:
 
 setupgui.obj: setupgui.cpp setupgui.h
 setup.obj: setup.cpp setup.h setupgui.h
-setup.exe: lang.obj setup.obj detect.obj setupgui.obj imageutil.obj setup.res
-	$(LINK) $(LFLAGS) /out:setup.exe setup.obj detect.obj setupgui.obj imageutil.obj lang.obj setup.res $(LIBS) shell32.lib
+setup.exe: setup.obj detect.obj setupgui.obj imageutil.obj lang.obj configs.obj setup.res
+	$(LINK) $(LFLAGS) /out:setup.exe setup.obj detect.obj setupgui.obj imageutil.obj lang.obj configs.obj setup.res $(LIBS) shell32.lib
 	
 setup.res: 
 	$(RC) -r -fo setup.res setup.rc

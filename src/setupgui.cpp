@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include "setupgui.h"
 
-extern const wchar_t* getTransl(char* section, char* key);
-#define lang(s) getTransl("setup",s)
+extern const wchar_t* _getTransl(char* section, char* key);
+#define lang(s) _getTransl("setup",s)
 
 HWND g_exeListControl;              // displays list of executable files
 HWND g_exeInfoControl;              // displays info about current executable file

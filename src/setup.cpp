@@ -19,8 +19,9 @@
 #include "setupgui.h"
 #include "setup.h"
 #include "detect.h"
+#include "configs.h"
 #include "lang.h"
-#define lang(s) getTransl("setup",s)
+#define lang(s) _getTransl("setup",s)
 
 HWND hWnd = NULL;
 bool g_noFiles = false;
@@ -30,6 +31,7 @@ wchar_t patchExeName[BUFLEN]={0};
 wchar_t patchTitle[BUFLEN]={0};
 char installDllPath[BUFLEN]={0};
 char installDllSetPath[BUFLEN]={0};
+wchar_t setupLang[64] = L"eng\0";
 
 // array of LoadLibrary address on diff. OS
 DWORD LoadLibraryAddr[] = {
@@ -62,6 +64,14 @@ void MyMessageBox2(wchar_t* fmt, wchar_t* value)
 	swprintf(buf, fmt, value);
 	MessageBox(hWnd, buf, L"KitServer 7 DEBUG MyMessage", 0);
 #endif
+}
+
+void setupConfig(char* pName, const void* pValue, DWORD a) {
+	switch (a) {
+		case 1:	// lang
+			wcscpy(setupLang, (wchar_t*)pValue);
+			break;
+	}
 }
 
 /**
@@ -965,8 +975,11 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
  	if(InitApp(hInstance, lpCmdLine) == false)
 		return 0;
-	
-	readLangFile();
+		
+	readConfig(L".\\config.txt");
+	_getConfig("kload", "lang", DT_STRING, 1, setupConfig);
+		
+	readLang(setupLang, hInstance);
 		
 	//detect the folder setup is executed from
 	wchar_t temp[BUFLEN];
@@ -1022,4 +1035,3 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	return 0;
 }
-

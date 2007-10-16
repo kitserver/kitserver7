@@ -9,21 +9,15 @@
 #include <string>
 #include <hash_map>
 
-bool langLoaded = false;
 hash_map<string, wstring> g_transl;
 hash_map<string, wstring>::iterator g_translIt;
 const wchar_t noTransl[] = L"(Translation missing)";
 
-void setStandardTransl() {
-	//
-}
-
 void clearTransl() {
 	g_transl.clear();
-	setStandardTransl();
 }
 
-const wchar_t* getTransl(char* section, char* key) {
+const wchar_t* _getTransl(char* section, char* key) {
 	char buf[BUFLEN];
 	ZeroMemory(buf, BUFLEN);
 	sprintf(buf, "[%s]%s", section, key);
@@ -33,18 +27,40 @@ const wchar_t* getTransl(char* section, char* key) {
 	return g_transl[sKey].c_str();
 }
 
-void readLangFile() {
-	wchar_t langName[] = L"eng";
+void readLang(wchar_t* langName, HMODULE hMod) {
 	wchar_t langFile[BUFLEN];
 	ZeroMemory(langFile, WBUFLEN);
 	swprintf(langFile, L".\\lang_%s.txt", langName);
+	readLangFile(langFile, hMod);
+	return;
+}
+
+void readLangFile(wchar_t* langFile, HMODULE hMod) {
+	bool isTempFile = false;
+	char tmpName[BUFLEN];
+	char* tmpName2 = tmpName + 1;
+	ZeroMemory(tmpName, BUFLEN);
+	
+	clearTransl();
 
 	FILE* f = _wfopen(langFile, L"rb");
 	
-	if (!f) return;
+	if (!f) {
+		// load the translation from the resource to a temporary file
+		HRSRC rsrc = 	FindResource(hMod, &L"#1001", &L"BINARY");
+		BYTE* res = (BYTE*)LoadResource(hMod, rsrc);
+		BYTE* endRes = res;
+		while (*endRes != 0) endRes++;
 		
-	clearTransl();
-	
+		tmpnam(tmpName);
+		FILE * pFile = fopen(tmpName2, "wb");
+		fwrite(res, endRes - res, 1, pFile);
+		fclose(pFile);
+		
+		isTempFile = true;
+		f = fopen(tmpName2, "rb");
+	}
+		
 	DWORD firstDWORD;
 	bool unicodeFile = false;
 	fgets((char*)&firstDWORD, 4, f);
@@ -60,13 +76,13 @@ void readLangFile() {
 		fseek(f, 0, SEEK_SET);
 	}
 	
-	wchar_t currSection[256] = {'\0'};;
+	wchar_t currSection[256] = {'\0'};
 
 	char a_str[BUFLEN];
 	wchar_t str[BUFLEN];
 	wchar_t buf[BUFLEN];
 	wchar_t val[BUFLEN];
-	wchar_t *pFirst = NULL, *pSecond = NULL, *comment = NULL, *pSpace = NULL, *pEq = NULL;
+	wchar_t *pFirst = NULL, *pSecond = NULL, *pSpace = NULL, *pEq = NULL;
 	while (!feof(f))
 	{
 		if (!unicodeFile) {
@@ -135,6 +151,9 @@ void readLangFile() {
 		g_transl[sKey] = sVal;
 	}
 	fclose(f);
+	
+	if (isTempFile)
+		DeleteFileA(tmpName2);
 	
 	return;
 }

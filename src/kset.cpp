@@ -10,20 +10,29 @@
 #include "kset.h"
 #include "kset_addr.h"
 #include "dllinit.h"
+#include "configs.h"
 #include "lang.h"
-#define lang(s) getTransl("kset",s)
-
-
+#define lang(s) _getTransl("kset",s)
 
 // VARIABLES
 HINSTANCE hInst = NULL;
 int controllerCount = 0;
 bool allQualities = true;
-
+wchar_t myDir[BUFLEN];
+wchar_t ksetLang[64] = L"eng\0";
 
 // FUNCTIONS
 void hookFunctions();
 
+
+
+void ksetConfig(char* pName, const void* pValue, DWORD a) {
+	switch (a) {
+		case 1:	// lang
+			wcscpy(ksetLang, (wchar_t*)pValue);
+			break;
+	}
+}
 
 /*******************/
 /* DLL Entry Point */
@@ -40,6 +49,25 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		
 		memcpy(code, codeArray[v], sizeof(code));
     memcpy(data, dataArray[v], sizeof(data));
+    
+    ZeroMemory(myDir, WBUFLEN);
+		GetModuleFileName(hInst, myDir, BUFLEN);
+		wchar_t *q = myDir + wcslen(myDir);
+		while ((q != myDir) && (*q != '\\')) { *q = '\0'; q--; }
+    
+    // read configuration
+		wchar_t temp[BUFLEN];
+		ZeroMemory(temp, WBUFLEN);
+		wcscpy(temp, myDir); 
+		wcscat(temp, L"config.txt");
+		if (!readConfig(temp))
+			;//TRACE(L"Couldn't open the config.txt!");
+    
+		_getConfig("kload", "lang", DT_STRING, 1, ksetConfig);
+		
+		ZeroMemory(temp, WBUFLEN);
+		swprintf(temp, L"%s.\\lang_%s.txt", myDir, ksetLang);
+    readLangFile(temp, hInstance);
     
     allQualities = (MessageBox(0, lang("MsgEnableAllQual"), WINDOW_TITLE, MB_YESNO) == IDYES);
     

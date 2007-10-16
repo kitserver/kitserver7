@@ -1,6 +1,7 @@
 
-void readLangFile();
-const wchar_t* getTransl(char* section, char* key);
+void readLang(wchar_t* langName, HMODULE hMod);
+void readLangFile(wchar_t* langFile, HMODULE hMod);
+const wchar_t* _getTransl(char* section, char* key);
 
 using namespace std;
 
