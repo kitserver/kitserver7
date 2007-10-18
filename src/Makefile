@@ -45,11 +45,15 @@ imageutil.obj: imageutil.cpp imageutil.h
 detect.obj: detect.cpp detect.h
 lang.obj: lang.cpp lang.h
 configs.obj: configs.cpp configs.h
+hooklib.obj: hooklib.cpp hooklib.h
+log.obj: log.cpp log.h
+crc32.obj: crc32.cpp crc32.h
+hook.obj: hook.cpp hook.h
 
 
-kload.lib: kload.obj
-kload.dll: kload.lib detect.obj imageutil.obj lang.obj log.obj configs.obj kload.res
-	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj kload.res $(LIBS) d3dx9.lib
+kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
+kload.dll: kload.lib kload.res
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj kload.res $(LIBS) d3dx9d.lib winmm.lib
 kload.obj: kload.cpp kload.h
 
 kload.res: 

@@ -14,7 +14,8 @@
 #include "kload_addr.h"
 #include "dllinit.h"
 #include "lang.h"
-//#include "hook.h"
+#include "hooklib.h"
+#include "hook.h"
 #define lang(s) getTransl("kload",s)
 
 #include "d3dx9tex.h"
@@ -33,8 +34,15 @@ PESINFO g_pesinfo = {
 	-1,								// gameVersion
 	L"eng",						// lang
 	INVALID_HANDLE_VALUE,	// hProc
+	1024,							// bbWidth
+	768,							// bbHeight
+	1.0,							// stretchX
+	1.0,							// bbWidth
 };
 extern wchar_t* GAME[];
+
+static hook_manager _hook_manager;
+DWORD lastCallSite = 0;
 
 // FUNCTIONS
 void setPesInfo();
@@ -61,7 +69,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			return false;
 		}
 		TRACE1S(L"Game version: %s", GAME[g_pesinfo.gameVersion]);
-		copyAdresses();
+		
+		_hook_manager.SetCallHandler(MasterCallFirst);
 		
 		// read configuration
 		wchar_t cfgFile[BUFLEN];
@@ -102,9 +111,9 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		}
 		#endif
 		
-		//initAddresses(g_pesinfo.GameVersion);
+		initAddresses();
 
-    //hookDirect3DCreate9();
+    hookDirect3DCreate9();
 	}
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
@@ -229,4 +238,194 @@ void kloadConfig(char* pName, const void* pValue, DWORD a)
 			break;
 	}
 	return;
+}
+
+
+// hooking
+
+KEXPORT bool MasterHookFunction(DWORD call_site, DWORD numArgs, void* target)
+{
+    hook_point hp(call_site, numArgs, (DWORD)target);
+    return _hook_manager.hook(hp);
+}
+
+KEXPORT bool MasterUnhookFunction(DWORD call_site, void* target)
+{
+    hook_point hp(call_site, 0, (DWORD)target);
+    return _hook_manager.unhook(hp);
+}
+
+DWORD oldEBP1;
+
+DWORD MasterCallFirst(...)
+{
+	DWORD oldEAX, oldEBX, oldECX, oldEDX;
+	DWORD oldEBP, oldEDI, oldESI;
+	int i;
+	__asm {
+		mov oldEAX, eax
+		mov oldEBX, ebx
+		mov oldECX, ecx
+		mov oldEDX, edx
+		mov oldEBP, ebp
+		mov oldEBP1, ebp
+		mov oldEDI, edi
+		mov oldESI, esi
+	};
+	
+	DWORD arg;
+	DWORD result=0;
+	bool lastAddress=false;
+	DWORD jmpDest=0;
+
+	DWORD call_site=*(DWORD*)(oldEBP+4)-5;
+	DWORD addr=_hook_manager.getFirstTarget(call_site, &lastAddress);
+	
+	if (addr==0) return;
+	
+	DWORD before=lastCallSite;
+	lastCallSite=call_site;
+	
+	DWORD numArgs=_hook_manager.getNumArgs(call_site);
+	bool wasJump=_hook_manager.getType(call_site)==HOOKTYPE_JMP;
+	
+	if (wasJump && lastAddress) {
+		result=oldEAX;
+		goto EndOfCallF;
+	};
+	
+	//writing this as inline assembler allows to
+	//give as much parameters as we want and more
+	//important, we can restore all registers
+	__asm {
+		//push ebp
+	};
+	
+	for (i=numArgs-1;i>=0;i--) {
+		if (wasJump)
+			arg=*((DWORD*)oldEBP+3+i);
+		else
+			arg=*((DWORD*)oldEBP+2+i);
+		__asm mov eax, arg
+		__asm push eax
+	};
+	
+	__asm {
+		//restore registers
+		mov eax, oldEAX
+		mov ebx, oldEBX
+		mov ecx, oldECX
+		mov edx, oldEDX
+		mov edi, oldEDI
+		mov esi, oldESI
+		//mov ebp, oldEBP
+		//mov ebp, [ebp]
+		
+		call ds:[addr]
+		
+		mov result, eax
+		
+	};
+	
+	for (i=0;i<numArgs;i++)
+		__asm pop eax
+	
+	__asm {
+		//pop ebp
+		mov eax, result
+	};
+	
+	EndOfCallF:
+	
+	lastCallSite=before;
+	
+	if (wasJump) {
+		if (lastAddress)
+			jmpDest=addr;
+		else
+			jmpDest=_hook_manager.getOriginalTarget(call_site);
+		
+		//change the return address to the destination of our jump
+		*(DWORD*)(oldEBP+4)=jmpDest;
+	}
+	
+	return result;
+};
+
+KEXPORT DWORD MasterCallNext(...)
+{
+	if (lastCallSite==0) return 0;
+	
+	DWORD oldEAX, oldEBX, oldECX, oldEDX;
+	DWORD oldEBP, oldEDI, oldESI, numArgs;
+	int i;
+	__asm {
+		mov oldEAX, eax
+		mov oldEBX, ebx
+		mov oldECX, ecx
+		mov oldEDX, edx
+		mov oldEBP, ebp
+		mov oldEDI, edi
+		mov oldESI, esi
+	};
+	
+	DWORD result=0;
+	DWORD arg;
+	bool lastAddress=false;
+	
+	DWORD addr=_hook_manager.getNextTarget(lastCallSite, &lastAddress);
+	bool wasJump=_hook_manager.getType(lastCallSite)==HOOKTYPE_JMP;
+	if (addr==0) return 0;
+	
+	//Don't call a jump's last address (its original destination)
+	if (wasJump && lastAddress) {
+		result=oldEAX;
+		//restore registers
+		__asm {
+			mov eax, oldEAX
+			mov ebx, oldEBX
+			mov ecx, oldECX
+			mov edx, oldEDX
+			mov edi, oldEDI
+			mov esi, oldESI
+		};
+		goto EndOfCallN;
+	};
+	
+	numArgs=_hook_manager.getNumArgs(lastCallSite);
+
+	__asm {
+		//push ebp
+	};
+	
+	for (i=numArgs-1;i>=0;i--) {
+		arg=*((DWORD*)oldEBP+2+i);
+		__asm mov eax, arg
+		__asm push eax
+	};
+	
+	__asm {
+		//restore registers
+		mov eax, oldEAX
+		mov ebx, oldEBX
+		mov ecx, oldECX
+		mov edx, oldEDX
+		mov edi, oldEDI
+		mov esi, oldESI
+		//mov ebp, oldEBP
+		//mov ebp, [ebp]
+		
+		call ds:[addr]
+		
+		mov result, eax
+	};
+	
+	for (i=0;i<numArgs;i++)
+		__asm pop eax
+	
+	__asm mov eax, result
+	
+	EndOfCallN:
+	
+	return result;
 }

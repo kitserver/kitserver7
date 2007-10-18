@@ -65,6 +65,7 @@ inline bool checkGameVersion()
 	return true;
 }
 
+#ifndef _COMPILING_KLOAD
 inline void copyAdresses()
 {
 	#ifdef GETPESINFO
@@ -83,3 +84,4 @@ inline void copyAdresses()
 
 	return;
 }
+#endif //_COMPILING_KLOAD

@@ -20,6 +20,10 @@ typedef struct _PESINFO {
 	int gameVersion;
 	wchar_t lang[32];
 	HANDLE hProc;
+	UINT bbWidth;
+	UINT bbHeight;
+	double stretchX;
+	double stretchY;
 } PESINFO;
 
 enum {
