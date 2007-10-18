@@ -2,7 +2,7 @@ CC=cl
 LINK=link
 RC=rc
 
-CFLAGS=/nologo /GX $(EXTRA_CFLAGS) /DUSE_HASHMAPS
+CFLAGS=/nologo /GX $(EXTRA_CFLAGS)
 LFLAGS=/NOLOGO /NODEFAULTLIB:libcmt.lib
 LIBS=user32.lib gdi32.lib advapi32.lib
 LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
@@ -11,6 +11,12 @@ INCPNGDIB=soft\pngdib
 LPPNGDIB=soft\pngdib 
 LPLIBPNG=soft\libpng-1.2.8-lib\lib
 LPZLIB=soft\zlib123-dll\lib
+
+!ifdef MYDLL_RELEASE_BUILD
+D3DX9=d3dx9.lib
+!else
+D3DX9=d3dx9d.lib
+!endif
 
 all: dlls apps
 	if exist output (rd /S /Q output)
@@ -35,7 +41,7 @@ dlls: kload.dll kset.dll
 apps: setup.exe
 
 release:
-	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD
+	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD MYDLL_RELEASE_BUILD=1
 
 setup: setup.exe
 kset: kset.dll
@@ -53,7 +59,7 @@ hook.obj: hook.cpp hook.h
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
 kload.dll: kload.lib kload.res
-	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj kload.res $(LIBS) d3dx9d.lib winmm.lib
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj kload.res $(LIBS) $(D3DX9) winmm.lib
 kload.obj: kload.cpp kload.h
 
 kload.res: 
