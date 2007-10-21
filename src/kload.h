@@ -1,11 +1,13 @@
 /* KitServer Loader Header-File */
 
+#ifdef _COMPILING_KLOAD
 #define MODID 0
 #define NAMELONG L"Module Loader 7.1.0"
 #define NAMESHORT L"KLOAD"
 
 #define DEFAULT_DEBUG 0
 #define DEFAULT_GDB_DIR L".\\"
+#endif // _COMPILING_KLOAD
 
 #define KEXPORT EXTERN_C __declspec(dllexport)
 
@@ -13,7 +15,7 @@
 typedef void  (*PROCESSCONFIG)(char* pName, const void* pValue, DWORD a);
 enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE};
 #define C_ALL 0x80000000
-#endif
+#endif // _COMPILING_KLOAD
 
 // exported functions
 KEXPORT PESINFO* getPesInfo();

@@ -13,6 +13,7 @@ enum HOOKS {
 	hk_D3D_CreateDevice,
 	hk_D3D_Present,
 	hk_D3D_Reset,
+	hk_RenderPlayer,
 	
 	hk_LAST,
 };
@@ -36,8 +37,15 @@ void hookOthers();
 #define VTAB_RESET 16
 #define VTAB_PRESENT 17
 
+typedef struct _TexPlayerInfo {
+	DWORD dummy;
+	BYTE referee;
+	char* playerName;
+} TexPlayerInfo;
+
 typedef void   (*ALLVOID)();
-typedef DWORD   (*RETDWORD)();
+typedef DWORD  (STDMETHODCALLTYPE *LOADTEXTUREFORPLAYER)(DWORD, DWORD);
+typedef void   (*RENDERPLAYER)(TexPlayerInfo* tpi, DWORD coll, DWORD num);
 typedef IDirect3D9* (STDMETHODCALLTYPE *PFNDIRECT3DCREATE9PROC)(UINT sdkVersion);
 typedef HRESULT (STDMETHODCALLTYPE *PFNCREATEDEVICEPROC)(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
@@ -57,5 +65,12 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 	HWND hWnd, LPVOID unused);
 HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params);
 void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice);
+
+
+void prepareRenderPlayers();
+KEXPORT void setTextureHeaderAddr(DWORD* p1, IDirect3DTexture9* tex);
+KEXPORT void setNewSubTexture(DWORD coll, BYTE num, IDirect3DTexture9* tex);
+DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex);
+DWORD hookedEndRenderPlayers();
 
 #endif

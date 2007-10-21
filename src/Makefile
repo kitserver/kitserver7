@@ -37,7 +37,7 @@ all_apps: apps
 	copy setup.exe output
 	copy lang_*.txt output
 
-dlls: kload.dll kset.dll
+dlls: kload.dll kserv.dll #kset.dll
 apps: setup.exe
 
 release:
@@ -64,6 +64,15 @@ kload.obj: kload.cpp kload.h
 
 kload.res: 
 	$(RC) -r -fo kload.res kload.rc
+	
+	
+kserv.lib: kserv.obj
+kserv.dll: kserv.lib kserv.res
+	$(LINK) $(LFLAGS) /out:kserv.dll /DLL kserv.obj kserv.res $(LIBS) $(D3DX9) kload.lib
+kserv.obj: kserv.cpp kserv.h
+
+kset.res: 
+	$(RC) -r -fo kset.res kset.rc
 	
 
 kset.lib: kset.obj

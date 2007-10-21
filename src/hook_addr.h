@@ -1,39 +1,53 @@
 // ADDRESSES for hook.cpp
-#define CODELEN 9
+#define CODELEN 4
 enum {
 	C_D3DCREATE_CS,
-	C_BEGINRENDERPLAYERS_CS, C_BEGINRENDERPLAYERS,
-	C_BEGINRENDERPLAYERS2_CS, C_BEGINRENDERPLAYERS2,
-	C_ENDRENDERPLAYERS_CS, C_ENDRENDERPLAYERS,
+	C_ENDRENDERPLAYERS_CS,
+	C_LOADTEXTUREFORPLAYER_CS, C_LOADTEXTUREFORPLAYER,
 };
 
-#define NOCODEADDR {0,0,0,0,0,0,0,0,0},
+#define NOCODEADDR {0,0,0,0},
 DWORD codeArray[][CODELEN] = { 
   // PES2008 DEMO
 	{
 		0x901ab1,
-		0x9affd8, 0x88d1b0,
-		0x8bfc6e, 0x88d1b0,
-		0x88a852, 0x889f30,
+		0x88a852,
+		0x435f28, 0x83c3e0,
 	},
 	// [Settings] PES2008 PC DEMO
   NOCODEADDR
 };
 
-#define DATALEN 1
+#define DATALEN 2
 enum {
-	DUMMY,	
+	PLAYERDATA, ISREFEREEADDR,
 };
 
-#define NODATAADDR {0},
+#define NODATAADDR {0,0},
 DWORD dataArray[][DATALEN] = {
   // PES2008 DEMO
-	NODATAADDR
+	{
+		0xd6dcd4, 0xa86470,
+	},
 	// [Settings] PES2008 PC DEMO
 	NODATAADDR
 };
 
+#define LTFPLEN 15
+#define NOLTFPADDR {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+BYTE ltfpPatchArray[][LTFPLEN] = {
+	// PES2008 DEMO
+	{
+		0x8b, 0xf8,														// MOV EDI, EAX
+		0x8b, 0x44, 0x24, 0x38, 							// MOV EAX,DWORD PTR SS:[ESP+38]
+		0x83, 0xf8, 0x04,											// CMP EAX,4
+		0x0f, 0x87, 0x1f, 0x06, 0x00, 0x00,		//JA 0043655B
+	},
+	// [Settings] PES2008 PC DEMO
+	NOLTFPADDR
+};
+
+
 DWORD code[CODELEN];
 DWORD data[DATALEN];
-
-
+BYTE ltfpPatch[LTFPLEN];

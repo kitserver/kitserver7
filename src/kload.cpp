@@ -18,8 +18,6 @@
 #include "hook.h"
 #define lang(s) getTransl("kload",s)
 
-#include "d3dx9tex.h"
-
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kload = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};

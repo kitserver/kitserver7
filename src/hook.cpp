@@ -14,6 +14,8 @@
 
 #include <vector>
 #include <algorithm>
+#include <map>
+#include <hash_map>
 
 extern KMOD k_kload;
 extern PESINFO g_pesinfo;
@@ -23,11 +25,21 @@ vector<void*> g_callChains[hk_LAST];
 ID3DXFont* myFonts[4][100];
 bool g_bGotFormat = false;
 
+
+map<DWORD*, DWORD> g_replacedHeaders;
+map<DWORD*, DWORD>::iterator g_replacedHeadersIt = NULL;
+hash_map<DWORD, IDirect3DTexture9*> g_replacedMap;
+hash_map<DWORD, IDirect3DTexture9*>::iterator g_replacedMapIt;
+
+
 PFNDIRECT3DCREATE9PROC g_orgDirect3DCreate9 = NULL;
 BYTE g_codeDirect3DCreate9[5] = {0,0,0,0,0};
 PFNCREATEDEVICEPROC g_orgCreateDevice = NULL;
 PFNPRESENTPROC g_orgPresent = NULL;
 PFNRESETPROC g_orgReset = NULL;
+
+ALLVOID g_orgBeginRender1 = NULL;
+ALLVOID g_orgBeginRender2 = NULL;
 
 
 void hookDirect3DCreate9()
@@ -90,7 +102,8 @@ void initAddresses()
 {
 	// select correct addresses
 	memcpy(code, codeArray[g_pesinfo.gameVersion], sizeof(code));
-	//memcpy(data, dataArray[g_pesinfo.gameVersion], sizeof(data));
+	memcpy(data, dataArray[g_pesinfo.gameVersion], sizeof(data));
+	memcpy(ltfpPatch, ltfpPatchArray[g_pesinfo.gameVersion], sizeof(ltfpPatch));
 	
 	ZeroMemory(myFonts, 4*100*sizeof(ID3DXFont*));
 	
@@ -146,14 +159,31 @@ IDirect3D9* STDMETHODCALLTYPE newDirect3DCreate9(UINT sdkVersion) {
 		}
 	}
 	
-	//return new MyDirect3D9(result);
-
 	hookOthers();
 	
 	return result;
 }
 
 void hookOthers() {
+
+	DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	DWORD g_savedProtection;
+	BYTE* bptr;
+	DWORD* ptr;
+
+	if (code[C_LOADTEXTUREFORPLAYER] != 0 && code[C_LOADTEXTUREFORPLAYER_CS] != 0)	{
+		bptr = (BYTE*)code[C_LOADTEXTUREFORPLAYER_CS];
+    if (VirtualProtect(bptr, 5 + LTFPLEN, newProtection, &g_savedProtection)) {
+        bptr[0] = 0xe8;
+        DWORD* ptr = (DWORD*)(code[C_LOADTEXTUREFORPLAYER_CS] + 1);
+        ptr[0] = (DWORD)hookedLoadTextureForPlayer - (DWORD)(code[C_LOADTEXTUREFORPLAYER_CS] + 5);
+        
+        memcpy(bptr + 5, ltfpPatch, LTFPLEN);
+    }
+	}
+	
+	MasterHookFunction(code[C_ENDRENDERPLAYERS_CS], 0, hookedEndRenderPlayers);
+	
 	return;
 }
 
@@ -252,7 +282,7 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 		NextCall(self, src, dest, hWnd, unused);
 	}
 
-	KDrawTextAbsolute(L"TestTest", 0, 0);
+	//KDrawTextAbsolute(L"TestTest", 0, 0);
 
 	// CALL ORIGINAL FUNCTION ///////////////////
 	HRESULT res = g_orgPresent(self, src, dest, hWnd, unused);
@@ -313,4 +343,168 @@ void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice)
 	}
 	
 	return;
+}
+
+void prepareRenderPlayers() {
+	TexPlayerInfo tpi;
+	
+	DWORD* startVal = *(DWORD**)(data[PLAYERDATA]);
+	DWORD* nextVal = (DWORD*)*startVal;
+	
+	while (nextVal != startVal) {
+		ZeroMemory(&tpi, sizeof(TexPlayerInfo));
+		
+		DWORD temp = *(nextVal + 2);
+		nextVal = (DWORD*)*nextVal;
+		
+		if (!temp) continue;
+		
+		DWORD temp2 = *(DWORD*)(temp + 0x64);
+		if (!temp2) continue;
+		DWORD* texArr = *(DWORD**)(temp2 + 0x454);
+		if (!texArr) continue;
+		
+		bool isReferee = (*(DWORD*)temp == data[ISREFEREEADDR]);
+		if (!isReferee) {
+			DWORD playerName = *(DWORD*)(temp + 0x534);
+			DWORD playerInfo = playerName - 0x11c;
+
+			tpi.playerName = (char*)playerName;
+		}
+			
+		tpi.dummy = 123;
+		tpi.referee = isReferee?1:0;
+		//
+
+		for (int i = 0; i < 9; i++)  {
+			DWORD coll = texArr[i];
+			if (!coll) continue;
+
+			CALLCHAIN(hk_RenderPlayer, it) {
+				RENDERPLAYER NextCall = (RENDERPLAYER)*it;
+				NextCall(&tpi, coll, i);
+			}
+		}
+	}
+}
+
+
+KEXPORT void setTextureHeaderAddr(DWORD* p1, IDirect3DTexture9* tex)
+{
+	if (!p1) return;
+	
+	// save the value
+	g_replacedHeadersIt = g_replacedHeaders.find(p1);
+	// only save if this header hasn't been replaced yet
+	if (g_replacedHeadersIt ==  g_replacedHeaders.end()) {
+		g_replacedHeaders[p1] = *p1;
+	}
+	
+	// create a buffer and set it as the new value
+	DWORD value = (DWORD)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 0x24);
+	*(DWORD*)(value + 8) = (DWORD)tex;
+	*p1 = value;
+	return;
+}
+
+KEXPORT void setNewSubTexture(DWORD coll, BYTE num, IDirect3DTexture9* tex)
+{
+	if (!coll) return;
+		
+	DWORD temp1 = *(DWORD*)(coll + 0x444);
+	if (!temp1) return;
+		
+	DWORD loadedNum = *(DWORD*)(temp1 + 0x15c);
+
+	g_replacedMap[temp1 ^ ((num & 0xff) * 0x1010101)] = tex;
+		
+	if (num > loadedNum - 1) return;
+	
+	DWORD* subtextures = *(DWORD**)(temp1 + 0x164);
+	if (!subtextures) return;
+	
+	setTextureHeaderAddr(subtextures + num, tex);
+	
+	return;
+}
+
+DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex)
+{
+	DWORD _ESI, _EBP;
+	__asm mov _ESI, esi
+	__asm mov _EBP, ebp
+
+	DWORD* subtextures = *(DWORD**)(_ESI + 0x164);
+	DWORD loadedNum = *(DWORD*)(_ESI + 0x15c);
+	bool isNewTex = false;
+	
+	// free our own subtexture headers
+	if (subtextures) {
+		for (int i=0; i < loadedNum; i++) {
+			g_replacedHeadersIt = g_replacedHeaders.find(subtextures + i);
+			if (g_replacedHeadersIt != g_replacedHeaders.end()) {
+				HeapFree(GetProcessHeap(), 0, (VOID*)*(g_replacedHeadersIt->first));
+				*(g_replacedHeadersIt->first) = g_replacedHeadersIt->second;
+				g_replacedHeaders.erase(subtextures + i);
+			}
+		}
+	}
+	
+	DWORD newTex1 = newTex;
+	
+	g_replacedMapIt = g_replacedMap.find(_ESI ^ ((num & 0xff) * 0x1010101));
+	if (g_replacedMapIt != g_replacedMap.end()) {
+		newTex1 = NULL;//g_replacedMapIt->second;
+		isNewTex = true;
+	}
+		
+	// call the original function
+	__asm mov esi, _ESI
+	DWORD res = ((LOADTEXTUREFORPLAYER)code[C_LOADTEXTUREFORPLAYER])(num, newTex1);
+	
+	
+	subtextures = *(DWORD**)(_ESI + 0x164);
+	loadedNum = *(DWORD*)(_ESI + 0x15c);
+
+	if (subtextures) {
+		for (int i=0; i < loadedNum; i++) {
+			if (i != num) {
+				g_replacedMapIt = g_replacedMap.find(_ESI ^ ((i & 0xff) * 0x1010101));
+				if (g_replacedMapIt != g_replacedMap.end()) {
+					setTextureHeaderAddr(subtextures + i, g_replacedMapIt->second);
+				}
+			} else if (isNewTex) {
+				// save the value
+				g_replacedHeadersIt = g_replacedHeaders.find(subtextures + num);
+				// only save if this header hasn't been replaced yet
+				if (g_replacedHeadersIt ==  g_replacedHeaders.end()) {
+					g_replacedHeaders[subtextures + num] = newTex;
+				}
+			}
+		}
+	}
+
+	return newTex1;
+}
+
+DWORD hookedEndRenderPlayers() {
+	DWORD _EDI;
+	__asm mov _EDI, edi
+	
+	prepareRenderPlayers();
+	
+	__asm mov edi, _EDI
+	DWORD res = MasterCallNext();
+	
+	// free all replaced buffers and reset them to the original ones
+	for (g_replacedHeadersIt = g_replacedHeaders.begin(); 
+			g_replacedHeadersIt != g_replacedHeaders.end();
+			g_replacedHeadersIt++)
+		{
+			HeapFree(GetProcessHeap(), 0, (VOID*)*(g_replacedHeadersIt->first));
+			*(g_replacedHeadersIt->first) = g_replacedHeadersIt->second;
+		}
+	g_replacedHeaders.clear();
+	
+	return res;
 }
