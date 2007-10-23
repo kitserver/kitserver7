@@ -40,12 +40,13 @@ void hookOthers();
 typedef struct _TexPlayerInfo {
 	DWORD dummy;
 	BYTE referee;
+	BYTE lod;
 	char* playerName;
 } TexPlayerInfo;
 
 typedef void   (*ALLVOID)();
 typedef DWORD  (STDMETHODCALLTYPE *LOADTEXTUREFORPLAYER)(DWORD, DWORD);
-typedef void   (*RENDERPLAYER)(TexPlayerInfo* tpi, DWORD coll, DWORD num);
+typedef void   (*RENDERPLAYER)(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
 typedef IDirect3D9* (STDMETHODCALLTYPE *PFNDIRECT3DCREATE9PROC)(UINT sdkVersion);
 typedef HRESULT (STDMETHODCALLTYPE *PFNCREATEDEVICEPROC)(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
@@ -70,6 +71,8 @@ void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice);
 void prepareRenderPlayers();
 KEXPORT void setTextureHeaderAddr(DWORD* p1, IDirect3DTexture9* tex);
 KEXPORT void setNewSubTexture(DWORD coll, BYTE num, IDirect3DTexture9* tex);
+KEXPORT IDirect3DTexture9* getSubTexture(DWORD coll, DWORD num);
+KEXPORT WORD getOrgTexId(DWORD coll, DWORD num);
 DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex);
 DWORD hookedEndRenderPlayers();
 

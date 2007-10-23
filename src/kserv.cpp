@@ -23,7 +23,7 @@ bool allQualities = true;
 // FUNCTIONS
 void initKserv();
 
-void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num);
+void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
 
 
 /*******************/
@@ -88,19 +88,34 @@ void initKserv() {
 }
 
 
-void DumpTexture(IDirect3DTexture9* const ptexture, DWORD a) 
+void DumpTexture(IDirect3DTexture9* const ptexture) 
 {
     wchar_t buf[BUFLEN];
-    swprintf(buf, L"kitserver\\tex-%08x-%08x.bmp", a, (DWORD)ptexture);
-    D3DXSaveTextureToFile(buf, D3DXIFF_BMP, ptexture, NULL);
+    swprintf(buf, L"kitserver\\tex-%08x.dds", (DWORD)ptexture);
+    D3DXSaveTextureToFile(buf, D3DXIFF_DDS, ptexture, NULL);
 }
 
-void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num)
+IDirect3DTexture9* bigTex = NULL;
+IDirect3DTexture9* smallTex = NULL;
+void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum)
 {
-	if (num != 0) return;
-	
-	for (int j=0; j<20; j++)
-		setNewSubTexture(coll, j, NULL);
+	if (((tpi->lod == 0) && (num != 0)) ||
+		  ((tpi->lod == 1) && (num != 1)) ||
+		  ((tpi->lod > 1) && (num != 2)))
+		return;
+		
+	if (!bigTex) {
+		D3DXCreateTextureFromFile(getActiveDevice(), L"E:\\Pro Evolution Soccer 2008 DEMO\\kitserver\\GDB\\chelsea.png", &bigTex);
+		smallTex = bigTex;
+		//DumpTexture(bigTex);
+	}
 
+	for (int i = 0; i < orgTexMaxNum; i++) {
+		if (orgTexIds[i] == 0x69) {
+			setNewSubTexture(coll, i, bigTex);
+		} else if (orgTexIds[i] == 0x70) {
+			setNewSubTexture(coll, i, smallTex);
+		}
+	}
 	return;
 }

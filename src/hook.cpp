@@ -347,6 +347,7 @@ void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice)
 
 void prepareRenderPlayers() {
 	TexPlayerInfo tpi;
+	WORD orgTexIds[50];
 	
 	DWORD* startVal = *(DWORD**)(data[PLAYERDATA]);
 	DWORD* nextVal = (DWORD*)*startVal;
@@ -371,23 +372,60 @@ void prepareRenderPlayers() {
 
 			tpi.playerName = (char*)playerName;
 		}
-			
+		
 		tpi.dummy = 123;
+		tpi.lod = *(BYTE*)(temp2 + 0x4c4);
 		tpi.referee = isReferee?1:0;
 		//
 
 		for (int i = 0; i < 9; i++)  {
 			DWORD coll = texArr[i];
 			if (!coll) continue;
+				
+			DWORD temp3 = *(DWORD*)(coll + 0x444);
+			if (!temp3) continue;
+			
+			DWORD ktmdl = *(DWORD*)(temp3 + 0x120);
+			if (!ktmdl) continue;
+			ktmdl = *(DWORD*)(ktmdl + 0xc);
+			if (!ktmdl) continue;
+
+			DWORD ktmdlEntriesStart = ktmdl + *(DWORD*)(ktmdl + 0x54);
+			WORD* texTypes = (WORD*)(ktmdl + *(DWORD*)(ktmdl + 0x80) + 8);
+			BYTE orgTexMaxNum = (*(DWORD*)(ktmdl + 0x60) - *(DWORD*)(ktmdl + 0x54)) / 0x50;
+
+			for (int j = 0; j < orgTexMaxNum; j++) {
+				WORD orgTexNum = *(WORD*)(ktmdlEntriesStart + 0x50 * j + 0xe);
+				orgTexIds[j] = texTypes[orgTexNum * 8];
+			}
 
 			CALLCHAIN(hk_RenderPlayer, it) {
 				RENDERPLAYER NextCall = (RENDERPLAYER)*it;
-				NextCall(&tpi, coll, i);
+				NextCall(&tpi, coll, i, orgTexIds, orgTexMaxNum);
 			}
 		}
 	}
 }
 
+KEXPORT WORD getOrgTexId(DWORD coll, DWORD num) {
+	if (!coll) return 0;
+		
+	DWORD temp3 = *(DWORD*)(coll + 0x444);
+	if (!temp3) return 0;
+	
+	DWORD ktmdl = *(DWORD*)(temp3 + 0x120);
+	if (!ktmdl) return 0;
+	ktmdl = *(DWORD*)(ktmdl + 0xc);
+	if (!ktmdl) return 0;
+		
+	DWORD ktmdlEntriesStart = ktmdl + *(DWORD*)(ktmdl + 0x54);
+	WORD* texTypes = (WORD*)(ktmdl + *(DWORD*)(ktmdl + 0x80) + 8);
+	
+	WORD orgTexNum = *(WORD*)(ktmdlEntriesStart + 0x50 * num + 0xe);
+	
+	return texTypes[orgTexNum * 8];	
+	
+}
 
 KEXPORT void setTextureHeaderAddr(DWORD* p1, IDirect3DTexture9* tex)
 {
@@ -402,7 +440,7 @@ KEXPORT void setTextureHeaderAddr(DWORD* p1, IDirect3DTexture9* tex)
 	
 	// create a buffer and set it as the new value
 	DWORD value = (DWORD)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 0x24);
-	*(DWORD*)(value + 8) = (DWORD)tex;
+	*(DWORD*)(value + 0x20) = (DWORD)tex;
 	*p1 = value;
 	return;
 }
@@ -427,6 +465,26 @@ KEXPORT void setNewSubTexture(DWORD coll, BYTE num, IDirect3DTexture9* tex)
 	
 	return;
 }
+
+KEXPORT IDirect3DTexture9* getSubTexture(DWORD coll, DWORD num)
+{
+	if (!coll) return NULL;
+		
+	DWORD temp1 = *(DWORD*)(coll + 0x444);
+	if (!temp1) return NULL;
+		
+	DWORD loadedNum = *(DWORD*)(temp1 + 0x15c);
+	if (num > loadedNum - 1) return NULL;
+	
+	DWORD** subtextures = *(DWORD***)(temp1 + 0x164);
+	if (!subtextures) return NULL;
+		
+	DWORD* temp2 = *(subtextures + num);
+	if (!temp2) return NULL;
+	
+	return (IDirect3DTexture9*)(*(temp2 + 8));
+}
+	
 
 DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex)
 {
@@ -454,7 +512,9 @@ DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex)
 	
 	g_replacedMapIt = g_replacedMap.find(_ESI ^ ((num & 0xff) * 0x1010101));
 	if (g_replacedMapIt != g_replacedMap.end()) {
-		newTex1 = NULL;//g_replacedMapIt->second;
+		// create a buffer and set it as the new value
+		newTex1 = (DWORD)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 0x24);
+		*(DWORD*)(newTex1 + 0x20) = (DWORD)g_replacedMapIt->second;
 		isNewTex = true;
 	}
 		
