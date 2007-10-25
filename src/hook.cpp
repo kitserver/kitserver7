@@ -159,7 +159,7 @@ IDirect3D9* STDMETHODCALLTYPE newDirect3DCreate9(UINT sdkVersion) {
 		}
 	}
 	
-	hookOthers();
+	//hookOthers();
 	
 	return result;
 }

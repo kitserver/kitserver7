@@ -81,7 +81,7 @@ void initKserv() {
 		}
 	}
 	
-	hookFunction(hk_RenderPlayer, kservRenderPlayer);
+	//hookFunction(hk_RenderPlayer, kservRenderPlayer);
 	
 	TRACE(L"Hooking done.");
 	unhookFunction(hk_D3D_Create, initKserv);

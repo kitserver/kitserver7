@@ -20,7 +20,7 @@ char* GAME_GUID[] = {
     "rr0\"\x0d\x09\x08",
 };
 DWORD GAME_GUID_OFFSETS[] = { 0x67aca8, 0x5b5c4, 0x994e74, 0x5ec34, 0x3e0 };
-bool ISGAME[] = { true, false };
+bool ISGAME[] = { true, false, true, false, true };
 
 // Returns the game version id
 int GetGameVersion(void)
@@ -64,5 +64,5 @@ int GetGameVersion(wchar_t* filename)
 }
 
 bool isGame(int gameVersion) {
-	return ISGAME[gameVersion % 2];
+	return ISGAME[gameVersion];
 }

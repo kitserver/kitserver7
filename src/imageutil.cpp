@@ -198,7 +198,7 @@ DWORD getImportThunkRVA(FILE* f, char* dllName, char* funcName)
 		
 		//find the right dll
 		if (stricmp(iidName, dllName) == 0) {
-			fseek(f, getFileOffset(f, iid.FirstThunk), SEEK_SET);
+			fseek(f, getFileOffset(f, iid.OriginalFirstThunk), SEEK_SET);
 			
 			//now find the function
 			for (WORD j=0;; j++)
