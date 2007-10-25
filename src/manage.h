@@ -29,6 +29,9 @@ typedef struct _PESINFO {
 enum {
 	gvPES2008demo,		// PES2008 PC DEMO
 	gvPES2008demoSet,	// PES2008 PC DEMO (Settings)
+	gvPES2008,		    // PES2008 PC
+	gvPES2008Set,	    // PES2008 PC (Settings)
+	gvPES2008fltNODVD,  // PES2008 PC FLT-NODVD
 };
 
 #endif

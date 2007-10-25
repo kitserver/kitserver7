@@ -8,12 +8,18 @@
 wchar_t* GAME[] = { 
 	L"PES2008 PC DEMO",
 	L"[Settings] PES2008 PC DEMO",
+	L"PES2008 PC",
+	L"[Settings] PES2008 PC",
+	L"PES2008 PC FLT-NODVD",
 };
 char* GAME_GUID[] = {
 	"Pro Evolution Soccer 2008 DEMO",
 	"Pro Evolution Soccer 2008 DEMO",
+	"Pro Evolution Soccer 2008",
+	"Pro Evolution Soccer 2008",
+    "rr0\"\x0d\x09\x08",
 };
-DWORD GAME_GUID_OFFSETS[] = { 0x67aca8, 0x5b5c4 };
+DWORD GAME_GUID_OFFSETS[] = { 0x67aca8, 0x5b5c4, 0x994e74, 0x5ec34, 0x3e0 };
 bool ISGAME[] = { true, false };
 
 // Returns the game version id
@@ -24,9 +30,9 @@ int GetGameVersion(void)
 	{
 		if (!IsBadReadPtr((BYTE*)hMod + GAME_GUID_OFFSETS[i], strlen(GAME_GUID[i]))) {
 			char* guid = (char*)((DWORD)hMod + GAME_GUID_OFFSETS[i]);
-			if (strncmp(guid, GAME_GUID[i], strlen(GAME_GUID[i]))==0)
+			if (memcmp(guid, GAME_GUID[i], strlen(GAME_GUID[i]))==0)
 				return i;
-		}
+		} 
 	}
 	return -1;
 }
@@ -34,7 +40,8 @@ int GetGameVersion(void)
 // Returns the game version id
 int GetGameVersion(wchar_t* filename)
 {
-	char guid[] = "{00000000-0000-0000-0000-000000000000}";
+	char guid[512];
+    memset(guid,0,sizeof(guid));
 
 	FILE* f = _wfopen(filename, L"rb");
 	if (f == NULL)
@@ -45,7 +52,7 @@ int GetGameVersion(wchar_t* filename)
 	{
 		fseek(f, GAME_GUID_OFFSETS[i], SEEK_SET);
 		fread(guid, strlen(GAME_GUID[i]), 1, f);
-		if (strncmp(guid, GAME_GUID[i], strlen(GAME_GUID[i]))==0)
+		if (memcmp(guid, GAME_GUID[i], strlen(GAME_GUID[i]))==0)
 		{
 			fclose(f);
 			return i;
@@ -57,5 +64,5 @@ int GetGameVersion(wchar_t* filename)
 }
 
 bool isGame(int gameVersion) {
-	return ISGAME[gameVersion];
+	return ISGAME[gameVersion % 2];
 }

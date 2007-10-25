@@ -41,7 +41,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			TRACE(L"Sorry, your game version isn't supported!");
 			return false;
 		}
-		
+
+        copyAdresses();
 		hookFunction(hk_D3D_Create, initKserv);
 	}
 	
@@ -75,6 +76,7 @@ void initKserv() {
 	    if (VirtualProtect(bptr, 2, newProtection, &protection)) {
 	    	/* NOP */ bptr[0] = 0x90;
 	    	/* Jmp... */ bptr[1] = 0xe9;
+            TRACE1N(L"Quality check #%d disabled",i);
 			}
 		}
 	}

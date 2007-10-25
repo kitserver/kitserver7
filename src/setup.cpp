@@ -10,7 +10,8 @@
 
 #define DLL_NAME "kload\0"
 #define DLL_NAME_SET "kset\0"
-#define DEFAULT_EXE_NAME L"PES2008DEMO.exe\0"
+#define DEFAULT_EXE_NAME L"PES2008.exe\0"
+#define DEFAULT_DEMO_EXE_NAME L"PES2008DEMO.exe\0"
 #define BUFLEN 4096
 #define SW sizeof(wchar_t)
 #define WBUFLEN (SW * BUFLEN)
@@ -165,7 +166,9 @@ void InstallKserv(void)
 			dataVA = 0;
 	
 			// find empty space at the end of .rdata
-			if (SeekSectionHeader(f, ".rdata")) {
+			bool rdataFound = SeekSectionHeader(f, ".rdata");
+            if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	
 	            //adjust SizeOfRawData (needed for WE9LEK-nocd)
@@ -244,6 +247,7 @@ KitServer 7 is already installed (1) for\n\
 	
 			// find empty space at the end of .text
 	        bool textFound = SeekSectionHeader(f, ".text");
+	        if (!textFound) textFound = SeekSectionHeader(f,"rr02");
 	        if (!textFound) textFound = SeekSectionHeader(f,"");
 			if (textFound) {
 				fread(&textHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
@@ -415,7 +419,9 @@ void RemoveKserv(void)
 			dataVA = 0;
 	
 			// find empty space at the end of .rdata
-			if (SeekSectionHeader(f, ".rdata")) {
+			bool rdataFound = SeekSectionHeader(f, ".rdata");
+            if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	
 				dataVA = dataHeader.VirtualAddress + dataHeader.SizeOfRawData;
@@ -469,6 +475,7 @@ KitServer 7 is not installed for\n\
 	
 			// find empty space at the end of .text
 	        bool textFound = SeekSectionHeader(f, ".text");
+	        if (!textFound) textFound = SeekSectionHeader(f,"rr02");
 	        if (!textFound) textFound = SeekSectionHeader(f,"");
 			if (textFound) {
 				fread(&textHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
@@ -596,7 +603,7 @@ void UpdateInfo(void)
 		{
 			SendMessage(infoControl, WM_SETTEXT, (WPARAM)0, 
 					(LPARAM)L"Unknown EXE-file, this is not a valid executable \
-of Pro Evolution Soccer 7!\0");
+of Pro Evolution Soccer 2008!\0");
 			continue;
 		}
 		
@@ -624,7 +631,9 @@ executable.\0");
 			DWORD dataVA = 0;
 	
 			// find empty space at the end of .rdata
-			if (SeekSectionHeader(f, ".rdata")) {
+			bool rdataFound = SeekSectionHeader(f, ".rdata");
+            if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	
 				dataVA = dataHeader.VirtualAddress + dataHeader.SizeOfRawData;

@@ -5,7 +5,7 @@
 
 #include <windows.h>
 
-#define WIN_WIDTH 510 
+#define WIN_WIDTH 535 
 #define WIN_HEIGHT 205
 
 extern HWND g_exeListControl;              // displays list of executable files

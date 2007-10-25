@@ -1,6 +1,7 @@
 // ADDRESSES for kset.cpp
 BYTE allowedGames[] = {
 	gvPES2008demoSet,
+	gvPES2008Set,
 };
 
 #define CODELEN 4
@@ -15,7 +16,13 @@ DWORD codeArray[][CODELEN] = {
 	// [Settings] PES2008 PC DEMO
 	{
 		0x4049c9, 0x4048be, 0x415aaf, 0x4159c0,
-	}
+	},
+  // PES2008
+  NOCODEADDR
+	// [Settings] PES2008 PC
+	{
+		0, 0, 0x41902f, 0x418f40,
+	},
 };
 
 #define DATALEN 1
@@ -30,7 +37,13 @@ DWORD dataArray[][DATALEN] = {
 	// [Settings] PES2008 PC DEMO
 	{
 		0x45a6a2,
-	}
+	},
+  // PES2008 DEMO
+  NODATAADDR
+	// [Settings] PES2008 PC
+	{
+		0,
+	},
 };
 
 DWORD code[CODELEN];

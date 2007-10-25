@@ -37,7 +37,7 @@ all_apps: apps
 	copy setup.exe output
 	copy lang_*.txt output
 
-dlls: kload.dll kserv.dll #kset.dll
+dlls: kload.dll kserv.dll kset.dll
 apps: setup.exe
 
 release:
