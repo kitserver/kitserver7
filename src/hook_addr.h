@@ -16,6 +16,12 @@ DWORD codeArray[][CODELEN] = {
 	},
 	// [Settings] PES2008 PC DEMO
   NOCODEADDR
+  // PES2008
+  NOCODEADDR
+	// [Settings] PES2008 PC
+  NOCODEADDR
+  // PES2008 FLT-NODVD
+  NOCODEADDR
 };
 
 #define DATALEN 2
@@ -31,6 +37,12 @@ DWORD dataArray[][DATALEN] = {
 	},
 	// [Settings] PES2008 PC DEMO
 	NODATAADDR
+	// PES2008 PC
+	NODATAADDR
+	// [Settings] PES2008 PC
+	NODATAADDR
+	// PES2008 PC FLT-NODVD
+	NODATAADDR
 };
 
 #define LTFPLEN 15
@@ -44,6 +56,12 @@ BYTE ltfpPatchArray[][LTFPLEN] = {
 		0x0f, 0x87, 0x1f, 0x06, 0x00, 0x00,		//JA 0043655B
 	},
 	// [Settings] PES2008 PC DEMO
+	NOLTFPADDR
+	// PES2008 PC
+	NOLTFPADDR
+	// [Settings] PES2008 PC
+	NOLTFPADDR
+	// PES2008 PC FLT-NODVD
 	NOLTFPADDR
 };
 

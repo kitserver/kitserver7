@@ -1,10 +1,10 @@
-Kitserver 7 for the PES2008 PC DEMO                           October 1, 2007
+Kitserver 7 for the PES2008 PC                               October 25, 2007
 =============================================================================
-Version 7.0.0a
+Version 7.0.0b - the Great October Socialist Revolution Release
 
 FEATURES
 ---------------
-- Enable up to 4 controllers
+- Enable up to 4 controllers (for demo)
 - Select quality levels which PES doesn't want you to choose
 
 INSTALLATION
@@ -32,4 +32,4 @@ or #4. However you can't use your gamepad in the main menu then, that works only
 with the first controller.
 
 Have a lot of fun,
-Robbie
+Robbie and Juce.
