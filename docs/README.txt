@@ -1,6 +1,6 @@
 Kitserver 7 for the PES2008 PC                               October 25, 2007
 =============================================================================
-Version 7.0.0b - the Great October Socialist Revolution Release
+Version 7.0.0c - the Great October Socialist Revolution Release
 
 FEATURES
 ---------------

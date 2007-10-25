@@ -1,6 +1,6 @@
 Kitserver 7 para PES2008 PC                             25 de Outubro de 2007
 =============================================================================
-Versão 7.0.0b
+Versão 7.0.0c
 
 Portuguese (brazilian)
 
