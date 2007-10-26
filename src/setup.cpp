@@ -149,6 +149,20 @@ void InstallKserv(void)
 			// Install
 			loadLibAddr1 = getImportThunkRVA(f, "kernel32.dll","LoadLibraryA");
 			
+			// this used to cause the latest crashes on game start
+			if (!loadLibAddr1) {
+				// show message box with error msg
+				wchar_t buf[BUFLEN];
+				ZeroMemory(buf, WBUFLEN);
+				swprintf(buf, L"\
+======== ERROR! =========\n\
+Couldn't find LoadLibraryA in\n\
+%s.", fileName);
+
+				wcscat(outmsg, buf);
+				continue;
+			}
+			
 			if (SeekEntryPoint(f))
 			{
 				fread(&ep, sizeof(DWORD), 1, f);
@@ -167,7 +181,7 @@ void InstallKserv(void)
 	
 			// find empty space at the end of .rdata
 			bool rdataFound = SeekSectionHeader(f, ".rdata");
-            if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+			if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
 			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	

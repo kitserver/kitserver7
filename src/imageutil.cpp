@@ -198,7 +198,11 @@ DWORD getImportThunkRVA(FILE* f, char* dllName, char* funcName)
 		
 		//find the right dll
 		if (stricmp(iidName, dllName) == 0) {
-			fseek(f, getFileOffset(f, iid.OriginalFirstThunk), SEEK_SET);
+			// the FLT no-dvd has no OFT, but for the vitality no-dvd the FT is wrong
+			if (iid.OriginalFirstThunk)
+				fseek(f, getFileOffset(f, iid.OriginalFirstThunk), SEEK_SET);
+			else
+				fseek(f, getFileOffset(f, iid.FirstThunk), SEEK_SET);
 			
 			//now find the function
 			for (WORD j=0;; j++)
