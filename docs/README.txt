@@ -1,6 +1,6 @@
 Kitserver 7 for PES2008 PC                               October 27, 2007
 =============================================================================
-Version 7.0.0d - the Pennsylvania Release
+Version 7.0.0d - the Philadelphia Release
 
 FEATURES
 ---------------
