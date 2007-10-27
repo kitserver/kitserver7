@@ -34,15 +34,16 @@ void OpenLog(wchar_t* logName)
 void CloseLog()
 {
 	if (mylog != INVALID_HANDLE_VALUE) CloseHandle(mylog);
+	mylog = INVALID_HANDLE_VALUE;
 }
 
 // Simple logger
 KEXPORT void _Log(KMOD *caller, wchar_t *msg)
 {
 	if (!caller || mylog == INVALID_HANDLE_VALUE) return;
-	#ifdef MYDLL_RELEASE_BUILD
+	/*#ifdef MYDLL_RELEASE_BUILD
 	if (caller->debug < 1) return;
-	#endif
+	#endif*/
 	
 	DWORD wbytes;
 	wchar_t buf[BUFLEN];

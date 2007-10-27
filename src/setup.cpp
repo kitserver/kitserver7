@@ -105,7 +105,7 @@ void InstallKserv(void)
 		SendMessage(listControl, CB_GETLBTEXT, idx, (LPARAM)p);
 	
 		// check if it's a recognizable EXE-file
-		if (GetGameVersion(fileName) == -1)
+		if (GetRealGameVersion(fileName) == -1)
 		{
 			// show message box with error msg
 			wchar_t buf[BUFLEN];
@@ -116,7 +116,7 @@ void InstallKserv(void)
 			continue;
 		}
 		
-		if (isGame(GetGameVersion(fileName)) != (i==0)) {
+		if (isRealGame(GetRealGameVersion(fileName)) != (i==0)) {
 			wchar_t buf[BUFLEN];
 			ZeroMemory(buf, WBUFLEN);
 			swprintf(buf, lang("Err_WrongExeType"), fileName, (i==0)?lang("ParamSettings"):lang("ParamGame"),
@@ -613,7 +613,7 @@ void UpdateInfo(void)
 		SendMessage(listControl, CB_GETLBTEXT, idx, (LPARAM)p);
 	
 		// check if it's a recognizable EXE-file
-		if (GetGameVersion(fileName) == -1)
+		if (GetRealGameVersion(fileName) == -1)
 		{
 			SendMessage(infoControl, WM_SETTEXT, (WPARAM)0, 
 					(LPARAM)L"Unknown EXE-file, this is not a valid executable \
@@ -621,7 +621,7 @@ of Pro Evolution Soccer 2008!\0");
 			continue;
 		}
 		
-		if (isGame(GetGameVersion(fileName)) != (i==0)) {
+		if (isRealGame(GetRealGameVersion(fileName)) != (i==0)) {
 			if (i==0) {
 				SendMessage(infoControl, WM_SETTEXT, (WPARAM)0, 
 					(LPARAM)L"You selected a settings executable instead a a game \

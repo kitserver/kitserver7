@@ -20,10 +20,11 @@ char* GAME_GUID[] = {
     "rr0\"\x0d\x09\x08",
 };
 DWORD GAME_GUID_OFFSETS[] = { 0x67aca8, 0x5b5c4, 0x994e74, 0x5ec34, 0x3e0 };
-bool ISGAME[] = { true, false, true, false, true };
+bool ISGAME[] = { true, false, true, false };
+BYTE BASE_GAME[] = {0, 1, 2, 3, 2};
 
 // Returns the game version id
-int GetGameVersion(void)
+int GetRealGameVersion(void)
 {
 	HMODULE hMod = GetModuleHandle(NULL);
 	for (int i=0; i<sizeof(GAME_GUID)/sizeof(char*); i++)
@@ -38,7 +39,7 @@ int GetGameVersion(void)
 }
 
 // Returns the game version id
-int GetGameVersion(wchar_t* filename)
+int GetRealGameVersion(wchar_t* filename)
 {
 	char guid[512];
     memset(guid,0,sizeof(guid));
@@ -63,6 +64,27 @@ int GetGameVersion(wchar_t* filename)
 	return -1;
 }
 
-bool isGame(int gameVersion) {
+bool isGame(int gameVersion)
+{
+	if (gameVersion == -1) return false;
 	return ISGAME[gameVersion];
+}
+
+bool isRealGame(int realGameVersion)
+{
+	if (realGameVersion == -1) return false;
+	return ISGAME[GetGameVersion(realGameVersion)];
+}
+
+int GetGameVersion()
+{
+	int v = GetRealGameVersion();
+	if (v == -1) return -1;
+	return BASE_GAME[v];
+}
+
+int GetGameVersion(int realGameVersion)
+{
+	if (realGameVersion == -1) return -1;
+	return BASE_GAME[realGameVersion];
 }

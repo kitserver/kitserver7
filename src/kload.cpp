@@ -30,6 +30,7 @@ PESINFO g_pesinfo = {
 	DEFAULT_GDB_DIR,	// gdbDir
 	NULLSTRING,				// logName
 	-1,								// gameVersion
+	-1,								// realGameVersion
 	L"eng",						// lang
 	INVALID_HANDLE_VALUE,	// hProc
 	1024,							// bbWidth
@@ -66,7 +67,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			TRACE(L"Sorry, your game version isn't supported!");
 			return false;
 		}
-		TRACE1S(L"Game version: %s", GAME[g_pesinfo.gameVersion]);
+		TRACE1S(L"Game version: %s", GAME[g_pesinfo.realGameVersion]);
 		
 		_hook_manager.SetCallHandler(MasterCallFirst);
 		
@@ -101,13 +102,13 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		swprintf(langFile, L"%s.\\lang_%s.txt", g_pesinfo.myDir, g_pesinfo.lang);
 		readLangFile(langFile, hInstance);
 		
-		#ifdef MYDLL_RELEASE_BUILD
+		/*#ifdef MYDLL_RELEASE_BUILD
 		//if debugging shouldn't have been enabled, delete log file
 		if (k_kload.debug < 1) {
 			CloseLog();
 			DeleteFile(g_pesinfo.logName);
 		}
-		#endif
+		#endif*/
 		
 		initAddresses();
 
@@ -174,7 +175,8 @@ void setPesInfo()
 	wcscat(g_pesinfo.logName, g_pesinfo.shortProcessFileNoExt); 
 	wcscat(g_pesinfo.logName, L".log");
 
-	g_pesinfo.gameVersion = GetGameVersion();
+	g_pesinfo.realGameVersion = GetRealGameVersion();
+	g_pesinfo.gameVersion = GetGameVersion(g_pesinfo.realGameVersion);
 
 	return;
 }

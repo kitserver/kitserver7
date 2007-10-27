@@ -2,7 +2,6 @@
 BYTE allowedGames[] = {
 	gvPES2008demo,
 	gvPES2008,
-	gvPES2008fltNODVD,
 };
 
 #define CODELEN 4
@@ -24,10 +23,6 @@ DWORD codeArray[][CODELEN] = {
 	},
 	// [Settings] PES2008 PC
   NOCODEADDR
-  // PES2008 FLT-NODVD
-	{
-		0, 0, 0xbb6adf, 0xbb6b95,
-	},
 };
 
 #define DATALEN 1
@@ -44,8 +39,6 @@ DWORD dataArray[][DATALEN] = {
   // PES2008
 	NODATAADDR
 	// [Settings] PES2008 PC
-	NODATAADDR
-  // PES2008 FLT-NODVD
 	NODATAADDR
 };
 

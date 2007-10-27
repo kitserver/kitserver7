@@ -18,6 +18,7 @@ typedef struct _PESINFO {
 	wchar_t gdbDir[BUFLEN];
 	wchar_t logName[BUFLEN];
 	int gameVersion;
+	int realGameVersion;
 	wchar_t lang[32];
 	HANDLE hProc;
 	UINT bbWidth;

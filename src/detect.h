@@ -7,9 +7,12 @@
 #include <stdio.h>
 
 // Returns the game version id
-int GetGameVersion(void);
-int GetGameVersion(wchar_t* filename);
+int GetRealGameVersion(void);
+int GetRealGameVersion(wchar_t* filename);
+int GetGameVersion();
+int GetGameVersion(int realGameVersion);
 bool isGame(int gameVersion);
+bool isRealGame(int realGameVersion);
 
 #endif
 
