@@ -1,0 +1,180 @@
+<html>
+<head>
+    <title>Kitserver 7 Manual</title>
+    <style>
+        img { display:block;margin:10px 0 10px 0;border:1px solid #000; }
+        table td img {border:0}
+        div.note { background-color:#fdc;color:#800;padding:5px; }
+        p.devnote { font-weight:bold;font-style:italic;color:#666; }
+        table {padding:10px 0 10px 0;margin-top:5px}
+        table td {padding:5px;border:1px solid #000}
+        table th {padding:5px;border:1px solid #000;background-color:#ccc}
+        span.kitid {color:#080;font-style:italic}
+        pre {background-color:#dfd;border-top:1px solid #668;border-bottom:1px solid #668}
+        h5 {color:#668; background-color:#dec; display:block;padding:5px;font-family:verdana,arial}
+        h3,h4 {color:#668; background-color:#bdc;display:block;padding:5px;font-family:verdana,arial}
+        h2 {color:#446; display:block;padding:5px 0 5px 0;font-family:verdana,arial;border-bottom:3px solid #668}
+        div,span,p,li {font-family:verdana,arial;}
+        li {margin-bottom:10px;}
+        table {font-family:verdana,arial;}
+        table.shpal td {padding:5px 20px 5px 0;border-bottom:1px solid #000;
+            border-top:none;border-left:none;border-right:none}
+        table.shpal td.top {border-top:1px solid #000}
+        span.soft {font-weight:bold;color:#696;}
+        span.ex {font-weight:bold;color:#669;}
+        a {color:#448;}
+        a:visited {color:#448;}
+        a:hover {color:#448;background-color:#ccf}
+        a:active {color:#448;}
+        tr.newf td {background-color:#efd}
+        span.exclam {font-weight:bold;color:#484;}
+        span.emph {color:#844;}
+        div.hist {color:#888;float:right;}
+        span.buttontext {font-weight:bold;color:#000;background-color:#888}
+        a.ac{font-weight:bold;}
+    </style>
+</head>
+<body>
+<h2>Kitserver 7 Manual</h2>
+
+<div class="hist">
+Version history: <a href="history.txt">history.txt</a><br />
+</div>
+<div>
+October 29, 2007 - <b>Kitserver 7.0.0e (BETA)</b><br />
+Module Versions: <a href="#lodmixer">LOD Mixer 7.0.0</a>
+</div>
+
+<h3>Introduction</h3>
+<p>
+Kitserver 7 is an add-on program for Pro Evolution Soccer 2008. It is a loader and manager 
+for various modules.<br />
+Currently the following features are implemented:</p>
+
+<ul>
+<li>Enable up to 4 controllers (for demo)
+<li>Select quality levels which PES doesn't want you to choose
+<li>Any window resolution supported, hidden fullscreen resolutions unlocked
+<li>Manual/Automatic aspect ratio correction.
+</ul>
+
+<h3>Installation</h3>
+
+<p>
+As in Kitserver 6, you have to unpack the archive to your PES installation
+folder and run the setup.exe. What is new is that you can now also select your
+settings.exe. This is necessary because some changes are only possible in that
+file. simply select these both files (they should already be preselected) and
+click "Install". If you choose that you don't want to use Kitserver any longer,
+run setup.exe again and click "Remove". You can also install/remove Kitserver
+only for one exe by setting the other one to "no action".
+</p>
+
+<h3>How to use</h3>
+
+<p>
+After installing Kitserver, you are asked if you want to enable all quality
+levels. In PES2008, Konami doesn't allow you to choose a high quality level if
+the game thinks your PC isn't good enough for that. If you click on "Yes", that
+check is removed and you can try if they are right with their assumption.
+Apart from that you can now choose 4 controllers in the "Controller" tab. That
+means you can configure your gamepads here and later play with them. Note that
+by default the keyboard is controller #1. If you setup your gamepad as first
+controller, you can't play against someone using the keyboard and your gamepad.
+For that, you shouldn't setup a gamepad as first controller but always as #2, #3
+or #4. However you can't use your gamepad in the main menu then, that works only
+with the first controller.
+</p>
+
+<a name="lodmixer">
+<h3>LOD Mixer configuration</h3>
+</a>
+
+<p>
+This is the first release of LOD-Mixer for PES2008. Currently two features are
+implemented: screen resolution , and aspect ratio correction. Both of these
+can be configured in kitserver main configuration file (kitserver/config.txt).
+</p>
+
+<h5>1. Screen Resolution.</h5>
+<p>
+You can set any screen resolution you want, if you play in a Windowed mode. Even
+crazy screens like 1567x532 will work, but you're likely to suffer from 
+performance problems on such cases.
+Hidden fullscreen resolutions are fully unlocked now as well. However, only those
+that your video card really supports in full-screen mode, will work. If you 
+accidently choose an unsupported fullscreen resolution, then PES should still 
+be able to start in a window.
+</p>
+
+<p>
+You specify the resolution in config.txt using "screen.width" and "screen.height"
+settings. Here's an example config fragment for LOD mixer:
+</p>
+
+<pre>
+[lodmixer]
+screen.width = 1920
+screen.height = 1200
+</pre>
+
+<h5>2. Aspect Ratio.</h5>
+<p>
+PES2008 offers only two choices for aspect ratio - 4:3 and 16:9. However, lots of
+LCD monitors don't exactly fit into either of these two. Often, a 16:10 ratio is
+used, or even 16:9.6. This results in the picture being distored: players either
+too fat or too skinny, and ball is not round.
+</p>
+
+<p>
+With LOD Mixer, you can set the aspect ratio to whatever you want. Either let
+LOD Mixer calcaulate it automatically - from width and height of the resolution
+that you specify - or set the value manually. Automatic way would work quite
+accurately, assuming the pixel is square. Sometimes, however, you would want to
+set it manually. For example, i play on widescreen monitor, but using a 800x600 
+resolution, because my video card is not powerful enough. The automatic 
+calculation would give 4:3, but since the view is stretched to fill the entire 
+screen, we need to account for that. Setting aspect ratio to 1.6 (which is a 
+natural AR for my laptop) does the trick.
+</p>
+
+<h5>Here are some configuration examples:</h5>
+
+<p>
+Example 1 - we let the game choose resolution, but enforce aspect ratio:
+</p>
+
+<pre>
+[lodmixer]
+screen.aspect-ratio = 1.66666
+</pre>
+
+<p>
+Example 2 - we set both the resolution and aspect ratio:
+</p>
+
+<pre>
+[lodmixer]
+screen.width = 800
+screen.height = 600
+screen.aspect-ratio = 1.6
+</pre>
+
+<p>
+Example 3 - we set the resolution, and rely on automatic aspect ratio:
+</p>
+
+<pre>
+[lodmixer]
+screen.width = 1650
+screen.height = 1050
+</pre>
+
+
+<h2>Credits</h2>
+<p>
+Programming: <b>Robbie</b> and <b>juce</b>
+</p>
+
+</body>
+</html>
