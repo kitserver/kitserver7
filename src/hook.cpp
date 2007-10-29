@@ -44,6 +44,7 @@ BYTE g_codeDirect3DCreate9[5] = {0,0,0,0,0};
 PFNCREATEDEVICEPROC g_orgCreateDevice = NULL;
 PFNPRESENTPROC g_orgPresent = NULL;
 PFNRESETPROC g_orgReset = NULL;
+PFNSETTRANSFORMPROC g_orgSetTransform = NULL;
 
 ALLVOID g_orgBeginRender1 = NULL;
 ALLVOID g_orgBeginRender2 = NULL;
@@ -258,6 +259,17 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
 				TRACE(L"Reset hooked.");
 			}
     }
+
+    // hook SetTransform method
+    if (!g_orgSetTransform) {
+			g_orgSetTransform = (PFNSETTRANSFORMPROC)vtable[VTAB_SETTRANSFORM];
+			if (VirtualProtect(vtable+VTAB_SETTRANSFORM, 4, newProtection, &protection) &&
+					VirtualProtect(vtable2+VTAB_SETTRANSFORM, 4, newProtection, &protection))
+			{
+				vtable[VTAB_SETTRANSFORM] = vtable2[VTAB_SETTRANSFORM] = (DWORD)newSetTransform;
+				TRACE(L"SetTransform hooked.");
+			}
+    }
 	}
 	
 	CALLCHAIN(hk_D3D_CreateDevice, it) {
@@ -362,6 +374,19 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 	}
 	
 	return res;
+}
+
+HRESULT STDMETHODCALLTYPE newSetTransform(IDirect3DDevice9* self, 
+		D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX* pMatrix)
+{
+	HRESULT res = g_orgSetTransform(self, State, pMatrix);
+
+	CALLCHAIN(hk_D3D_SetTransform, it) {
+		PFNSETTRANSFORMPROC NextCall = (PFNSETTRANSFORMPROC)*it;
+		NextCall(self, State, pMatrix);
+	}
+
+    return res;
 }
 
 void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice)

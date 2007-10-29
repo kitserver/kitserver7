@@ -13,6 +13,7 @@ enum HOOKS {
 	hk_D3D_CreateDevice,
 	hk_D3D_Present,
 	hk_D3D_Reset,
+	hk_D3D_SetTransform,
 	hk_RenderPlayer,
 	
 	hk_LAST,
@@ -36,6 +37,7 @@ void hookOthers();
 // IDirect3DDevice9
 #define VTAB_RESET 16
 #define VTAB_PRESENT 17
+#define VTAB_SETTRANSFORM 44
 
 typedef struct _TexPlayerInfo {
 	BYTE referee;
@@ -77,6 +79,8 @@ typedef HRESULT (STDMETHODCALLTYPE *PFNCREATEDEVICEPROC)(IDirect3D9* self, UINT 
 typedef HRESULT (STDMETHODCALLTYPE *PFNPRESENTPROC)(IDirect3DDevice9* self, 
 		CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
 typedef HRESULT (STDMETHODCALLTYPE *PFNRESETPROC)(IDirect3DDevice9* self, LPVOID);
+typedef HRESULT (STDMETHODCALLTYPE *PFNSETTRANSFORMPROC)(IDirect3DDevice9* self, 
+		D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX* pMatrix);
 
 IDirect3D9* STDMETHODCALLTYPE newDirect3DCreate9(UINT sdkVersion);
 HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
@@ -87,6 +91,8 @@ KEXPORT IDirect3DDevice9* getActiveDevice();
 HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused);
 HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params);
+HRESULT STDMETHODCALLTYPE newSetTransform(IDirect3DDevice9* self, 
+		D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX* pMatrix);
 void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice);
 
 

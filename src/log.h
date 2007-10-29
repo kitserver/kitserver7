@@ -21,6 +21,19 @@
 #define LogWithFourFloats(x,a,b,c,d) _LogWithFourFloats(THISMOD,x,a,b,c,d)
 #define LogWithDouble(x,a) _LogWithDouble(THISMOD,x,a)
 
+#define LOG(x) _Log(THISMOD,x)
+#define LOG1N(x,a) _LogWithNumber(THISMOD,x,a)
+#define LOG2N(x,a,b) _LogWithTwoNumbers(THISMOD,x,a,b)
+#define LOG3N(x,a,b,c) _LogWithThreeNumbers(THISMOD,x,a,b,c)
+#define LOG1S(x,a) _LogWithString(THISMOD,x,a)
+#define LOG2S(x,a,b) _LogWithTwoStrings(THISMOD,x,a,b)
+#define LOG1N1S(x,a,b) _LogWithNumberAndString(THISMOD,x,a,b)
+#define LOG1S1N(x,a,b) _LogWithStringAndNumber(THISMOD,x,a,b)
+#define LOG1F(x,a) _LogWithFloat(THISMOD,x,a)
+#define LOG4F(x,a,b,c,d) _LogWithFourFloats(THISMOD,x,a,b,c,d)
+#define LOG1D(x,a) _LogWithDouble(THISMOD,x,a)
+
+#ifndef MYDLL_RELEASE_BUILD
 #define TRACE(x) Log(x)
 #define TRACE1N(x,a) LogWithNumber(x,a)
 #define TRACE2N(x,a,b) LogWithTwoNumbers(x,a,b)
@@ -32,7 +45,19 @@
 #define TRACE1F(x,a) LogWithFloat(x,a)
 #define TRACE4F(x,a,b,c,d) LogWithFourFloats(x,a,b,c,d)
 #define TRACE1D(x,a) LogWithDouble(x,a)
-
+#else
+#define TRACE(x)
+#define TRACE1N(x,a)
+#define TRACE2N(x,a,b)
+#define TRACE3N(x,a,b,c)
+#define TRACE1S(x,a)
+#define TRACE2S(x,a,b)
+#define TRACE1N1S(x,a,b)
+#define TRACE1S1N(x,a,b)
+#define TRACE1F(x,a)
+#define TRACE4F(x,a,b,c,d)
+#define TRACE1D(x,a)
+#endif
 
 KEXPORT void OpenLog(wchar_t* logName);
 KEXPORT void CloseLog();

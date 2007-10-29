@@ -60,14 +60,14 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		setPesInfo();
 		
 		OpenLog(g_pesinfo.logName);
-		TRACE(L"Log started.");
+		LOG(L"Log started.");
 		RegisterKModule(THISMOD);
 		
 		if (!checkGameVersion()) {
-			TRACE(L"Sorry, your game version isn't supported!");
+			LOG(L"Sorry, your game version isn't supported!");
 			return false;
 		}
-		TRACE1S(L"Game version: %s", GAME[g_pesinfo.realGameVersion]);
+		LOG1S(L"Game version: %s", GAME[g_pesinfo.realGameVersion]);
 		
 		_hook_manager.SetCallHandler(MasterCallFirst);
 		
@@ -77,7 +77,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		wcscpy(cfgFile, g_pesinfo.myDir); 
 		wcscat(cfgFile, L"config.txt");
 		if (!readConfig(cfgFile))
-			TRACE(L"Couldn't open the config.txt!");
+			LOG(L"Couldn't open the config.txt!");
 		
 		_getConfig("kload", "gdb.dir", DT_STRING, 1, kloadConfig);
 		_getConfig("kload", "debug", DT_DWORD, 2, kloadConfig);
@@ -117,7 +117,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-		TRACE(L"Closing log.");
+		LOG(L"Closing log.");
 		CloseLog();
 	}
 	
@@ -221,7 +221,7 @@ void kloadLoadDlls(char* pName, const wchar_t* pValue, DWORD a)
 	else
 		TRACE(L"... was successful!");
 	 
-	 return;
+	return;
 }
 
 void kloadConfig(char* pName, const void* pValue, DWORD a)

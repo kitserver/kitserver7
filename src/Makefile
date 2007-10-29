@@ -37,7 +37,7 @@ all_apps: apps
 	copy setup.exe output
 	copy lang_*.txt output
 
-dlls: kload.dll kserv.dll kset.dll
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll
 apps: setup.exe
 
 release:
@@ -46,6 +46,7 @@ release:
 setup: setup.exe
 kset: kset.dll
 kload: kload.dll
+lodmixer: lodmixer.dll
 
 imageutil.obj: imageutil.cpp imageutil.h
 detect.obj: detect.cpp detect.h
@@ -71,9 +72,10 @@ kserv.dll: kserv.lib kserv.res
 	$(LINK) $(LFLAGS) /out:kserv.dll /DLL kserv.obj kserv.res $(LIBS) $(D3DX9) kload.lib
 kserv.obj: kserv.cpp kserv.h
 
-kset.res: 
-	$(RC) -r -fo kset.res kset.rc
-	
+lodmixer.lib: lodmixer.obj
+lodmixer.dll: lodmixer.lib lodmixer.res
+	$(LINK) $(LFLAGS) /out:lodmixer.dll /DLL lodmixer.obj lodmixer.res $(LIBS) $(D3DX9) kload.lib
+lodmixer.obj: lodmixer.cpp lodmixer.h lodmixer_addr.h
 
 kset.lib: kset.obj
 kset.dll: kset.lib detect.obj imageutil.obj configs.obj lang.obj kset.res
