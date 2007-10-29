@@ -1,0 +1,34 @@
+Kitserver 7 HISTORY notes
+=========================
+
+
+2007-10-29
+----------
+v7.0.0e:
+- lodmixer: first release
+- custom resolution setting
+- aspect ratio corrrection (automatic/manual)
+
+
+2007-10-27
+----------
+v7.0.0d:
+- kserv bug-fixes: FLT-DVD is supported again.
+
+
+2007-10-25
+----------
+v7.0.0c:
+- kserv: support for ViTaLiTy NODVD
+
+v7.0.0b: 
+- kserv: support for full game, including FLT-NODVD
+
+
+2007-10-01
+----------
+v7.0.0a: 
+- first version released; 
+- unlocked visual settings selection (Low/Medium/High)
+- 4 controllers enabled for demo.
+
