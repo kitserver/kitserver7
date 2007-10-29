@@ -379,13 +379,12 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 HRESULT STDMETHODCALLTYPE newSetTransform(IDirect3DDevice9* self, 
 		D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX* pMatrix)
 {
-	HRESULT res = g_orgSetTransform(self, State, pMatrix);
-
 	CALLCHAIN(hk_D3D_SetTransform, it) {
 		PFNSETTRANSFORMPROC NextCall = (PFNSETTRANSFORMPROC)*it;
 		NextCall(self, State, pMatrix);
 	}
 
+	HRESULT res = g_orgSetTransform(self, State, pMatrix);
     return res;
 }
 
