@@ -13,7 +13,7 @@
 
 #ifndef _COMPILING_KLOAD
 typedef void  (*PROCESSCONFIG)(char* pName, const void* pValue, DWORD a);
-enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE};
+enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE, DT_FLOAT};
 #define C_ALL 0x80000000
 #endif // _COMPILING_KLOAD
 

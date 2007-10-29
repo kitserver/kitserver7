@@ -260,6 +260,7 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
 			}
     }
 
+    /*
     // hook SetTransform method
     if (!g_orgSetTransform) {
 			g_orgSetTransform = (PFNSETTRANSFORMPROC)vtable[VTAB_SETTRANSFORM];
@@ -270,6 +271,7 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
 				TRACE(L"SetTransform hooked.");
 			}
     }
+    */
 	}
 	
 	CALLCHAIN(hk_D3D_CreateDevice, it) {

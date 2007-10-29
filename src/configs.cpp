@@ -113,6 +113,7 @@ void _getConfig(char* section, char* name, BYTE dataType, DWORD a, PROCESSCONFIG
 	DWORD dValue;
 	int iValue;
 	double dbValue;
+	float fValue;
 		
 	ZeroMemory(buf, BUFLEN);
 	sprintf(buf, "[%s]%s", section, name);
@@ -160,6 +161,11 @@ void _getConfig(char* section, char* name, BYTE dataType, DWORD a, PROCESSCONFIG
 			case DT_DOUBLE:
 				if (swscanf(value, L"%f", &dbValue) != 1) continue;
 				callback(buf, &dbValue, a & 0x7fffffff);
+				break;
+
+			case DT_FLOAT:
+				if (swscanf(value, L"%f", &fValue) != 1) continue;
+				callback(buf, &fValue, a & 0x7fffffff);
 				break;
 			
 			case DT_NORMAL:

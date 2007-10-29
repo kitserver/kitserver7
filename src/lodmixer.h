@@ -10,13 +10,14 @@
 typedef struct _DIMENSIONS {
     int width;
     int height;
+    float aspectRatio;
 } DIMENSIONS;
 
-typedef struct _DXCONFIG {
+typedef struct _LMCONFIG {
     DIMENSIONS screen;
-} DXCONFIG;
+} LMCONFIG;
 
 #define DEFAULT_WIDTH 0
 #define DEFAULT_HEIGHT 0
-
+#define DEFAULT_ASPECT_RATIO 0.0f
 

@@ -12,7 +12,7 @@ using namespace std;
 // "a" might contain some info for the function, ''
 typedef void  (*PROCESSCONFIG)(char* pName, const void* pValue, DWORD a);
 
-enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE};
+enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE, DT_FLOAT};
 #define C_ALL 0x80000000
 
 bool readConfig(wchar_t* cfgFile);
