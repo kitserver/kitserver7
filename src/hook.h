@@ -38,15 +38,37 @@ void hookOthers();
 #define VTAB_PRESENT 17
 
 typedef struct _TexPlayerInfo {
-	DWORD dummy;
 	BYTE referee;
 	BYTE lod;
+	bool gameReplay;
+	BYTE epiMode;
+	DWORD playerInfo;
 	char* playerName;
+	BYTE team; // 0 or 1
+	BYTE teamPos; // 0 to 31
+	BYTE lineupPos; // 0 to 10, maybe 11 on substitutions
+	WORD teamId;
+	DWORD playerId;
+	bool isGk;
+		
 } TexPlayerInfo;
+
+enum {EPIMODE_NO, EPIMODE_EDITPLAYER, EPIMODE_KITSELECT, EPIMODE_EDITTEAM};
+typedef struct _EditPlayerInfo {
+	BYTE mode;
+	WORD teamId;
+	DWORD playerId;
+	bool isGk;
+	BYTE num;
+	BYTE team;
+			
+} EditPlayerInfo;
+
 
 typedef void   (*ALLVOID)();
 typedef DWORD  (STDMETHODCALLTYPE *LOADTEXTUREFORPLAYER)(DWORD, DWORD);
 typedef void   (*RENDERPLAYER)(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
+
 typedef IDirect3D9* (STDMETHODCALLTYPE *PFNDIRECT3DCREATE9PROC)(UINT sdkVersion);
 typedef HRESULT (STDMETHODCALLTYPE *PFNCREATEDEVICEPROC)(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
@@ -74,6 +96,8 @@ KEXPORT void setNewSubTexture(DWORD coll, BYTE num, IDirect3DTexture9* tex);
 KEXPORT IDirect3DTexture9* getSubTexture(DWORD coll, DWORD num);
 KEXPORT WORD getOrgTexId(DWORD coll, DWORD num);
 DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex);
-DWORD hookedEndRenderPlayers();
+void hookedBeginRenderPlayer();
+DWORD STDMETHODCALLTYPE hookedEditCopyPlayerName(DWORD p1, DWORD p2);
+DWORD hookedCopyString(DWORD dest, DWORD destLen, DWORD src, DWORD srcLen);
 
 #endif

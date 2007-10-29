@@ -42,7 +42,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			return false;
 		}
 
-        copyAdresses();
+		copyAdresses();
 		hookFunction(hk_D3D_Create, initKserv);
 	}
 	
@@ -81,7 +81,9 @@ void initKserv() {
 		}
 	}
 	
-	//hookFunction(hk_RenderPlayer, kservRenderPlayer);
+	#ifndef MYDLL_RELEASE_BUILD
+	hookFunction(hk_RenderPlayer, kservRenderPlayer);
+	#endif
 	
 	TRACE(L"Hooking done.");
 	unhookFunction(hk_D3D_Create, initKserv);
@@ -101,6 +103,9 @@ IDirect3DTexture9* bigTex = NULL;
 IDirect3DTexture9* smallTex = NULL;
 void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum)
 {
+	if (tpi->referee) return;
+	if (!tpi->isGk) return;
+	
 	if (((tpi->lod == 0) && (num != 0)) ||
 		  ((tpi->lod == 1) && (num != 1)) ||
 		  ((tpi->lod > 1) && (num != 2)))

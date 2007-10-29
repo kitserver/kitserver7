@@ -10,12 +10,14 @@
 #include "hook.h"
 #include "kload.h"
 #include "hook_addr.h"
+#include "utf8.h"
 #define lang(s) getTransl("kload",s)
 
 #include <vector>
 #include <algorithm>
 #include <map>
 #include <hash_map>
+#include <string>
 
 extern KMOD k_kload;
 extern PESINFO g_pesinfo;
@@ -24,12 +26,17 @@ IDirect3DDevice9* g_device = NULL;
 vector<void*> g_callChains[hk_LAST];
 ID3DXFont* myFonts[4][100];
 bool g_bGotFormat = false;
+bool rpPrepared = false;
+bool freeEditModeData = false;
 
 
 map<DWORD*, DWORD> g_replacedHeaders;
 map<DWORD*, DWORD>::iterator g_replacedHeadersIt = NULL;
 hash_map<DWORD, IDirect3DTexture9*> g_replacedMap;
 hash_map<DWORD, IDirect3DTexture9*>::iterator g_replacedMapIt;
+	
+hash_map<DWORD, EditPlayerInfo*> g_editPlayerInfoMap;
+hash_map<DWORD, EditPlayerInfo*>::iterator g_editPlayerInfoMapIt;
 
 
 PFNDIRECT3DCREATE9PROC g_orgDirect3DCreate9 = NULL;
@@ -40,7 +47,9 @@ PFNRESETPROC g_orgReset = NULL;
 
 ALLVOID g_orgBeginRender1 = NULL;
 ALLVOID g_orgBeginRender2 = NULL;
+DWORD g_orgEditCopyPlayerName = NULL;
 
+string renderedPlayers = "";
 
 void hookDirect3DCreate9()
 {
@@ -159,7 +168,7 @@ IDirect3D9* STDMETHODCALLTYPE newDirect3DCreate9(UINT sdkVersion) {
 		}
 	}
 	
-	//hookOthers();
+	hookOthers();
 	
 	return result;
 }
@@ -182,7 +191,28 @@ void hookOthers() {
     }
 	}
 	
-	MasterHookFunction(code[C_ENDRENDERPLAYERS_CS], 0, hookedEndRenderPlayers);
+	// replace the render functions for player textures	
+	ptr = (DWORD*)code[TBL_BEGINRENDER1];
+	VirtualProtect(ptr, 4, newProtection, &g_savedProtection);
+	g_orgBeginRender1 = (ALLVOID)*ptr;
+	*ptr = (DWORD)hookedBeginRenderPlayer;
+	
+	ptr = (DWORD*)code[TBL_BEGINRENDER2];
+	VirtualProtect(ptr, 4, newProtection, &g_savedProtection);
+	g_orgBeginRender2 = (ALLVOID)*ptr;
+	*ptr = (DWORD)hookedBeginRenderPlayer;
+	
+	if (code[C_EDITCOPYPLAYERNAME_CS] != 0)	{
+		bptr = (BYTE*)code[C_EDITCOPYPLAYERNAME_CS];
+    if (VirtualProtect(bptr, 5, newProtection, &g_savedProtection)) {
+        bptr[0] = 0xe8;
+        DWORD* ptr = (DWORD*)(code[C_EDITCOPYPLAYERNAME_CS] + 1);
+        g_orgEditCopyPlayerName = *ptr + code[C_EDITCOPYPLAYERNAME_CS] + 5;
+        ptr[0] = (DWORD)hookedEditCopyPlayerName - (DWORD)(code[C_EDITCOPYPLAYERNAME_CS] + 5);
+    }
+	}
+	
+	MasterHookFunction(code[C_COPYSTRING_CS], 4, hookedCopyString);
 	
 	return;
 }
@@ -268,7 +298,6 @@ KEXPORT void KDrawText(wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontS
 	return;
 }
 
-int abc = 0;
 HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused)
 {
@@ -282,7 +311,23 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 		NextCall(self, src, dest, hWnd, unused);
 	}
 
-	//KDrawTextAbsolute(L"TestTest", 0, 0);
+	wchar_t* rp = Utf8::ansiToUnicode(renderedPlayers.c_str());
+	KDrawText(rp, 0, 0, D3DCOLOR_RGBA(255,0,0,192));
+	Utf8::free(rp);
+	
+	renderedPlayers = "";
+	
+	// free all replaced buffers and reset them to the original ones
+	for (g_replacedHeadersIt = g_replacedHeaders.begin(); 
+			g_replacedHeadersIt != g_replacedHeaders.end();
+			g_replacedHeadersIt++)
+		{
+			HeapFree(GetProcessHeap(), 0, (VOID*)*(g_replacedHeadersIt->first));
+			*(g_replacedHeadersIt->first) = g_replacedHeadersIt->second;
+		}
+	g_replacedHeaders.clear();
+	
+	rpPrepared = false;
 
 	// CALL ORIGINAL FUNCTION ///////////////////
 	HRESULT res = g_orgPresent(self, src, dest, hWnd, unused);
@@ -346,8 +391,44 @@ void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice)
 }
 
 void prepareRenderPlayers() {
+	
+	// sometimes this doesn't work, should be moved to some other place
+	// free this map if no edit mode player was rendered in the last frame
+	if (freeEditModeData && g_editPlayerInfoMap.size() > 0) {
+		for (g_editPlayerInfoMapIt = g_editPlayerInfoMap.begin(); 
+				g_editPlayerInfoMapIt != g_editPlayerInfoMap.end();
+				g_editPlayerInfoMapIt++)
+			{
+				HeapFree(GetProcessHeap(), 0, g_editPlayerInfoMapIt->second);
+			}
+		g_editPlayerInfoMap.clear();
+	}
+		
+	freeEditModeData = false;
+	bool freeEditModeDataSet = false;
+
 	TexPlayerInfo tpi;
+	EditPlayerInfo* epi = NULL;
 	WORD orgTexIds[50];
+	DWORD firstPlayerInfo[2], lastPlayerInfo[2];
+	DWORD replayTeamInfo[2], firstReplayPlayerInfo[2], lastReplayPlayerInfo[2];
+	DWORD playerInfo;
+	
+	DWORD generalInfo = *(DWORD*)(0x12544c4);
+	DWORD replayGeneralInfo = *(DWORD*)(0x1251e04);
+	
+	for (int i = 0; i < 2; i++) {
+		if (generalInfo) {
+			firstPlayerInfo[i] = *(DWORD*)(generalInfo + 0x150 + i*4);
+			lastPlayerInfo[i] = firstPlayerInfo[i] + 32 * 0x1c0;
+		}
+		
+		if (replayGeneralInfo) {
+			replayTeamInfo[i] = replayGeneralInfo + 0x360 + i*0x4c;
+			firstReplayPlayerInfo[i] = replayGeneralInfo + 0x3f8 + i*11*0x80;
+			lastReplayPlayerInfo[i] = firstReplayPlayerInfo[i] + 11*0x80;
+		}
+	}
 	
 	DWORD* startVal = *(DWORD**)(data[PLAYERDATA]);
 	DWORD* nextVal = (DWORD*)*startVal;
@@ -365,17 +446,86 @@ void prepareRenderPlayers() {
 		DWORD* texArr = *(DWORD**)(temp2 + 0x454);
 		if (!texArr) continue;
 		
-		bool isReferee = (*(DWORD*)temp == data[ISREFEREEADDR]);
-		if (!isReferee) {
+		tpi.gameReplay = false;
+		tpi.epiMode = EPIMODE_NO;
+		epi = NULL;
+		
+		tpi.referee = (*(DWORD*)temp == data[ISREFEREEADDR])?1:0;
+		if (!tpi.referee) {
+			// for players
+			
 			DWORD playerName = *(DWORD*)(temp + 0x534);
-			DWORD playerInfo = playerName - 0x11c;
-
 			tpi.playerName = (char*)playerName;
+			
+			tpi.team = 0xff;
+			if (generalInfo) {
+				if (playerName >= firstPlayerInfo[0] && playerName < lastPlayerInfo[0])  tpi.team = 0;
+				if (playerName >= firstPlayerInfo[1] && playerName < lastPlayerInfo[1])  tpi.team = 1;
+			}
+			
+			if (tpi.team == 0xff) {
+				// try if it's replay mode
+				if (replayGeneralInfo) {			
+					if (playerName >= firstReplayPlayerInfo[0] && playerName < lastReplayPlayerInfo[0])  tpi.team = 0;
+					if (playerName >= firstReplayPlayerInfo[1] && playerName < lastReplayPlayerInfo[1])  tpi.team = 1;
+				}
+				
+				if (tpi.team == 0xff) {
+					// or edit/kit selection mode?
+					g_editPlayerInfoMapIt = g_editPlayerInfoMap.find(playerName - 0x6c);
+					if (g_editPlayerInfoMapIt != g_editPlayerInfoMap.end()) {
+						epi = g_editPlayerInfoMapIt->second;
+						tpi.epiMode = epi->mode;
+						
+						freeEditModeData = false;
+						freeEditModeDataSet = true;
+						
+					} else {	
+						continue;
+					}
+				} else {
+					tpi.gameReplay = true;
+				}
+			}
+			
+			if (!freeEditModeDataSet)
+				freeEditModeData = true;
+			
+			if (!tpi.gameReplay && !tpi.epiMode) {
+				tpi.playerInfo = playerName - 0xee;
+				tpi.teamPos = (tpi.playerInfo - firstPlayerInfo[tpi.team]) / 0x1c0;
+				tpi.lineupPos = tpi.teamPos; // later
+				tpi.teamId = *(WORD*)(tpi.playerInfo + 0x11c);
+				tpi.playerId = *(DWORD*)(tpi.playerInfo + 0x12c);
+				tpi.isGk = (tpi.lineupPos % 12 == 0);
+				
+			} else if (tpi.gameReplay) {
+				tpi.playerInfo = playerName - 0x6d;
+				//tpi.teamPos = ...
+				tpi.lineupPos = (tpi.playerInfo - firstReplayPlayerInfo[tpi.team]) / 0x80;
+				tpi.teamId = *(WORD*)(replayTeamInfo[tpi.team]);
+				//tpi.playerId = ...
+				tpi.isGk = (tpi.lineupPos == 0);
+				
+			} else {
+				tpi.team = epi->team;
+				//tpi.playerInfo = ...
+				tpi.teamPos = 
+				tpi.lineupPos = epi->num;
+				tpi.teamId = epi->teamId;
+				tpi.playerId = epi->playerId;
+				tpi.isGk = epi->isGk;
+			}
+			
+			renderedPlayers += tpi.playerName;
+			renderedPlayers += "\n";
+			
+
+		} else {
+			// for referees
 		}
 		
-		tpi.dummy = 123;
 		tpi.lod = *(BYTE*)(temp2 + 0x4c4);
-		tpi.referee = isReferee?1:0;
 		//
 
 		for (int i = 0; i < 9; i++)  {
@@ -547,24 +697,77 @@ DWORD STDMETHODCALLTYPE hookedLoadTextureForPlayer(DWORD num, DWORD newTex)
 	return newTex1;
 }
 
-DWORD hookedEndRenderPlayers() {
-	DWORD _EDI;
-	__asm mov _EDI, edi
+void hookedBeginRenderPlayer()
+{
+	DWORD _ECX;
+	__asm mov _ECX, ecx
 	
-	prepareRenderPlayers();
+	if (!rpPrepared) {
+		prepareRenderPlayers();
+		rpPrepared = true;
+	}
 	
-	__asm mov edi, _EDI
-	DWORD res = MasterCallNext();
+	// call the original function
+	if ((*(DWORD*)_ECX + 0xc) == code[TBL_BEGINRENDER1]) {
+		__asm mov ecx, _ECX
+		g_orgBeginRender1();
+	} else if ((*(DWORD*)_ECX + 0xc) == code[TBL_BEGINRENDER2]) {
+		__asm mov ecx, _ECX
+		g_orgBeginRender2();
+	} else {
+		TRACE(L"This should never happen!");
+	}
 	
-	// free all replaced buffers and reset them to the original ones
-	for (g_replacedHeadersIt = g_replacedHeaders.begin(); 
-			g_replacedHeadersIt != g_replacedHeaders.end();
-			g_replacedHeadersIt++)
-		{
-			HeapFree(GetProcessHeap(), 0, (VOID*)*(g_replacedHeadersIt->first));
-			*(g_replacedHeadersIt->first) = g_replacedHeadersIt->second;
-		}
-	g_replacedHeaders.clear();
+	return;
+}
+
+DWORD STDMETHODCALLTYPE hookedEditCopyPlayerName(DWORD p1, DWORD p2)
+{
+	DWORD _ECX, _ESI, _EBX, _EBP, res;
+	__asm {
+		mov _ECX, ecx
+		mov _ESI, esi
+		mov _EBX, ebx
+		mov _EBP, ebp
+	}
 	
+	DWORD* orgParameters = (DWORD*)(_EBP + 0x28);
+	// memory leak here!
+	EditPlayerInfo* epi = (EditPlayerInfo*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(EditPlayerInfo));
+	epi->mode = EPIMODE_EDITPLAYER;
+	epi->playerId = orgParameters[1];
+	if (epi->playerId == 0)
+		if (*(DWORD*)(_EBX + 0x168) == 2)
+			epi->mode = EPIMODE_KITSELECT;
+		else
+			epi->mode = EPIMODE_EDITTEAM;
+	epi->teamId = orgParameters[2] & 0xffff;
+	epi->num = orgParameters[3] & 0xff;
+	epi->team = orgParameters[5] & 0xff;
+	epi->isGk = (*(DWORD*)(_ESI + 0xc) == 0);
+	g_editPlayerInfoMap[_ESI + 0x14] = epi;
+	
+	// the compile would use ecx for the parameters...
+	__asm {
+		push p2
+		push p1
+		mov ecx, _ECX
+		mov esi, _ESI
+		mov ebx, _EBX
+		call ds:[g_orgEditCopyPlayerName]
+	}
 	return res;
+}
+
+DWORD hookedCopyString(DWORD dest, DWORD destLen, DWORD src, DWORD srcLen)
+{	
+	DWORD _ESI;
+	__asm mov _ESI, esi
+	
+	g_editPlayerInfoMapIt = g_editPlayerInfoMap.find(src);
+	if (g_editPlayerInfoMapIt != g_editPlayerInfoMap.end()) {
+		g_editPlayerInfoMap[dest] = g_editPlayerInfoMapIt->second;
+	}
+	
+	return MasterCallNext(dest, destLen, src, srcLen);
 }
