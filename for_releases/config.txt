@@ -1,0 +1,8 @@
+[kload]
+dll = kserv.dll
+dll = lodmixer.dll
+
+[lodmixer]
+#screen.width = 1280
+#screen.height = 800
+#screen.aspect-ratio = 1.6
