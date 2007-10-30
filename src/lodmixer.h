@@ -1,9 +1,9 @@
 // lodmixer.h
 
 #define MODID 101
-#define NAMELONG L"LOD Mixer 7.0.0"
+#define NAMELONG L"LOD Mixer 7.0.0.2"
 #define NAMESHORT L"LODMIXER"
-#define DEFAULT_DEBUG 1
+#define DEFAULT_DEBUG 0
 
 #define BUFLEN 4096
 

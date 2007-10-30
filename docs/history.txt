@@ -4,6 +4,9 @@ Kitserver 7 HISTORY notes
 
 2007-10-29
 ----------
+v7.0.0f:
+- lodmixer: fixed crash with ViTaLiTY NODVD and original exe.
+
 v7.0.0e:
 - lodmixer: first release
 - custom resolution setting
@@ -19,7 +22,7 @@ v7.0.0d:
 2007-10-25
 ----------
 v7.0.0c:
-- kserv: support for ViTaLiTy NODVD
+- kserv: support for ViTaLiTY NODVD
 
 v7.0.0b: 
 - kserv: support for full game, including FLT-NODVD

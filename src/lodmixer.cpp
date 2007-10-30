@@ -42,6 +42,9 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
 void modSettings()
 {
+	DWORD protection;
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+
     // set resolution
     if (_lmconfig.screen.width>0 && _lmconfig.screen.height>0)
     {
@@ -49,6 +52,10 @@ void modSettings()
         *(DWORD*)data[SCREEN_HEIGHT] = _lmconfig.screen.height;
 
         LOG2N(L"Resolution set: %dx%d", _lmconfig.screen.width, _lmconfig.screen.height);
+    }
+    else if (_lmconfig.screen.aspectRatio == 0.0f)
+    {
+        return;
     }
 
     // set aspect ratio
@@ -59,12 +66,16 @@ void modSettings()
     if (fabs(ar - 1.33333) < fabs(ar - 1.77777)) {
         // closer to 4:3
         *(DWORD*)data[WIDESCREEN_FLAG] = 0;
-        *(float*)data[RATIO_4on3] = ar;
+        if (VirtualProtect((BYTE*)data[RATIO_4on3], 4, newProtection, &protection)) {
+            *(float*)data[RATIO_4on3] = ar;
+        }
         LOG(L"Widescreen mode: no");
     } else {
         // closer to 16:9
         *(DWORD*)data[WIDESCREEN_FLAG] = 1;
-        *(float*)data[RATIO_16on9] = ar;
+        if (VirtualProtect((BYTE*)data[RATIO_16on9], 4, newProtection, &protection)) {
+            *(float*)data[RATIO_16on9] = ar;
+        }
         LOG(L"Widescreen mode: yes");
     }
     LOG1F(L"Aspect ratio: %0.5f", ar);
@@ -103,6 +114,7 @@ void initLodMixer()
     } 
 
     TRACE(L"Initialization complete.");
+    unhookFunction(hk_D3D_Create, initLodMixer);
 }
 
 void lodmixerConfig(char* pName, const void* pValue, DWORD a)
