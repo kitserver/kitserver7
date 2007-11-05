@@ -2,7 +2,7 @@ Kitserver 7 HISTORY notes
 =========================
 
 
-2007-10-02
+2007-11-02
 ----------
 v7.0.1
 - lodmixer: LOD adjustment implemented
