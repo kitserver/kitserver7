@@ -1,7 +1,7 @@
 // lodmixer.h
 
 #define MODID 101
-#define NAMELONG L"LOD Mixer 7.0.0.2"
+#define NAMELONG L"LOD Mixer 7.0.1"
 #define NAMESHORT L"LODMIXER"
 #define DEFAULT_DEBUG 0
 
@@ -13,11 +13,23 @@ typedef struct _DIMENSIONS {
     float aspectRatio;
 } DIMENSIONS;
 
+typedef struct _LOD {
+    float switch1;
+    float switch2;
+} LOD;
+
 typedef struct _LMCONFIG {
     DIMENSIONS screen;
+    LOD lod;
+    bool aspectRatioCorrectionEnabled;
 } LMCONFIG;
 
 #define DEFAULT_WIDTH 0
 #define DEFAULT_HEIGHT 0
 #define DEFAULT_ASPECT_RATIO 0.0f
+#define DEFAULT_ASPECT_RATIO_CORRECTION_ENABLED true
+#define DEFAULT_LOD_SWITCH1 0.0f
+#define DEFAULT_LOD_SWITCH2 0.0f
+#define GAME_DEFAULT_LOD_SWITCH1 0.095f
+#define GAME_DEFAULT_LOD_SWITCH2 0.070f
 

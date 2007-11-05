@@ -2,6 +2,13 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2007-10-02
+----------
+v7.0.1
+- lodmixer: LOD adjustment implemented
+- partial support for PES2008 1.10 patch
+
+
 2007-10-29
 ----------
 v7.0.0f:

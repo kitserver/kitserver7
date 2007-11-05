@@ -4,7 +4,7 @@ RC=rc
 
 CFLAGS=/nologo /GX $(EXTRA_CFLAGS)
 LFLAGS=/NOLOGO /NODEFAULTLIB:libcmt.lib
-LIBS=user32.lib gdi32.lib advapi32.lib
+LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
 LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
 
 INCPNGDIB=soft\pngdib
@@ -23,6 +23,7 @@ all: dlls apps
 	mkdir output
 	copy *.dll output
 	copy setup.exe output
+	copy lodcfg.exe output
 	copy lang_*.txt output
 	
 all_dlls: dlls
@@ -35,10 +36,11 @@ all_apps: apps
 	if exist output (rd /S /Q output)
 	mkdir output
 	copy setup.exe output
+	copy lodcfg.exe output
 	copy lang_*.txt output
 
 dlls: kload.dll kserv.dll lodmixer.dll kset.dll
-apps: setup.exe
+apps: setup.exe lodcfg.exe
 
 release:
 	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD MYDLL_RELEASE_BUILD=1
@@ -94,16 +96,21 @@ setup.exe: setup.obj detect.obj setupgui.obj imageutil.obj lang.obj configs.obj 
 setup.res: 
 	$(RC) -r -fo setup.res setup.rc
 	
+lodcfg.obj: lodcfg.cpp lodcfg.h lodcfgui.h
+lodcfgui.obj: lodcfgui.cpp lodcfgui.h
+lodcfg.exe: lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj
+	$(LINK) $(LFLAGS) /out:lodcfg.exe lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj $(LIBS)
+
 .cpp.obj:
 	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) $<
 
 clean:
 	del /Q /F *.exp *.lib *.obj *.res *.dll *.exe
-	(cd soft\pngdib && $(MAKE) clean)
+	if exist soft\pngdib (cd soft\pngdib && $(MAKE) clean)
 	if exist output (rd /S /Q output)
 
 clean-all:
 	del /Q /F *.exp *.lib *.obj *.res *.dll *.exe *.log *~
-	(cd soft\pngdib && $(MAKE) clean-all)
+	if exist soft\pngdib (cd soft\pngdib && $(MAKE) clean-all)
 	if exist output (rd /S /Q output)
 	

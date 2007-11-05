@@ -33,6 +33,7 @@ enum {
 	gvPES2008,		    // PES2008 PC
 	gvPES2008Set,	    // PES2008 PC (Settings)
 	gvPES2008fltNODVD,  // PES2008 PC FLT-NODVD
+	gvPES2008v110,      // PES2008 PC 1.10
 };
 
 #endif

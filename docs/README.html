@@ -41,8 +41,8 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-October 29, 2007 - <b>Kitserver 7.0.0f (BETA)</b><br />
-Module Versions: <a href="#lodmixer">LOD Mixer 7.0.0</a>
+November 2, 2007 - <b>Kitserver 7.0.1</b><br />
+Module Versions: <a href="#lodmixer">LOD Mixer 7.0.1</a>
 </div>
 
 <h3>Introduction</h3>
@@ -91,12 +91,36 @@ with the first controller.
 </a>
 
 <p>
-This is the first release of LOD-Mixer for PES2008. Currently two features are
-implemented: screen resolution , and aspect ratio correction. Both of these
-can be configured in kitserver main configuration file (kitserver/config.txt).
+LOD-Mixer is the module that allows to fine-tune some aspects of PES2008 graphics engine.<br />
+Currently the following features are implemented: screen resolution, aspect ratio correction,
+and LOD adjustment. All of these can be configured manually in kitserver's main 
+configuration file (kitserver/config.txt), but also there is now a GUI program that
+makes it even easier:
 </p>
 
-<h5>1. Screen Resolution.</h5>
+<img src="lodcfg.png" style="border:0"/>
+
+<h5>1. Aspect Ratio.</h5>
+<p>
+PES2008 offers only two choices for aspect ratio - 4:3 and 16:9. However, lots of
+LCD monitors don't exactly fit into either of these two. Often, a 16:10 ratio is
+used, or even 16:9.6. This results in the picture being distored: players either
+too fat or too skinny, and ball is not round.
+</p>
+
+<p>
+With LOD Mixer, you can set the aspect ratio to whatever you want. Either let
+LOD Mixer calculate it automatically - at run-time, using the current screen
+width and height in pixels - or set the value manually. Automatic way would work quite
+accurately, assuming the pixel is square. Sometimes, however, you would want to
+set it manually. For example, i play on widescreen monitor, but using a 800x600 
+resolution, because my video card is not powerful enough. The automatic 
+calculation would give 4:3, but since the view is stretched to fill the entire 
+screen, we need to account for that. Setting aspect ratio to 1.6 (which is a 
+natural AR for my laptop) does the trick.
+</p>
+
+<h5>2. Screen Resolution.</h5>
 <p>
 You can set any screen resolution you want, if you play in a Windowed mode. Even
 crazy screens like 1567x532 will work, but you're likely to suffer from 
@@ -107,68 +131,39 @@ accidently choose an unsupported fullscreen resolution, then PES should still
 be able to start in a window.
 </p>
 
+<h5>3. LOD configuration.</h5>
 <p>
-You specify the resolution in config.txt using "screen.width" and "screen.height"
-settings. Here's an example config fragment for LOD mixer:
+LOD (Level-Of-Detail) algorithms are used in graphics engines to improve both
+the picture quality and the speed of rendering, when drawing objects at various
+distances from the viewer. The basic idea is that when the object is close to
+the camera, one (very detailed) model is used. When it is far - another, simpler
+model with less detail is used instead. It's much faster to render a low-poly
+model of the object, and it typically looks better, when drawn in small size,
+because it suffers less from aliasing. In theory, at least, 
+that is how it is supposed to work.
 </p>
-
-<pre>
-[lodmixer]
-screen.width = 1920
-screen.height = 1200
-</pre>
-
-<h5>2. Aspect Ratio.</h5>
 <p>
-PES2008 offers only two choices for aspect ratio - 4:3 and 16:9. However, lots of
-LCD monitors don't exactly fit into either of these two. Often, a 16:10 ratio is
-used, or even 16:9.6. This results in the picture being distored: players either
-too fat or too skinny, and ball is not round.
+For some inexplicable reason, PES series had always suffered from an overly-
+conservative LOD configuration, where the switch to low-poly models would happen
+way too soon, and that would result in various visible artifacts. In PES4-PES6,
+examples were: balding players, and missing details on kits. In PES2008, the
+players appear to have blurred generic faces, once they move slightly away from
+the camera.
 </p>
-
 <p>
-With LOD Mixer, you can set the aspect ratio to whatever you want. Either let
-LOD Mixer calculate it automatically - from width and height of the resolution
-that you specify - or set the value manually. Automatic way would work quite
-accurately, assuming the pixel is square. Sometimes, however, you would want to
-set it manually. For example, i play on widescreen monitor, but using a 800x600 
-resolution, because my video card is not powerful enough. The automatic 
-calculation would give 4:3, but since the view is stretched to fill the entire 
-screen, we need to account for that. Setting aspect ratio to 1.6 (which is a 
-natural AR for my laptop) does the trick.
+So, if you have a good PC and a fancy videocard with GPU cycles to spare, you
+may fancy tunning the LOD sligtly to make the game engine display more detailed
+models, even when they players are a bit away from the camera (Animation quality seems
+to be affected by this as well). To do that, <b>move the sliders to the right.</b>
 </p>
-
-<h5>Here are some configuration examples:</h5>
-
 <p>
-Example 1 - we let the game choose resolution, but enforce aspect ratio:
+Also, if on the contrary, your machine is stuggling to run the game at a smooth
+frame rate, you can try tunning the LOD sliders in the opposite direction - thus
+making the engine switch to the low-poly models sooner than normal. This may
+improve the framerate, although at the expense of picture quality. To achieve
+that, <b>move the sliders to the left.</b>
 </p>
-
-<pre>
-[lodmixer]
-screen.aspect-ratio = 1.66666
-</pre>
-
-<p>
-Example 2 - we set both the resolution and aspect ratio:
-</p>
-
-<pre>
-[lodmixer]
-screen.width = 800
-screen.height = 600
-screen.aspect-ratio = 1.6
-</pre>
-
-<p>
-Example 3 - we set the resolution, and rely on automatic aspect ratio:
-</p>
-
-<pre>
-[lodmixer]
-screen.width = 1650
-screen.height = 1050
-</pre>
+<div style="height:20px"></div>
 
 
 <h2>Credits</h2>

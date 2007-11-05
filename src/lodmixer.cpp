@@ -9,18 +9,26 @@
 #include "lodmixer_addr.h"
 #include "dllinit.h"
 
+#define FLOAT_ZERO 0.0001f
+
 KMOD k_lodmixer={MODID,NAMELONG,NAMESHORT,DEFAULT_DEBUG};
 
 HINSTANCE hInst;
 LMCONFIG _lmconfig = {
-    {DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_ASPECT_RATIO},
+    {DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_ASPECT_RATIO}, 
+    {DEFAULT_LOD_SWITCH1, DEFAULT_LOD_SWITCH2},
+    DEFAULT_ASPECT_RATIO_CORRECTION_ENABLED,
 };
-UINT_PTR _timer = 0;
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved);
 
 void initLodMixer();
 void lodmixerConfig(char* pName, const void* pValue, DWORD a);
+void modifySettings();
+void getResolution(DWORD& width, DWORD& height);
+void setResolution(DWORD width, DWORD height);
+void setAspectRatio(float aspectRatio, bool manual);
+void setSwitchesForLOD(float switch1, float switch2);
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
@@ -40,53 +48,20 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	return true;
 }
 
-void modSettings()
+void modifySettings()
 {
-	DWORD protection;
-    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-
-    // set resolution
-    if (_lmconfig.screen.width>0 && _lmconfig.screen.height>0)
+    setResolution(_lmconfig.screen.width, _lmconfig.screen.height);
+    if (_lmconfig.aspectRatioCorrectionEnabled)
     {
-        *(DWORD*)data[SCREEN_WIDTH] = _lmconfig.screen.width;
-        *(DWORD*)data[SCREEN_HEIGHT] = _lmconfig.screen.height;
+        DWORD width = 0, height = 0;
+        getResolution(width,height);
+        float ar = (_lmconfig.screen.aspectRatio > FLOAT_ZERO) ?
+            _lmconfig.screen.aspectRatio :  // manual
+            float(width) / float(height);   // automatic
 
-        LOG2N(L"Resolution set: %dx%d", _lmconfig.screen.width, _lmconfig.screen.height);
+        setAspectRatio(ar, _lmconfig.screen.aspectRatio > FLOAT_ZERO);
     }
-    else if (_lmconfig.screen.aspectRatio == 0.0f)
-    {
-        return;
-    }
-
-    // set aspect ratio
-    float ar = (_lmconfig.screen.aspectRatio > 0.01) ? 
-        _lmconfig.screen.aspectRatio :   // manual
-        ((float)_lmconfig.screen.width / (float)_lmconfig.screen.height); // automatic
-
-    if (fabs(ar - 1.33333) < fabs(ar - 1.77777)) {
-        // closer to 4:3
-        *(DWORD*)data[WIDESCREEN_FLAG] = 0;
-        if (VirtualProtect((BYTE*)data[RATIO_4on3], 4, newProtection, &protection)) {
-            *(float*)data[RATIO_4on3] = ar;
-        }
-        LOG(L"Widescreen mode: no");
-    } else {
-        // closer to 16:9
-        *(DWORD*)data[WIDESCREEN_FLAG] = 1;
-        if (VirtualProtect((BYTE*)data[RATIO_16on9], 4, newProtection, &protection)) {
-            *(float*)data[RATIO_16on9] = ar;
-        }
-        LOG(L"Widescreen mode: yes");
-    }
-    LOG1F(L"Aspect ratio: %0.5f", ar);
-    LOG1S(L"Aspect ratio type: %s", 
-            (_lmconfig.screen.aspectRatio > 0.01)?L"manual":L"automatic");
-}
-
-void STDMETHODCALLTYPE lodmixerPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
-	HWND hWnd, LPVOID unused)
-{
-    TRACE(L"lodmixerPresent: Present called.");
+    setSwitchesForLOD(_lmconfig.lod.switch1, _lmconfig.lod.switch2);
 }
 
 void initLodMixer()
@@ -97,6 +72,9 @@ void initLodMixer()
     getConfig("lodmixer", "screen.width", DT_DWORD, 1, lodmixerConfig);
     getConfig("lodmixer", "screen.height", DT_DWORD, 2, lodmixerConfig);
     getConfig("lodmixer", "screen.aspect-ratio", DT_FLOAT, 3, lodmixerConfig);
+    getConfig("lodmixer", "lod.switch1", DT_FLOAT, 4, lodmixerConfig);
+    getConfig("lodmixer", "lod.switch2", DT_FLOAT, 5, lodmixerConfig);
+    getConfig("lodmixer", "aspect-ratio.correction.enabled", DT_DWORD, 6, lodmixerConfig);
     TRACE2N(L"Screen resolution to force: %dx%d", 
             _lmconfig.screen.width, _lmconfig.screen.height);
 
@@ -107,7 +85,7 @@ void initLodMixer()
         /* CALL */
         bptr[0] = 0xe8;
         DWORD* ptr = (DWORD*)(code[C_SETTINGS_CHECK] + 1);
-        ptr[0] = (DWORD)modSettings - (DWORD)(code[C_SETTINGS_CHECK] + 5);
+        ptr[0] = (DWORD)modifySettings - (DWORD)(code[C_SETTINGS_CHECK] + 5);
         /* NOP */ 
         bptr[5] = 0x90;
         TRACE(L"Settings check disabled. Settings overwrite enabled.");
@@ -129,6 +107,91 @@ void lodmixerConfig(char* pName, const void* pValue, DWORD a)
 		case 3: // aspect ratio
 			_lmconfig.screen.aspectRatio = *(float*)pValue;
 			break;
+		case 4: // LOD 
+			_lmconfig.lod.switch1 = *(float*)pValue;
+			break;
+		case 5: // LOD
+			_lmconfig.lod.switch2 = *(float*)pValue;
+			break;
+		case 6: // LOD
+			_lmconfig.aspectRatioCorrectionEnabled = *(DWORD*)pValue != 0;
+			break;
 	}
+}
+
+void getResolution(DWORD& width, DWORD& height)
+{
+	DWORD protection;
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+
+    // get resolution
+    if (VirtualProtect((BYTE*)data[SCREEN_WIDTH], 4, newProtection, &protection))
+        width = *(DWORD*)data[SCREEN_WIDTH]; 
+    if (VirtualProtect((BYTE*)data[SCREEN_HEIGHT], 4, newProtection, &protection))
+        height = *(DWORD*)data[SCREEN_HEIGHT];
+}
+
+void setResolution(DWORD width, DWORD height)
+{
+	DWORD protection;
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+
+    // set resolution
+    if (width>0 && height>0)
+    {
+        if (VirtualProtect((BYTE*)data[SCREEN_WIDTH], 4, newProtection, &protection))
+            *(DWORD*)data[SCREEN_WIDTH] = width;
+        if (VirtualProtect((BYTE*)data[SCREEN_HEIGHT], 4, newProtection, &protection))
+            *(DWORD*)data[SCREEN_HEIGHT] = height;
+
+        LOG2N(L"Resolution set: %dx%d", width, height);
+    }
+}
+
+void setAspectRatio(float aspectRatio, bool manual)
+{
+	DWORD protection;
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+
+    if (aspectRatio <= FLOAT_ZERO) // safety-check
+        return;
+
+    if (fabs(aspectRatio - 1.33333) < fabs(aspectRatio - 1.77777)) {
+        // closer to 4:3
+        *(DWORD*)data[WIDESCREEN_FLAG] = 0;
+        if (VirtualProtect((BYTE*)data[RATIO_4on3], 4, newProtection, &protection)) {
+            *(float*)data[RATIO_4on3] = aspectRatio;
+        }
+        LOG(L"Widescreen mode: no");
+    } else {
+        // closer to 16:9
+        *(DWORD*)data[WIDESCREEN_FLAG] = 1;
+        if (VirtualProtect((BYTE*)data[RATIO_16on9], 4, newProtection, &protection)) {
+            *(float*)data[RATIO_16on9] = aspectRatio;
+        }
+        LOG(L"Widescreen mode: yes");
+    }
+    LOG1F(L"Aspect ratio: %0.5f", aspectRatio);
+    LOG1S(L"Aspect ratio type: %s", (manual)?L"manual":L"automatic");
+}
+
+void setSwitchesForLOD(float switch1, float switch2)
+{
+	DWORD protection;
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+    if (_lmconfig.lod.switch1 > FLOAT_ZERO && data[LOD_SWITCH1]) 
+    {
+        if (VirtualProtect((BYTE*)data[LOD_SWITCH1], 4, newProtection, &protection)) {
+            *(float*)data[LOD_SWITCH1] = switch1;
+            LOG1F(L"LOD: 1st switch (0->1) set to: %0.5f", switch1);
+        }
+    }
+    if (_lmconfig.lod.switch2 > FLOAT_ZERO && data[LOD_SWITCH2]) 
+    {
+        if (VirtualProtect((BYTE*)data[LOD_SWITCH2], 4, newProtection, &protection)) {
+            *(float*)data[LOD_SWITCH2] = switch2;
+            LOG1F(L"LOD: 2nd switch (1->2) set to: %0.5f", switch2);
+        }
+    }
 }
 

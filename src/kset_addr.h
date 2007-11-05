@@ -23,6 +23,10 @@ DWORD codeArray[][CODELEN] = {
 	{
 		0, 0, 0x41902f, 0x418f40,
 	},
+  NOCODEADDR
+  NOCODEADDR
+  // PES2008 1.10
+  NOCODEADDR
 };
 
 #define DATALEN 1
@@ -44,6 +48,10 @@ DWORD dataArray[][DATALEN] = {
 	{
 		0,
 	},
+  NODATAADDR
+  NODATAADDR
+  // PES2008 DEMO
+  NODATAADDR
 };
 
 DWORD code[CODELEN];

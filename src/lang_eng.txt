@@ -15,7 +15,7 @@ which is located in the in the "docs" subfolder.
 Do you want to open the manual now?$$
 #########################################
 HelpTextTitle = $$KitServer 7 short help$$
-ManualPath = $$.\\docs\\README.txt$$
+ManualPath = $$.\\docs\\README.html$$
 MsgTitle = $$KitServer 7 Setup Message$$
 #########################################
 Err_UnknownExe = $$======== WRONG FILE! =========
