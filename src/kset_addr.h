@@ -21,7 +21,7 @@ DWORD codeArray[][CODELEN] = {
   NOCODEADDR
 	// [Settings] PES2008 PC
 	{
-		0, 0, 0x41902f, 0x418f40,
+		0, 0, 0, 0x418f40,
 	},
   NOCODEADDR
   NOCODEADDR
@@ -50,7 +50,7 @@ DWORD dataArray[][DATALEN] = {
 	},
   NODATAADDR
   NODATAADDR
-  // PES2008 DEMO
+  // PES2008 1.10
   NODATAADDR
 };
 

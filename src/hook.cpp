@@ -420,7 +420,7 @@ void prepareRenderPlayers() {
 	
 	// sometimes this doesn't work, should be moved to some other place
 	// free this map if no edit mode player was rendered in the last frame
-	if (freeEditModeData && g_editPlayerInfoMap.size() > 0) {
+	if (false && freeEditModeData && g_editPlayerInfoMap.size() > 0) {
 		for (g_editPlayerInfoMapIt = g_editPlayerInfoMap.begin(); 
 				g_editPlayerInfoMapIt != g_editPlayerInfoMap.end();
 				g_editPlayerInfoMapIt++)
@@ -440,8 +440,8 @@ void prepareRenderPlayers() {
 	DWORD replayTeamInfo[2], firstReplayPlayerInfo[2], lastReplayPlayerInfo[2];
 	DWORD playerInfo;
 	
-	DWORD generalInfo = *(DWORD*)(0x12544c4);
-	DWORD replayGeneralInfo = *(DWORD*)(0x1251e04);
+	DWORD generalInfo = *(DWORD*)(data[GENERALINFO]);
+	DWORD replayGeneralInfo = *(DWORD*)(data[REPLAYGENERALINFO]);
 	
 	for (int i = 0; i < 2; i++) {
 		if (generalInfo) {
@@ -523,7 +523,7 @@ void prepareRenderPlayers() {
 				tpi.lineupPos = tpi.teamPos; // later
 				tpi.teamId = *(WORD*)(tpi.playerInfo + 0x11c);
 				tpi.playerId = *(DWORD*)(tpi.playerInfo + 0x12c);
-				tpi.isGk = (tpi.lineupPos % 12 == 0);
+				tpi.isGk = (tpi.lineupPos % 11 == 0);
 				
 			} else if (tpi.gameReplay) {
 				tpi.playerInfo = playerName - 0x6d;
@@ -773,7 +773,7 @@ DWORD STDMETHODCALLTYPE hookedEditCopyPlayerName(DWORD p1, DWORD p2)
 	epi->isGk = (*(DWORD*)(_ESI + 0xc) == 0);
 	g_editPlayerInfoMap[_ESI + 0x14] = epi;
 	
-	// the compile would use ecx for the parameters...
+	// the compiler would use ecx for the parameters...
 	__asm {
 		push p2
 		push p1
