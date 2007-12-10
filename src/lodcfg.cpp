@@ -46,12 +46,19 @@ pretty powerful machine and a good videocard, then try moving the \n\
 sliders to the right: the game engine will switch the LODs later, \n\
 and therefore give you more detail.\n\
 \n\
+About controller check: PES 2008 doesn't allow human players to control\n\
+both teams, unless both of their selected teams are playing against \n\
+each other in the match. Now you can remove that limitation. So, even\n\
+for P1 vs. COM game, or P2 vs. COM - you can freely select which team\n\
+you control with each controller.\n\
+\n\
 Dont't forget to press the [Save] button!";
 
 LMCONFIG _lmconfig = {
     {DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_ASPECT_RATIO}, 
     {DEFAULT_LOD_SWITCH1, DEFAULT_LOD_SWITCH2},
     DEFAULT_ASPECT_RATIO_CORRECTION_ENABLED,
+    DEFAULT_CONTROLLER_CHECK_ENABLED,
 };
 
 // function prototypes
@@ -362,6 +369,11 @@ void UpdateControls(LMCONFIG& cfg)
         SendMessage(g_lodEditControl[1],WM_SETTEXT,0,(LPARAM)"0.070");
         SendMessage(g_lodTrackBarControl[1],TBM_SETPOS,TRUE,(LPARAM)getTickValue(0.070));
     }
+
+    // Controller check
+    SendMessage(g_controllerCheckBox, BM_SETCHECK, BST_UNCHECKED, 0);
+    if (cfg.controllerCheckEnabled)
+        SendMessage(g_controllerCheckBox, BM_SETCHECK, BST_CHECKED, 0);
 }
 
 void UpdateConfig(LMCONFIG& cfg)
@@ -430,6 +442,17 @@ void UpdateConfig(LMCONFIG& cfg)
         _removeConfig("lodmixer", "lod.switch1");
         _removeConfig("lodmixer", "lod.switch2");
     }
+
+    // Controller check
+    bool controllerChecked = SendMessage(g_controllerCheckBox, BM_GETCHECK, 0, 0);
+    if (controllerChecked)
+    {
+        _setConfig("lodmixer", "controller.check.enabled", wstring(L"1"));
+    }
+    else
+    {
+        _removeConfig("lodmixer", "controller.check.enabled");
+    }
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance,
@@ -457,6 +480,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     _getConfig("lodmixer", "lod.switch1", DT_FLOAT, 4, lodmixerConfig);
     _getConfig("lodmixer", "lod.switch2", DT_FLOAT, 5, lodmixerConfig);
     _getConfig("lodmixer", "aspect-ratio.correction.enabled", DT_DWORD, 6, lodmixerConfig);
+    _getConfig("lodmixer", "controller.check.enabled", DT_DWORD, 7, lodmixerConfig);
 
     UpdateControls(_lmconfig);
 
@@ -501,6 +525,9 @@ void lodmixerConfig(char* pName, const void* pValue, DWORD a)
 			break;
 		case 6: // LOD
 			_lmconfig.aspectRatioCorrectionEnabled = *(DWORD*)pValue != 0;
+			break;
+		case 7: // Controller check
+			_lmconfig.controllerCheckEnabled = *(DWORD*)pValue != 0;
 			break;
 	}
 }

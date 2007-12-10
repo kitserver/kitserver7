@@ -18,6 +18,7 @@ LMCONFIG _lmconfig = {
     {DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_ASPECT_RATIO}, 
     {DEFAULT_LOD_SWITCH1, DEFAULT_LOD_SWITCH2},
     DEFAULT_ASPECT_RATIO_CORRECTION_ENABLED,
+    DEFAULT_CONTROLLER_CHECK_ENABLED,
 };
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved);
@@ -75,6 +76,7 @@ void initLodMixer()
     getConfig("lodmixer", "lod.switch1", DT_FLOAT, 4, lodmixerConfig);
     getConfig("lodmixer", "lod.switch2", DT_FLOAT, 5, lodmixerConfig);
     getConfig("lodmixer", "aspect-ratio.correction.enabled", DT_DWORD, 6, lodmixerConfig);
+    getConfig("lodmixer", "controller.check.enabled", DT_DWORD, 7, lodmixerConfig);
     TRACE2N(L"Screen resolution to force: %dx%d", 
             _lmconfig.screen.width, _lmconfig.screen.height);
 
@@ -90,6 +92,33 @@ void initLodMixer()
         bptr[5] = 0x90;
         TRACE(L"Settings check disabled. Settings overwrite enabled.");
     } 
+
+    if (_lmconfig.controllerCheckEnabled)
+    {
+        bptr = (BYTE*)code[C_MODE_CHECK];
+        if (bptr)
+        {
+            // need to insert a bit of code, to handle the special
+            // case of Exhibition Mode. 61 bytes before C_MODE_CHECK is a good place.
+            BYTE* codeInsert = bptr - 61;
+            if (VirtualProtect(bptr, 4, newProtection, &protection)) {
+                BYTE patch[] = {0xeb,0xc1}; // jmp short "TO_TEST_ECX"
+                memcpy(bptr, patch, sizeof(patch));
+                if (VirtualProtect(codeInsert, 12, newProtection, &protection)) {
+                    BYTE patch2[] = {
+                        0x85,0xc9,  // test ecx,ecx
+                        0x74,0x03,  // je short "TO_XOR_EBX"
+                        0x33,0xc9,  // xor ecx,ecx
+                        0x41,       // inc ecx
+                        0x33,0xdb,  // xor ebx,ebx  - the command that was replaced with jmp
+                        0xeb,0x34,  // jmp short "BACK_TO_AFTER_JMP"
+                    };
+                    memcpy(codeInsert, patch2, sizeof(patch2));
+                    TRACE(L"Mode check disabled for controller selection.");
+                }
+            } 
+        }
+    }
 
     TRACE(L"Initialization complete.");
     unhookFunction(hk_D3D_Create, initLodMixer);
@@ -115,6 +144,9 @@ void lodmixerConfig(char* pName, const void* pValue, DWORD a)
 			break;
 		case 6: // LOD
 			_lmconfig.aspectRatioCorrectionEnabled = *(DWORD*)pValue != 0;
+			break;
+		case 7: // Controller check
+			_lmconfig.controllerCheckEnabled = *(DWORD*)pValue != 0;
 			break;
 	}
 }

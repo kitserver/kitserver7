@@ -35,6 +35,14 @@ DWORD codeArray[][CODELEN] = {
 		0xdae53c, 0xd99224,
 		0x842c10, 0x401d2a,
 	},
+  NOCODEADDR
+  // PES2008 1.20
+  {
+		0xbb7d41,
+		0, 0, //TODO
+		0, 0, //TODO
+		0, 0, //TODO
+  },
 };
 
 #define DATALEN 4
@@ -65,6 +73,9 @@ DWORD dataArray[][DATALEN] = {
 		0x125a374, 0xdb0270,
 		0x12554ec, 0x1252e2c,
 	},
+	NODATAADDR
+	// PES2008 PC 1.20
+	NODATAADDR //TODO
 };
 
 #define LTFPLEN 15
@@ -96,6 +107,9 @@ BYTE ltfpPatchArray[][LTFPLEN] = {
 		0x83, 0xf8, 0x04,											// CMP EAX,4
 		0x0f, 0x87, 0x1f, 0x06, 0x00, 0x00,		// JA 0043E88B
 	},
+	NOLTFPADDR
+    // PES2008 PC 1.20
+	NOLTFPADDR //TODO
 };
 
 

@@ -16,6 +16,7 @@ HWND g_lodListControl[5];          // lod lists
 HWND g_crowdCheckBox;             // crowd
 HWND g_JapanCheckBox;             // Japan check
 HWND g_arCheckBox;            // aspect ratio correction check
+HWND g_controllerCheckBox;            // controller check
 
 HWND g_weatherListControl;         // weather (default,fine,rainy,random)
 HWND g_timeListControl;            // time of the day (default,day,night)
@@ -321,6 +322,24 @@ bool BuildControls(HWND parent)
 
     y += spacer*4;
 
+    // controller check
+    x = spacer;
+	HWND staticBorderTopControl4 = CreateWindowEx(
+			xstyle, L"Static", L"", WS_CHILD | WS_VISIBLE | SS_ETCHEDFRAME,
+			x, y, borW, boxH+spacer*2,
+			parent, NULL, NULL, NULL);
+
+    y += spacer;
+    x = spacer*2;
+	g_controllerCheckBox = CreateWindowEx(
+			xstyle, L"button", L"Disable controller selection check", 
+            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+			x, y, 260, butH,
+			parent, NULL, NULL, NULL);
+
+	y += boxH + spacer*2;
+    x = spacer*2;
+
 	// BOTTOM sections: buttons
 	
 	x = borW - butW;
@@ -360,6 +379,7 @@ bool BuildControls(HWND parent)
 	SendMessage(g_arCheckBox, WM_SETFONT, (WPARAM)hObj, true);
 
 	SendMessage(g_lodCheckBox, WM_SETFONT, (WPARAM)hObj, true);
+	SendMessage(g_controllerCheckBox, WM_SETFONT, (WPARAM)hObj, true);
 	SendMessage(g_defLodControl, WM_SETFONT, (WPARAM)hObj, true);
 	SendMessage(g_lodLabel1, WM_SETFONT, (WPARAM)hObj, true);
 	SendMessage(g_lodLabel2, WM_SETFONT, (WPARAM)hObj, true);

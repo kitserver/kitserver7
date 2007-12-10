@@ -2,14 +2,15 @@
 BYTE allowedGames[] = {
 	gvPES2008,
 	gvPES2008v110,
+	gvPES2008v120,
 };
 
-#define CODELEN 1
+#define CODELEN 2
 enum {
-	C_SETTINGS_CHECK,
+	C_SETTINGS_CHECK, C_MODE_CHECK,
 };
 
-#define NOCODEADDR {0},
+#define NOCODEADDR {0,0},
 DWORD codeArray[][CODELEN] = { 
     // PES2008 DEMO
     NOCODEADDR
@@ -17,15 +18,20 @@ DWORD codeArray[][CODELEN] = {
     NOCODEADDR
     // PES2008
 	{
-        0xbb8be3,
+        0xbb8be3, 0xaa9542,
 	},
 	// [Settings] PES2008 PC
     NOCODEADDR
     NOCODEADDR
     // PES2008 1.10
 	{
-        0xbb89d3,
+        0xbb89d3, 0xaaa5e2,
 	},
+    NOCODEADDR
+    // PES2008 1.20
+    {
+        0xbbd083, 0xaacbc2,
+    },
 };
 
 #define DATALEN 7
@@ -55,6 +61,13 @@ DWORD dataArray[][DATALEN] = {
         0x12519f0, 0x12519f4,0x12519f8,
         0xdb5484, 0xdb57fc,
         0xdb3044, 0xdb3040,
+    },
+    NOCODEADDR
+    // PES2008 1.20
+    {
+        0x1252a08, 0x1252a0c,0x1252a10, 
+        0xdb6434, 0xdb67b0,
+        0xdb4024, 0xdb4020,
     },
 };
 

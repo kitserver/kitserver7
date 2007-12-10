@@ -58,6 +58,7 @@ hooklib.obj: hooklib.cpp hooklib.h
 log.obj: log.cpp log.h
 crc32.obj: crc32.cpp crc32.h
 hook.obj: hook.cpp hook.h
+kserv.obj: kserv.cpp kserv.h kserv_addr.h kserv.rc
 
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
@@ -69,9 +70,9 @@ kload.res:
 	$(RC) -r -fo kload.res kload.rc
 	
 	
-kserv.lib: kserv.obj
+kserv.lib: kserv.obj afsreader.obj crc32.obj
 kserv.dll: kserv.lib kserv.res
-	$(LINK) $(LFLAGS) /out:kserv.dll /DLL kserv.obj kserv.res $(LIBS) $(D3DX9) kload.lib
+	$(LINK) $(LFLAGS) /out:kserv.dll /DLL kserv.obj afsreader.obj crc32.obj kserv.res $(LIBS) $(D3DX9) kload.lib
 kserv.obj: kserv.cpp kserv.h
 
 lodmixer.lib: lodmixer.obj
