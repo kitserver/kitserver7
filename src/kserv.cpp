@@ -8,11 +8,18 @@
 #include "kserv.h"
 #include "kserv_addr.h"
 #include "dllinit.h"
+#include "gdb.h"
+#include "pngdib.h"
 
 #define lang(s) getTransl("kserv",s)
 
 #include <map>
 #include <hash_map>
+#include <wchar.h>
+
+#define SWAPBYTES(dw) \
+    (dw<<24 & 0xff000000) | (dw<<8  & 0x00ff0000) | \
+    (dw>>8  & 0x0000ff00) | (dw>>24 & 0x000000ff)
 
 typedef struct _UNPACK_INFO 
 {
@@ -35,11 +42,12 @@ hash_map<DWORD,BIN_INFO> g_kitsBinInfoById;
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoByOffset;
 DWORD g_currentBin = 0xffffffff;
 
+GDB* gdb = NULL;
+
 hash_map<DWORD,DWORD> g_kitNameAndNumbersSwap;
 
 // FUNCTIONS
 void initKserv();
-
 void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
 BOOL WINAPI kservSetFilePointerEx(
   __in       HANDLE hFile,
@@ -50,7 +58,14 @@ BOOL WINAPI kservSetFilePointerEx(
 DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 void HookSetFilePointerEx();
 PACKED_BIN* LoadBinFromAFS(DWORD id);
-
+void DumpData(void* data, size_t size);
+DWORD LoadPNGTexture(BITMAPINFO** tex, wchar_t* filename);
+void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size);
+static int read_file_to_mem(wchar_t *fn,unsigned char **ppfiledata, int *pfilesize);
+void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette);
+bool FindFileName(DWORD id, wchar_t* filename);
+void FreePNGTexture(BITMAPINFO* bitmap);
+void ReplaceTexturesInBin(UNPACKED_BIN* bin, wchar_t** files, bool* flags, size_t n);
 
 /*******************/
 /* DLL Entry Point */
@@ -75,6 +90,9 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
 		TRACE(L"Shutting down this module...");
+
+        // Release GDB memory
+        gdbUnload(gdb);
 	}
 	
 	return true;
@@ -143,6 +161,9 @@ void initKserv() {
     g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4218,4217));
     g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4219,4220));
     g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4220,4219));
+
+    // Load GDB
+    gdb = gdbLoad("./");
 
     // hook UnpackBin
     MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
@@ -233,6 +254,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     {
         LOG1N(L"Unpacking bin %d", g_currentBin);
 
+        /*
         // test: replace whole bins for numbers and fonts
         hash_map<DWORD,DWORD>::iterator nit = g_kitNameAndNumbersSwap.find(g_currentBin);
         if (nit != g_kitNameAndNumbersSwap.end())
@@ -251,6 +273,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             pUnpackInfo->srcBuffer = swap_bin->data;
             pUnpackInfo->bytesToProcess = swap_bin->header.sizePacked;
         }
+        */
     }
 
     // call original
@@ -263,8 +286,79 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     if (it != g_kitsBinInfoById.end()) // bin found in map.
     {
         LOG1N(L"num entries = %d", bin->header.numEntries);
+        //DumpData((BYTE*)bin, pUnpackInfo->destSize);
+
         // replace textures
-        // TODO
+        if (bin->header.numEntries == 2 && 
+                bin->entryInfo[0].size == 0x40410 &&
+                bin->entryInfo[1].size == 0x40410)
+        {
+            wchar_t filename[BUFLEN] = {L'\0'};
+            switch (g_currentBin)
+            {
+                case 7920:
+                    {
+                        wchar_t* files[2] = {
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\kit.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\kit.png",
+                        };
+                        bool flags[] = {true,true};
+                        ReplaceTexturesInBin(bin, files, flags, 2);
+                    }
+                    break;
+            }
+        }
+
+        else
+        {
+            switch (g_currentBin)
+            {
+                case 3195:
+                    {
+                        wchar_t* files[1] = {
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\font.png",
+                        };
+                        bool flags[] = {false,false};
+                        ReplaceTexturesInBin(bin, files, flags, 1);
+                    }
+                    break;
+                case 3196:
+                    {
+                        wchar_t* files[1] = {
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\font.png",
+                        };
+                        bool flags[] = {false,false};
+                        ReplaceTexturesInBin(bin, files, flags, 1);
+                    }
+                    break;
+                case 4219:
+                    {
+                        wchar_t* files[4] = {
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-back.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-front.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
+                        };
+                        bool flags[] = {false,false,false,false};
+                        ReplaceTexturesInBin(bin, files, flags, 4);
+                    }
+                    break;
+                case 4220:
+                    {
+                        wchar_t* files[4] = {
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-back.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-front.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
+                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
+                        };
+                        bool flags[] = {false,false,false,false};
+                        ReplaceTexturesInBin(bin, files, flags, 4);
+                    }
+                    break;
+            }
+        }
+
+        /*
         // test: swap textures
         if (bin->header.numEntries == 2 && 
                 bin->entryInfo[0].size == 0x40410 &&
@@ -279,11 +373,32 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             memcpy(tex1, tmp, bin->entryInfo[1].size);
             HeapFree(GetProcessHeap(), 0, tmp);
         }
+        */
     }
     // reset bin indicator
     g_currentBin = 0xffffffff;
 
     return result;
+}
+
+void ReplaceTexturesInBin(UNPACKED_BIN* bin, wchar_t** files, bool* flags, size_t n)
+{
+    for (int i=0; i<n; i++)
+    {
+        TEXTURE_ENTRY* tex = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[i].offset);
+        BITMAPINFO* bmp = NULL;
+        DWORD texSize = LoadPNGTexture(&bmp, files[i]);
+        if (texSize)
+        {
+            ApplyDIBTexture(tex, bmp, flags[i]);
+            FreePNGTexture(bmp);
+        }
+    }
+}
+
+bool FindFileName(DWORD id, wchar_t* filename)
+{
+    return false;
 }
 
 PACKED_BIN* LoadBinFromAFS(DWORD id)
@@ -305,8 +420,214 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
     }
     else 
     {
-        LOG(L"ERROR: Unable to load BIN #%d", id);
+        LOG1N(L"ERROR: Unable to load BIN #%d", id);
     }
     return result;
+}
+
+void DumpData(void* data, size_t size)
+{
+    static count = 0;
+    char filename[256] = {0};
+    sprintf(filename, "kitserver/dump%03d.bin", count);
+    FILE* f = fopen(filename,"wb");
+    if (f) 
+    {
+        fwrite(data, size, 1, f);
+        fclose(f);
+        LOG1N(L"Dumped file (count=%d)",count);
+    }
+    else
+    {
+        LOG1N(L"ERROR: unable to dump file (count=%d)",count);
+    }
+    count++;
+}
+
+// Load texture from PNG file. Returns the size of loaded texture
+DWORD LoadPNGTexture(BITMAPINFO** tex, wchar_t* filename)
+{
+	TRACE1S(L"LoadPNGTexture: loading %s", filename);
+    DWORD size = 0;
+
+    PNGDIB *pngdib;
+    LPBITMAPINFOHEADER* ppDIB = (LPBITMAPINFOHEADER*)tex;
+
+    pngdib = pngdib_p2d_init();
+	//TRACE(L"LoadPNGTexture: structure initialized");
+
+    BYTE* memblk;
+    int memblksize;
+    if(read_file_to_mem(filename,&memblk, &memblksize)) {
+        TRACE(L"LoadPNGTexture: unable to read PNG file");
+        return 0;
+    }
+    //TRACE(L"LoadPNGTexture: file read into memory");
+
+    pngdib_p2d_set_png_memblk(pngdib,memblk,memblksize);
+	pngdib_p2d_set_use_file_bg(pngdib,1);
+	pngdib_p2d_run(pngdib);
+
+	//TRACE(L"LoadPNGTexture: run done");
+    pngdib_p2d_get_dib(pngdib, ppDIB, (int*)&size);
+	//TRACE(L"LoadPNGTexture: get_dib done");
+
+    pngdib_done(pngdib);
+	TRACE(L"LoadPNGTexture: done done");
+
+	TRACE1N(L"LoadPNGTexture: *ppDIB = %08x", (DWORD)*ppDIB);
+    if (*ppDIB == NULL) {
+		TRACE(L"LoadPNGTexture: ERROR - unable to load PNG image.");
+        return 0;
+    }
+
+    // read transparency values from tRNS chunk
+    // and put them into DIB's RGBQUAD.rgbReserved fields
+    ApplyAlphaChunk((RGBQUAD*)&((BITMAPINFO*)*ppDIB)->bmiColors, memblk, memblksize);
+
+    HeapFree(GetProcessHeap(), 0, memblk);
+
+	TRACE(L"LoadPNGTexture: done");
+	return size;
+}
+
+/**
+ * Extracts alpha values from tRNS chunk and applies stores
+ * them in the RGBQUADs of the DIB
+ */
+void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size)
+{
+    bool got_alpha = false;
+
+    // find the tRNS chunk
+    DWORD offset = 8;
+    while (offset < size) {
+        PNG_CHUNK_HEADER* chunk = (PNG_CHUNK_HEADER*)(memblk + offset);
+        if (chunk->dwName == MAKEFOURCC('t','R','N','S')) {
+            int numColors = SWAPBYTES(chunk->dwSize);
+            BYTE* alphaValues = memblk + offset + sizeof(chunk->dwSize) + sizeof(chunk->dwName);
+            for (int i=0; i<numColors; i++) {
+                palette[i].rgbReserved = alphaValues[i];
+            }
+            got_alpha = true;
+        }
+        // move on to next chunk
+        offset += sizeof(chunk->dwSize) + sizeof(chunk->dwName) + 
+            SWAPBYTES(chunk->dwSize) + sizeof(DWORD); // last one is CRC
+    }
+
+    // initialize alpha to all-opaque, if haven't gotten it
+    if (!got_alpha) {
+        for (int i=0; i<256; i++) {
+            palette[i].rgbReserved = 0xff;
+        }
+    }
+}
+
+// Read a file into a memory block.
+static int read_file_to_mem(wchar_t *fn,unsigned char **ppfiledata, int *pfilesize)
+{
+	HANDLE hfile;
+	DWORD fsize;
+	//unsigned char *fbuf;
+	BYTE* fbuf;
+	DWORD bytesread;
+
+	hfile=CreateFile(fn,GENERIC_READ,FILE_SHARE_READ,NULL,
+		OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+	if(hfile==INVALID_HANDLE_VALUE) return 1;
+
+	fsize=GetFileSize(hfile,NULL);
+	if(fsize>0) {
+		//fbuf=(unsigned char*)GlobalAlloc(GPTR,fsize);
+		//fbuf=(unsigned char*)calloc(fsize,1);
+        fbuf = (BYTE*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, fsize);
+		if(fbuf) {
+			if(ReadFile(hfile,(void*)fbuf,fsize,&bytesread,NULL)) {
+				if(bytesread==fsize) { 
+					(*ppfiledata)  = fbuf;
+					(*pfilesize) = (int)fsize;
+					CloseHandle(hfile);
+					return 0;   // success
+				}
+			}
+			free((void*)fbuf);
+		}
+	}
+	CloseHandle(hfile);
+	return 1;  // error
+}
+
+// Substitute kit textures with data from DIB
+// Currently supports only 4bit and 8bit paletted DIBs
+void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette)
+{
+    TRACE(L"Applying DIB texture");
+
+	BYTE* srcTex = (BYTE*)bitmap;
+	BITMAPINFOHEADER* bih = &bitmap->bmiHeader;
+	DWORD palOff = bih->biSize;
+    DWORD numColors = 1 << bih->biBitCount;
+    DWORD palSize = numColors*4;
+	DWORD bitsOff = palOff + palSize;
+
+    if (bih->biBitCount!=4 && bih->biBitCount!=8)
+    {
+        LOG(L"ERROR: Unsupported bit-depth. Must be 4- or 8-bit paletted image.");
+        return;
+    }
+    TRACE1N(L"Loading %d-bit image...", bih->biBitCount);
+
+	// copy palette
+	TRACE1N(L"bitsOff = %08x", bitsOff);
+	TRACE1N(L"palOff  = %08x", palOff);
+    memset((BYTE*)&tex->palette, 0, 0x400);
+    memcpy((BYTE*)&tex->palette, srcTex + palOff, palSize);
+	// swap R and B
+	for (int i=0; i<numColors; i++) 
+	{
+		BYTE blue = tex->palette[i].b;
+		BYTE red = tex->palette[i].r;
+		tex->palette[i].b = red;
+		tex->palette[i].r = blue;
+        if (adjustPalette)
+            // adjust palette to KONAMI range (0:0xff --> 0x80:0xff)
+            tex->palette[i].a = 0x80 + (tex->palette[i].a >> 1);
+	}
+	TRACE(L"Palette copied.");
+
+	int k, m, j, w;
+	int height, width;
+	int imageWidth;
+
+    width = imageWidth = tex->header.width; height = tex->header.height;
+
+	// copy pixel data
+    if (bih->biBitCount == 8)
+    {
+        for (k=0, m=bih->biHeight-1; k<height, m>=bih->biHeight - height; k++, m--)
+        {
+            memcpy(tex->data + k*width, srcTex + bitsOff + m*imageWidth, width);
+        }
+    }
+    else if (bih->biBitCount == 4)
+    {
+        for (k=0, m=bih->biHeight-1; k<tex->header.height, m>=0; k++, m--)
+        {
+            for (j=0; j<bih->biWidth/2; j+=1) {
+                // expand ech nibble into full byte
+                tex->data[k*(tex->header.width) + j*2] = srcTex[bitsOff + m*(bih->biWidth/2) + j] >> 4 & 0x0f;
+                tex->data[k*(tex->header.width) + j*2 + 1] = srcTex[bitsOff + m*(bih->biWidth/2) + j] & 0x0f;
+            }
+        }
+    }
+	TRACE(L"Texture replaced.");
+}
+
+void FreePNGTexture(BITMAPINFO* bitmap) 
+{
+	if (bitmap != NULL) {
+        pngdib_p2d_free_dib(NULL, (BITMAPINFOHEADER*)bitmap);
+	}
 }
 

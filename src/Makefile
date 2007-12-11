@@ -11,6 +11,8 @@ INCPNGDIB=soft\pngdib
 LPPNGDIB=soft\pngdib 
 LPLIBPNG=soft\libpng-1.2.8-lib\lib
 LPZLIB=soft\zlib123-dll\lib
+LIBPNGDLL=soft\libpng-1.2.8-bin\libpng13.dll 
+ZLIBDLL=soft\zlib123-dll\zlib1.dll
 
 !ifdef MYDLL_RELEASE_BUILD
 D3DX9=d3dx9.lib
@@ -22,6 +24,8 @@ all: dlls apps
 	if exist output (rd /S /Q output)
 	mkdir output
 	copy *.dll output
+	copy $(LIBPNGDLL) output
+	copy $(ZLIBDLL) output
 	copy setup.exe output
 	copy lodcfg.exe output
 	copy lang_*.txt output
@@ -30,6 +34,8 @@ all_dlls: dlls
 	if exist output (rd /S /Q output)
 	mkdir output
 	copy *.dll output
+	copy $(LIBPNGDLL) output
+	copy $(ZLIBDLL) output
 	copy lang_*.txt output
 	
 all_apps: apps
@@ -38,6 +44,9 @@ all_apps: apps
 	copy setup.exe output
 	copy lodcfg.exe output
 	copy lang_*.txt output
+
+pngdib:
+	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
 dlls: kload.dll kserv.dll lodmixer.dll kset.dll
 apps: setup.exe lodcfg.exe
@@ -58,7 +67,6 @@ hooklib.obj: hooklib.cpp hooklib.h
 log.obj: log.cpp log.h
 crc32.obj: crc32.cpp crc32.h
 hook.obj: hook.cpp hook.h
-kserv.obj: kserv.cpp kserv.h kserv_addr.h kserv.rc
 
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
@@ -70,10 +78,10 @@ kload.res:
 	$(RC) -r -fo kload.res kload.rc
 	
 	
-kserv.lib: kserv.obj afsreader.obj crc32.obj
+kserv.lib: kserv.obj afsreader.obj crc32.obj gdb.obj pngdib
 kserv.dll: kserv.lib kserv.res
-	$(LINK) $(LFLAGS) /out:kserv.dll /DLL kserv.obj afsreader.obj crc32.obj kserv.res $(LIBS) $(D3DX9) kload.lib
-kserv.obj: kserv.cpp kserv.h
+	$(LINK) $(LFLAGS) /out:kserv.dll /LIBPATH:$(LPPNGDIB) /LIBPATH:$(LPLIBPNG) /LIBPATH:$(LPZLIB) /DLL kserv.obj afsreader.obj crc32.obj gdb.obj kserv.res $(LIBS) $(D3DX9) kload.lib $(LIBSDLL)
+kserv.obj: kserv.cpp kserv.h kserv_addr.h kserv.rc
 
 lodmixer.lib: lodmixer.obj
 lodmixer.dll: lodmixer.lib lodmixer.res
