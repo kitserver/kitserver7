@@ -41,10 +41,11 @@ DWORD g_kitsAfsIds[] = {7919,7920,3193,3194,3195,3196,4217,4218,4219,4220};
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoById;
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoByOffset;
 DWORD g_currentBin = 0xffffffff;
+hash_map<WORD,WORD> g_teamIdByKitSlot; // to lookup team ID, using kit slot
+hash_map<WORD,WORD> g_kitSlotByTeamId; // to lookup kit slot, using team ID
+DWORD g_teamKitInfoBase = 0;
 
 GDB* gdb = NULL;
-
-hash_map<DWORD,DWORD> g_kitNameAndNumbersSwap;
 
 // FUNCTIONS
 void initKserv();
@@ -57,6 +58,7 @@ BOOL WINAPI kservSetFilePointerEx(
 );
 DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 void HookSetFilePointerEx();
+void HookCallPoint(DWORD addr, void* func, int numNops);
 PACKED_BIN* LoadBinFromAFS(DWORD id);
 void DumpData(void* data, size_t size);
 DWORD LoadPNGTexture(BITMAPINFO** tex, wchar_t* filename);
@@ -66,6 +68,10 @@ void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette)
 bool FindFileName(DWORD id, wchar_t* filename);
 void FreePNGTexture(BITMAPINFO* bitmap);
 void ReplaceTexturesInBin(UNPACKED_BIN* bin, wchar_t** files, bool* flags, size_t n);
+void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
+void kservReadTeamKitInfoCallPoint1();
+void kservReadTeamKitInfoCallPoint2();
+WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
 
 /*******************/
 /* DLL Entry Point */
@@ -96,6 +102,76 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	}
 	
 	return true;
+}
+
+void kservReadTeamKitInfoCallPoint1()
+{
+    // this is helper function so that we can
+    // hook kservAfterReadTeamKitInfo() at a certain place: right after the
+    // TEAM_KIT_INFO structure was read.
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        sub eax,edx
+        mov g_teamKitInfoBase, eax
+        push esi
+        push edi
+        sub esi,0x200  // go back to original offset - before copy
+        sub edi,0x200  // go back to original offset - before copy
+        push esi
+        push edi
+        call kservAfterReadTeamKitInfo
+        add esp,8     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        mov dword ptr ss:[esp+0x2f4],0  // execute replaced code (stack offset: extra 4 bytes)
+        retn
+    }
+}
+
+void kservReadTeamKitInfoCallPoint2()
+{
+    // this is helper function so that we can
+    // hook kservAfterReadTeamKitInfo() at a certain place: right after the
+    // TEAM_KIT_INFO structure was read.
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        sub esi,0x200  // go back to original offset - before copy
+        sub edi,0x200  // go back to original offset - before copy
+        push esi
+        push edi
+        call kservAfterReadTeamKitInfo
+        add esp,8     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        mov esi,dword ptr ss:[esp+0x2c0]  // execute replaced code (stack offset: extra 4 bytes)
+        retn
+    }
 }
 
 void initKserv() {
@@ -152,16 +228,6 @@ void initKserv() {
         LOG(L"ERROR: Unable to initialize AFS itemInfo structures.");
     }
 
-    // initialize name-and-numbers swap
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(3193,3194));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(3194,3193));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(3195,3196));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(3196,3195));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4217,4218));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4218,4217));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4219,4220));
-    g_kitNameAndNumbersSwap.insert(pair<DWORD,DWORD>(4220,4219));
-
     // Load GDB
     gdb = gdbLoad("./");
 
@@ -169,6 +235,9 @@ void initKserv() {
     MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
     // hook SetFilePointerEx
     HookSetFilePointerEx();
+    // hook reading of team kit info
+    HookCallPoint(code[C_AFTER_READTEAMKITINFO_1], kservReadTeamKitInfoCallPoint1, data[NUMNOPS_1]);
+    HookCallPoint(code[C_AFTER_READTEAMKITINFO_2], kservReadTeamKitInfoCallPoint2, data[NUMNOPS_2]);
 }
 
 void HookSetFilePointerEx()
@@ -184,6 +253,25 @@ void HookSetFilePointerEx()
 	        DWORD* ptr = (DWORD*)(code[C_SETFILEPOINTEREX] + 1);
 	        ptr[0] = (DWORD)kservSetFilePointerEx - (DWORD)(code[C_SETFILEPOINTEREX] + 5);
 	        LOG(L"SetFilePointerEx HOOKED at code[C_SETFILEPOINTEREX]");
+	    }
+	}
+}
+
+void HookCallPoint(DWORD addr, void* func, int numNops)
+{
+    DWORD target = (DWORD)func + 6;
+	if (addr && target)
+	{
+	    BYTE* bptr = (BYTE*)addr;
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	    if (VirtualProtect(bptr, 8, newProtection, &protection)) {
+	        bptr[0] = 0xe8;
+	        DWORD* ptr = (DWORD*)(addr + 1);
+	        ptr[0] = target - (DWORD)(addr + 5);
+            // padding with NOPs
+            for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
+	        LOG2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
 	    }
 	}
 }
@@ -245,18 +333,21 @@ BOOL WINAPI kservSetFilePointerEx(
 DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
 {
     PACKED_BIN* swap_bin = NULL;
+    DWORD currBin = g_currentBin;
+    // reset bin indicator
+    g_currentBin = 0xffffffff;
 
     // remember the unpack BIN address, because the call will change it.
     UNPACKED_BIN* bin = (UNPACKED_BIN*)pUnpackInfo->destBuffer;
 
-    hash_map<DWORD,BIN_INFO>::iterator it = g_kitsBinInfoById.find(g_currentBin);
+    hash_map<DWORD,BIN_INFO>::iterator it = g_kitsBinInfoById.find(currBin);
     if (it != g_kitsBinInfoById.end()) // bin found in map.
     {
-        LOG1N(L"Unpacking bin %d", g_currentBin);
+        LOG1N(L"Unpacking bin %d", currBin);
 
         /*
         // test: replace whole bins for numbers and fonts
-        hash_map<DWORD,DWORD>::iterator nit = g_kitNameAndNumbersSwap.find(g_currentBin);
+        hash_map<DWORD,DWORD>::iterator nit = g_kitNameAndNumbersSwap.find(currBin);
         if (nit != g_kitNameAndNumbersSwap.end())
         {
             // NOTE: this generic technique appears to work well for replacing
@@ -294,7 +385,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                 bin->entryInfo[1].size == 0x40410)
         {
             wchar_t filename[BUFLEN] = {L'\0'};
-            switch (g_currentBin)
+            switch (currBin)
             {
                 case 7920:
                     {
@@ -309,9 +400,9 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             }
         }
 
-        else
+        else if (bin->header.numEntries == 1 || bin->header.numEntries == 4)
         {
-            switch (g_currentBin)
+            switch (currBin)
             {
                 case 3195:
                     {
@@ -375,8 +466,6 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
         }
         */
     }
-    // reset bin indicator
-    g_currentBin = 0xffffffff;
 
     return result;
 }
@@ -629,5 +718,27 @@ void FreePNGTexture(BITMAPINFO* bitmap)
 	if (bitmap != NULL) {
         pngdib_p2d_free_dib(NULL, (BITMAPINFOHEADER*)bitmap);
 	}
+}
+
+WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
+{
+    return ((DWORD)src - (DWORD)g_teamKitInfoBase) >> 9;
+}
+
+void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
+{
+    //LOG3N(L"kservAfterReadTeamKitInfo: team = %d, dest = %08x, src = %08x", 
+    //        GetTeamIdBySrc(src), (DWORD)dest, (DWORD)src);
+
+    WORD teamId = GetTeamIdBySrc(src);
+    switch (teamId)
+    {
+        case 21: // re-link Russia
+            dest->ga.kitLink = 0xc6;
+            dest->pa.kitLink = 0xc6;
+            dest->gb.kitLink = 0xc6;
+            dest->pb.kitLink = 0xc6;
+            break;
+    }
 }
 
