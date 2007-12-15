@@ -31,21 +31,49 @@ typedef struct _UNPACK_INFO
     DWORD destSize;
 } UNPACK_INFO;
 
+typedef struct _READ_RADAR_INFO
+{
+    DWORD unknown1;
+    WORD teamId;
+} READ_RADAR_INFO;
+
+enum
+{
+    BIN_KIT_GK,
+    BIN_KIT_PL,
+    BIN_FONT_GA,
+    BIN_FONT_GB,
+    BIN_FONT_PA,
+    BIN_FONT_PB,
+    BIN_NUMS_GA,
+    BIN_NUMS_GB,
+    BIN_NUMS_PA,
+    BIN_NUMS_PB,
+};
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 bool allQualities = true;
 
+#define NUM_TEAMS 299
+#define NUM_SLOTS 256
+#define FIRST_KIT_BIN  7523
+#define FIRST_FONT_BIN 2401
+#define FIRST_NUMS_BIN 3425
+
 // GLOBALS
-DWORD g_kitsAfsIds[] = {7919,7920,3193,3194,3195,3196,4217,4218,4219,4220};
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoById;
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoByOffset;
 DWORD g_currentBin = 0xffffffff;
 hash_map<WORD,WORD> g_teamIdByKitSlot; // to lookup team ID, using kit slot
 hash_map<WORD,WORD> g_kitSlotByTeamId; // to lookup kit slot, using team ID
 DWORD g_teamKitInfoBase = 0;
+bool g_slotMapsInitialized = false;
 
 GDB* gdb = NULL;
+DWORD g_return_addr = 0;
+DWORD g_param = 0;
 
 // FUNCTIONS
 void initKserv();
@@ -58,7 +86,8 @@ BOOL WINAPI kservSetFilePointerEx(
 );
 DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 void HookSetFilePointerEx();
-void HookCallPoint(DWORD addr, void* func, int numNops);
+void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
+void HookAt(DWORD addr, void* func);
 PACKED_BIN* LoadBinFromAFS(DWORD id);
 void DumpData(void* data, size_t size);
 DWORD LoadPNGTexture(BITMAPINFO** tex, wchar_t* filename);
@@ -68,10 +97,21 @@ void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette)
 bool FindFileName(DWORD id, wchar_t* filename);
 void FreePNGTexture(BITMAPINFO* bitmap);
 void ReplaceTexturesInBin(UNPACKED_BIN* bin, wchar_t** files, bool* flags, size_t n);
+WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
+TEAM_KIT_INFO* GetTeamKitInfoById(WORD id);
 void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
 void kservReadTeamKitInfoCallPoint1();
 void kservReadTeamKitInfoCallPoint2();
-WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
+void kservReadRadarInfoCallPoint();
+void kservBeforeReadRadarInfo(READ_RADAR_INFO** ppReadRadarInfo);
+void kservAfterReadRadarInfo(READ_RADAR_INFO** ppReadRadarInfo);
+void InitSlotMap();
+int GetBinType(DWORD id);
+int GetKitSlot(DWORD id);
+WORD FindFreeKitSlot();
+
+// FUNCTION POINTERS
+DWORD g_orgReadRadarInfo = 0;
 
 /*******************/
 /* DLL Entry Point */
@@ -102,6 +142,26 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	}
 	
 	return true;
+}
+
+void InitSlotMap()
+{
+    if (!g_teamKitInfoBase)
+    {
+        LOG(L"ERROR: Unable to initialize slot maps: g_teamKitInfoBase = 0");
+        return;
+    }
+
+    TEAM_KIT_INFO* teamKitInfo = (TEAM_KIT_INFO*)g_teamKitInfoBase;
+    for (WORD i=0; i<NUM_TEAMS; i++)
+    {
+        if (teamKitInfo[i].pa.kitLink < NUM_SLOTS) // teams with kit slots in AFS 
+        {
+            g_kitSlotByTeamId.insert(pair<WORD,WORD>(i,teamKitInfo[i].pa.kitLink));
+            g_teamIdByKitSlot.insert(pair<WORD,WORD>(teamKitInfo[i].pa.kitLink,i));
+        }
+    }
+    LOG(L"Slot maps initialized.");
 }
 
 void kservReadTeamKitInfoCallPoint1()
@@ -174,6 +234,59 @@ void kservReadTeamKitInfoCallPoint2()
     }
 }
 
+void kservReadRadarInfoCallPoint()
+{
+    __asm
+    {
+        pushf
+        push ebp
+        // save return addr
+        mov ebp,[esp+6]
+        mov g_return_addr,ebp
+        mov g_param,eax
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push eax      // parameter
+        call kservBeforeReadRadarInfo
+        add esp,4     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        add esp,4
+        call g_orgReadRadarInfo  // execute replaced code
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push g_param  // parameter
+        call kservAfterReadRadarInfo
+        add esp,4     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        push g_return_addr
+        retn
+    }
+}
+
 void initKserv() {
 	TRACE(L"Going to hook some functions now.");
 	
@@ -212,16 +325,40 @@ void initKserv() {
     FILE* f = fopen("img/cv_0.img","rb");
     if (f)
     {
-        for (int i=0; i<sizeof(g_kitsAfsIds)/sizeof(DWORD); i++)
+        //for (int i=0; i<sizeof(g_kitsAfsIds)/sizeof(DWORD); i++)
+        for (int i=0; i<NUM_SLOTS; i++)
         {
-            BIN_INFO binInfo;
-            binInfo.id = g_kitsAfsIds[i];
-            ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
+            int k;
+            for (k=0; k<2; k++)
+            {
+                BIN_INFO binInfo;
+                binInfo.id = FIRST_KIT_BIN + i*2 + k;
+                ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
 
-            g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
-            g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
+                g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
+                g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
+            }
+            for (k=0; k<4; k++)
+            {
+                BIN_INFO binInfo;
+                binInfo.id = FIRST_FONT_BIN + i*4 + k;
+                ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
+
+                g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
+                g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
+            }
+            for (k=0; k<4; k++)
+            {
+                BIN_INFO binInfo;
+                binInfo.id = FIRST_NUMS_BIN + i*4 + k;
+                ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
+
+                g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
+                g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
+            }
         }
         fclose(f);
+        LOG(L"AFS itemInfo structures initialized.");
     }
     else
     {
@@ -229,15 +366,18 @@ void initKserv() {
     }
 
     // Load GDB
-    gdb = gdbLoad("./");
+    gdb = gdbLoad(".\\kitserver\\");
 
     // hook UnpackBin
     MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
     // hook SetFilePointerEx
     HookSetFilePointerEx();
     // hook reading of team kit info
-    HookCallPoint(code[C_AFTER_READTEAMKITINFO_1], kservReadTeamKitInfoCallPoint1, data[NUMNOPS_1]);
-    HookCallPoint(code[C_AFTER_READTEAMKITINFO_2], kservReadTeamKitInfoCallPoint2, data[NUMNOPS_2]);
+    HookCallPoint(code[C_AFTER_READTEAMKITINFO_1], kservReadTeamKitInfoCallPoint1, 6, data[NUMNOPS_1]);
+    HookCallPoint(code[C_AFTER_READTEAMKITINFO_2], kservReadTeamKitInfoCallPoint2, 6, data[NUMNOPS_2]);
+    // hook radar info function
+    //g_orgReadRadarInfo = code[C_READ_RADAR_INFO_TARGET];
+    //HookCallPoint(code[C_READ_RADAR_INFO], kservReadRadarInfoCallPoint, 6, 0);
 }
 
 void HookSetFilePointerEx()
@@ -257,9 +397,9 @@ void HookSetFilePointerEx()
 	}
 }
 
-void HookCallPoint(DWORD addr, void* func, int numNops)
+void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
 {
-    DWORD target = (DWORD)func + 6;
+    DWORD target = (DWORD)func + codeShift;
 	if (addr && target)
 	{
 	    BYTE* bptr = (BYTE*)addr;
@@ -271,6 +411,23 @@ void HookCallPoint(DWORD addr, void* func, int numNops)
 	        ptr[0] = target - (DWORD)(addr + 5);
             // padding with NOPs
             for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
+	        LOG2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
+	    }
+	}
+}
+
+void HookAt(DWORD addr, void* func)
+{
+    DWORD target = (DWORD)func;
+	if (addr && target)
+	{
+	    BYTE* bptr = (BYTE*)addr;
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	    if (VirtualProtect(bptr, 8, newProtection, &protection)) {
+	        bptr[0] = 0xe8;
+	        DWORD* ptr = (DWORD*)(addr + 1);
+	        ptr[0] = target - (DWORD)(addr + 5);
 	        LOG2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
 	    }
 	}
@@ -379,92 +536,142 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
         LOG1N(L"num entries = %d", bin->header.numEntries);
         //DumpData((BYTE*)bin, pUnpackInfo->destSize);
 
-        // replace textures
-        if (bin->header.numEntries == 2 && 
-                bin->entryInfo[0].size == 0x40410 &&
-                bin->entryInfo[1].size == 0x40410)
+        // determine type of bin
+        int type = GetBinType(currBin);
+
+        // determine team ID by kit slot
+        WORD kitSlot = GetKitSlot(currBin);
+        hash_map<WORD,WORD>::iterator ksit = g_teamIdByKitSlot.find(kitSlot);
+        if (ksit != g_teamIdByKitSlot.end())
         {
-            wchar_t filename[BUFLEN] = {L'\0'};
-            switch (currBin)
+            WORD teamId = ksit->second;
+            WordKitCollectionMap::iterator wkit = gdb->uni->find(teamId);
+            if (wkit != gdb->uni->end())
             {
-                case 7920:
+                // found this team in GDB.
+                // replace textures
+                if (bin->header.numEntries == 2 && 
+                        bin->entryInfo[0].size == 0x40410 &&
+                        bin->entryInfo[1].size == 0x40410)
+                {
+                    wchar_t filename[BUFLEN] = {L'\0'};
+                    switch (type)
                     {
-                        wchar_t* files[2] = {
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\kit.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\kit.png",
-                        };
-                        bool flags[] = {true,true};
-                        ReplaceTexturesInBin(bin, files, flags, 2);
+                        case BIN_KIT_GK:
+                            {
+                                wchar_t* files[2] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\kit.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\kit.png",
+                                };
+                                bool flags[] = {true,true};
+                                ReplaceTexturesInBin(bin, files, flags, 2);
+                            }
+                            break;
+                        case BIN_KIT_PL:
+                            {
+                                wchar_t* files[2] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\kit.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\kit.png",
+                                };
+                                bool flags[] = {true,true};
+                                ReplaceTexturesInBin(bin, files, flags, 2);
+                            }
+                            break;
                     }
-                    break;
-            }
-        }
+                }
 
-        else if (bin->header.numEntries == 1 || bin->header.numEntries == 4)
-        {
-            switch (currBin)
-            {
-                case 3195:
+                else if (bin->header.numEntries == 1 || bin->header.numEntries == 4)
+                {
+                    switch (type)
                     {
-                        wchar_t* files[1] = {
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\font.png",
-                        };
-                        bool flags[] = {false,false};
-                        ReplaceTexturesInBin(bin, files, flags, 1);
+                        case BIN_FONT_GA:
+                            {
+                                wchar_t* files[1] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\font.png",
+                                };
+                                bool flags[] = {false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 1);
+                            }
+                            break;
+                        case BIN_FONT_GB:
+                            {
+                                wchar_t* files[1] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\font.png",
+                                };
+                                bool flags[] = {false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 1);
+                            }
+                            break;
+                        case BIN_FONT_PA:
+                            {
+                                wchar_t* files[1] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\font.png",
+                                };
+                                bool flags[] = {false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 1);
+                            }
+                            break;
+                        case BIN_FONT_PB:
+                            {
+                                wchar_t* files[1] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\font.png",
+                                };
+                                bool flags[] = {false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 1);
+                            }
+                            break;
+                        case BIN_NUMS_GA:
+                            {
+                                wchar_t* files[4] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-back.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-front.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-shorts.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-shorts.png",
+                                };
+                                bool flags[] = {false,false,false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 4);
+                            }
+                            break;
+                        case BIN_NUMS_GB:
+                            {
+                                wchar_t* files[4] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-back.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-front.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-shorts.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-shorts.png",
+                                };
+                                bool flags[] = {false,false,false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 4);
+                            }
+                            break;
+                        case BIN_NUMS_PA:
+                            {
+                                wchar_t* files[4] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-back.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-front.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
+                                };
+                                bool flags[] = {false,false,false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 4);
+                            }
+                            break;
+                        case BIN_NUMS_PB:
+                            {
+                                wchar_t* files[4] = {
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-back.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-front.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
+                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
+                                };
+                                bool flags[] = {false,false,false,false};
+                                ReplaceTexturesInBin(bin, files, flags, 4);
+                            }
+                            break;
                     }
-                    break;
-                case 3196:
-                    {
-                        wchar_t* files[1] = {
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\font.png",
-                        };
-                        bool flags[] = {false,false};
-                        ReplaceTexturesInBin(bin, files, flags, 1);
-                    }
-                    break;
-                case 4219:
-                    {
-                        wchar_t* files[4] = {
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-back.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-front.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
-                        };
-                        bool flags[] = {false,false,false,false};
-                        ReplaceTexturesInBin(bin, files, flags, 4);
-                    }
-                    break;
-                case 4220:
-                    {
-                        wchar_t* files[4] = {
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-back.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-front.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
-                                L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
-                        };
-                        bool flags[] = {false,false,false,false};
-                        ReplaceTexturesInBin(bin, files, flags, 4);
-                    }
-                    break;
-            }
-        }
-
-        /*
-        // test: swap textures
-        if (bin->header.numEntries == 2 && 
-                bin->entryInfo[0].size == 0x40410 &&
-                bin->entryInfo[1].size == 0x40410)
-        {
-            TEXTURE_ENTRY* tex0 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
-            TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
-
-            BYTE* tmp = (BYTE*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bin->entryInfo[0].size);
-            memcpy(tmp, tex0, bin->entryInfo[0].size);
-            memcpy(tex0, tex1, bin->entryInfo[1].size);
-            memcpy(tex1, tmp, bin->entryInfo[1].size);
-            HeapFree(GetProcessHeap(), 0, tmp);
-        }
-        */
+                }
+            } // end if wkit
+        } // end if ksit
     }
 
     return result;
@@ -725,20 +932,149 @@ WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
     return ((DWORD)src - (DWORD)g_teamKitInfoBase) >> 9;
 }
 
+TEAM_KIT_INFO* GetTeamKitInfoById(WORD id)
+{
+    return (TEAM_KIT_INFO*)(g_teamKitInfoBase + (id<<9));
+}
+
 void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
 {
     //LOG3N(L"kservAfterReadTeamKitInfo: team = %d, dest = %08x, src = %08x", 
     //        GetTeamIdBySrc(src), (DWORD)dest, (DWORD)src);
 
-    WORD teamId = GetTeamIdBySrc(src);
-    switch (teamId)
+    if (!g_slotMapsInitialized)
     {
-        case 21: // re-link Russia
-            dest->ga.kitLink = 0xc6;
-            dest->pa.kitLink = 0xc6;
-            dest->gb.kitLink = 0xc6;
-            dest->pb.kitLink = 0xc6;
-            break;
+        InitSlotMap();
+        g_slotMapsInitialized = true;
+    }
+
+    WORD teamId = GetTeamIdBySrc(src);
+    WordKitCollectionMap::iterator it = gdb->uni->find(teamId);
+    if (it != gdb->uni->end())
+    {
+        // re-link, if necessary
+        hash_map<WORD,WORD>::iterator tid = g_kitSlotByTeamId.find(teamId);
+        if (tid == g_kitSlotByTeamId.end())
+        {
+            LOG1N(L"Re-linking team %d...", teamId);
+            // this is a team in GDB, but without a kit slot in AFS
+            // We need to temporarily re-link it to an available slot.
+            WORD kitSlot = FindFreeKitSlot();
+            if (kitSlot != 0xffff)
+            {
+                LOG2N(L"Team %d now uses slot 0x%04x", teamId, kitSlot);
+                g_kitSlotByTeamId.insert(pair<WORD,WORD>(teamId,kitSlot));
+                g_teamIdByKitSlot.insert(pair<WORD,WORD>(kitSlot,teamId));
+                dest->ga.kitLink = kitSlot;
+                dest->gb.kitLink = kitSlot;
+                dest->pa.kitLink = kitSlot;
+                dest->pb.kitLink = kitSlot;
+            }
+            else
+            {
+                LOG1N(L"Unable to re-link team %d: no slots available.", teamId);
+            }
+        }
+        else
+        {
+            // set slot
+            dest->ga.kitLink = tid->second;
+            dest->gb.kitLink = tid->second;
+            dest->pa.kitLink = tid->second;
+            dest->pb.kitLink = tid->second;
+        }
+
+        // apply attributes
+        // TODO
     }
 }
+
+void kservBeforeReadRadarInfo(READ_RADAR_INFO** ppReadRadarInfo)
+{
+    WORD teamId[2];
+    teamId[0] = ppReadRadarInfo[0]->teamId;
+    teamId[1] = ppReadRadarInfo[1]->teamId;
+
+    for (int i=0; i<2; i++)
+    {
+        TEAM_KIT_INFO* tki = GetTeamKitInfoById(teamId[i]);
+        LOG1N(L"Before reading radar::tki = %08x", (DWORD)tki);
+        switch (teamId[i])
+        {
+            case 21: // set radar-color for Russia
+                tki->pa.radarColor = 0x8c72; //red
+                tki->pb.radarColor = 0xffff; //white
+                break;
+        }
+    }
+    LOG2N(L"Before reading radar info for teams: %d, %d", teamId[0], teamId[1]);
+}
+
+void kservAfterReadRadarInfo(READ_RADAR_INFO** ppReadRadarInfo)
+{
+    WORD teamId[2];
+    teamId[0] = ppReadRadarInfo[0]->teamId;
+    teamId[1] = ppReadRadarInfo[1]->teamId;
+
+    for (int i=0; i<2; i++)
+    {
+        TEAM_KIT_INFO* tki = GetTeamKitInfoById(teamId[i]);
+        LOG1N(L"After reading radar::tki = %08x", (DWORD)tki);
+        switch (teamId[i])
+        {
+            case 21: // set radar-color for Russia
+                tki->pa.radarColor = 0xffff; //white
+                tki->pb.radarColor = 0x8c72; //red
+                break;
+        }
+    }
+    LOG2N(L"After reading radar info for teams: %d, %d", teamId[0], teamId[1]);
+}
+
+int GetBinType(DWORD id)
+{
+    if (id >= FIRST_KIT_BIN && id < FIRST_KIT_BIN + NUM_SLOTS*2)
+    {
+        return BIN_KIT_GK + ((id - FIRST_KIT_BIN)%2);
+    }
+    else if (id >= FIRST_FONT_BIN && id < FIRST_FONT_BIN + NUM_SLOTS*4)
+    {
+        return BIN_FONT_GA + ((id - FIRST_FONT_BIN)%4);
+    }
+    else if (id >= FIRST_NUMS_BIN && id < FIRST_NUMS_BIN + NUM_SLOTS*4)
+    {
+        return BIN_NUMS_GA + ((id - FIRST_NUMS_BIN)%4);
+    }
+    return -1;
+}
+
+int GetKitSlot(DWORD id)
+{
+    if (id >= FIRST_KIT_BIN && id < FIRST_KIT_BIN + NUM_SLOTS*2)
+    {
+        return (id - FIRST_KIT_BIN)/2;
+    }
+    else if (id >= FIRST_FONT_BIN && id < FIRST_FONT_BIN + NUM_SLOTS*4)
+    {
+        return (id - FIRST_FONT_BIN)/4;
+    }
+    else if (id >= FIRST_NUMS_BIN && id < FIRST_NUMS_BIN + NUM_SLOTS*4)
+    {
+        return (id - FIRST_NUMS_BIN)/4;
+    }
+    return -1;
+}
+
+WORD FindFreeKitSlot()
+{
+    TEAM_KIT_INFO* teamKitInfo = (TEAM_KIT_INFO*)g_teamKitInfoBase;
+    for (WORD i=0; i<NUM_SLOTS; i++)
+    {
+        hash_map<WORD,WORD>::iterator tid = g_teamIdByKitSlot.find(i);
+        if (tid == g_teamIdByKitSlot.end())
+            return i;
+    }
+    return -1;
+}
+
 
