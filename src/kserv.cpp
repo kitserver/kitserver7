@@ -136,9 +136,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
 		TRACE(L"Shutting down this module...");
-
-        // Release GDB memory
-        gdbUnload(gdb);
+        delete gdb;
 	}
 	
 	return true;
@@ -366,7 +364,7 @@ void initKserv() {
     }
 
     // Load GDB
-    gdb = gdbLoad(".\\kitserver\\");
+    gdb = new GDB(L".\\kitserver\\");
 
     // hook UnpackBin
     MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
@@ -545,8 +543,8 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
         if (ksit != g_teamIdByKitSlot.end())
         {
             WORD teamId = ksit->second;
-            WordKitCollectionMap::iterator wkit = gdb->uni->find(teamId);
-            if (wkit != gdb->uni->end())
+            hash_map<WORD,KitCollection>::iterator wkit = gdb->uni.find(teamId);
+            if (wkit != gdb->uni.end())
             {
                 // found this team in GDB.
                 // replace textures
@@ -949,8 +947,8 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
     }
 
     WORD teamId = GetTeamIdBySrc(src);
-    WordKitCollectionMap::iterator it = gdb->uni->find(teamId);
-    if (it != gdb->uni->end())
+    hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(teamId);
+    if (it != gdb->uni.end())
     {
         // re-link, if necessary
         hash_map<WORD,WORD>::iterator tid = g_kitSlotByTeamId.find(teamId);
@@ -965,10 +963,16 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
                 LOG2N(L"Team %d now uses slot 0x%04x", teamId, kitSlot);
                 g_kitSlotByTeamId.insert(pair<WORD,WORD>(teamId,kitSlot));
                 g_teamIdByKitSlot.insert(pair<WORD,WORD>(kitSlot,teamId));
-                dest->ga.kitLink = kitSlot;
-                dest->gb.kitLink = kitSlot;
-                dest->pa.kitLink = kitSlot;
-                dest->pb.kitLink = kitSlot;
+                if (!it->second.goalkeepers.empty())
+                {
+                    dest->ga.kitLink = kitSlot;
+                    dest->gb.kitLink = kitSlot;
+                }
+                if (!it->second.players.empty())
+                {
+                    dest->pa.kitLink = kitSlot;
+                    dest->pb.kitLink = kitSlot;
+                }
             }
             else
             {
@@ -978,10 +982,16 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
         else
         {
             // set slot
-            dest->ga.kitLink = tid->second;
-            dest->gb.kitLink = tid->second;
-            dest->pa.kitLink = tid->second;
-            dest->pb.kitLink = tid->second;
+            if (!it->second.goalkeepers.empty())
+            {
+                dest->ga.kitLink = tid->second;
+                dest->gb.kitLink = tid->second;
+            }
+            if (!it->second.players.empty())
+            {
+                dest->pa.kitLink = tid->second;
+                dest->pb.kitLink = tid->second;
+            }
         }
 
         // apply attributes

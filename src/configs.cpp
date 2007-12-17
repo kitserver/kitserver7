@@ -7,6 +7,7 @@
 #include "configs.h"
 
 #include <map>
+#include <hash_map>
 #include <list>
 #include <string>
 
@@ -36,9 +37,9 @@ bool readConfig(wchar_t* cfgFile)
 	char currSection[64] = {'\0'};
 	
 	char a_str[BUFLEN];
-	wchar_t str[BUFLEN];
+	wchar_t str[WBUFLEN];
 	char name[BUFLEN];
-	wchar_t buf[BUFLEN];
+	wchar_t buf[WBUFLEN];
 
 	wchar_t *pComment = NULL, *pName = NULL, *pValue = NULL, *pSpace = NULL, *pEq = NULL, *pTemp = NULL;
 
@@ -126,7 +127,7 @@ bool writeConfig(wchar_t* cfgFile)
 	fputs((char*)&firstDWORD, f);
 
 	char a_str[BUFLEN];
-	wchar_t str[BUFLEN];
+	wchar_t str[WBUFLEN];
 	
     for (map<string,bool>::iterator it = sectionKeys.begin(); 
             it != sectionKeys.end(); it++)
@@ -165,7 +166,7 @@ void _getConfig(char* section, char* name, BYTE dataType, DWORD a, PROCESSCONFIG
 		
 	wchar_t *startQuote, *endQuote;
 	char buf[BUFLEN];
-	wchar_t buf2[BUFLEN];
+	wchar_t buf2[WBUFLEN];
 	DWORD dValue;
 	int iValue;
 	double dbValue;
@@ -255,3 +256,91 @@ void _setConfig(char* section, char* name, wstring& value, bool replace)
     g_knownConfigs.insert(pair<string,wstring>(key,value));
 }
 
+template <typename T>
+bool readMap(const wchar_t* cfgFile, T& m)
+{
+	FILE* f = _wfopen(cfgFile, L"rb");
+	if (!f) return false;
+
+	DWORD firstDWORD;
+	bool unicodeFile = false;
+	fgets((char*)&firstDWORD, 4, f);
+	if ((firstDWORD & 0xffffff) == 0xbfbbef) {
+		// UTF8
+		fseek(f, 3, SEEK_SET);
+	} else if ((firstDWORD & 0xffff) == 0xfeff) {
+		// Unicode Little Endian
+		unicodeFile = true;
+		fseek(f, 2, SEEK_SET);
+	} else {
+		// no supported BOM detected, asume UTF8
+		fseek(f, 0, SEEK_SET);
+	}
+	
+	char currSection[64] = {'\0'};
+	
+	char a_str[BUFLEN];
+	wchar_t str[WBUFLEN];
+
+	wchar_t *pComment = NULL, *pName = NULL, *pValue = NULL, *pSpace = NULL, *pEq = NULL, *pTemp = NULL;
+
+	while (!feof(f))
+	{
+		if (!unicodeFile) {
+			ZeroMemory(str, WBUFLEN);
+			ZeroMemory(a_str, BUFLEN);
+			fgets(a_str, BUFLEN-1, f);
+			Utf8::fUtf8ToUnicode(str, a_str);
+		} else {
+			ZeroMemory(str, WBUFLEN);
+			fgetws(str, BUFLEN-1, f);
+		}
+		
+		if (str[0] == '[') {
+			wchar_t* pFirst = str + 1;
+			wchar_t* pSecond = wcsstr(pFirst, L"]");
+			if (!pSecond) continue;
+			*pSecond = '\0';
+			
+			Utf8::fUnicodeToAnsi(currSection, pFirst);
+			continue;
+		}
+		
+		// skip comments
+		pComment = wcsstr(str, L"#");
+		if (pComment != NULL) pComment[0] = '\0';
+			
+		// parse the line
+		pName = pValue = NULL;
+		pEq = wcsstr(str, L",");
+		if (pEq == NULL || pEq[1] == '\0') continue;
+
+		pEq[0] = '\0';
+		pName = str;
+		pValue = pEq + 1;
+		
+        T::key_type numKey;
+		if (swscanf(pName, L"%d", &numKey)==1)
+        {
+            while (*pValue == ' ')
+                pValue++;
+                
+            pTemp = pValue + wcslen(pValue) - 1;
+            while (*pTemp == (wchar_t)13 || *pTemp == (wchar_t)10) {
+                *pTemp = 0;
+                pTemp--;
+            }
+
+            wstring sVal = pValue;
+            m.insert(pair<T::key_type,wstring>(numKey,sVal));
+        }
+	}
+	
+	return true;
+}
+
+void unitTest()
+{
+    hash_map<WORD,wstring> m1;
+    readMap(L"map.txt", m1);
+}

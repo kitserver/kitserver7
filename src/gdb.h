@@ -8,8 +8,6 @@
 
 using namespace std;
 
-#define MAXFILENAME 2048
-
 // attribute definition flags (bits)
 #define SHIRT_NUMBER  0x01 
 #define SHIRT_NAME    0x02 
@@ -38,16 +36,18 @@ using namespace std;
 // GDB data structures
 ///////////////////////////////
 
-typedef struct _RGBAColor {
+class RGBAColor {
+public:
     BYTE r;
     BYTE g;
     BYTE b;
     BYTE a;
-} RGBAColor;
+};
 
-typedef struct _Kit {
-    char foldername[MAXFILENAME];
-    char description[MAXFILENAME];
+class Kit {
+public:
+    wstring foldername;
+    wstring description;
     BYTE collar;
     BYTE model;
     BYTE shirtNumberLocation;
@@ -59,37 +59,35 @@ typedef struct _Kit {
     BYTE logoLocation;
     RGBAColor radarColor;
     RGBAColor shortsMainColor;
-    //char maskFile[MAXFILENAME];
-    //char shirtFolder[256];
-    //char shortsFolder[256];
-    //char socksFolder[256];
-    //char overlayFile[MAXFILENAME];
+    //wstring maskFile;
+    //wstring shirtFolder;
+    //wstring shortsFolder;
+    //wstring socksFolder;
+    //wstring overlayFile;
     DWORD attDefined;
-} Kit;
+};
 
-typedef map<string,Kit*> StringKitMap;
-
-typedef struct _KitCollection {
-    char foldername[MAXFILENAME];
-    StringKitMap* players;
-    StringKitMap* goalkeepers;
-    BOOL editable;
+class KitCollection {
+public:
+    wstring foldername;
+    map<wstring,Kit> players;
+    map<wstring,Kit> goalkeepers;
     BOOL loaded;
-} KitCollection;
 
-typedef hash_map<WORD,KitCollection*> WordKitCollectionMap;
+    KitCollection(wstring fname) : foldername(fname), loaded(false) {}
+};
 
-typedef struct _GDB {
-    char dir[MAXFILENAME];
-    WordKitCollectionMap* uni;
-} GDB;
+class GDB {
+public:
+    wstring dir;
+    hash_map<WORD,KitCollection> uni;
 
-// GDB functions
-//////////////////////////////
-
-GDB* gdbLoad(char* dir);
-void gdbUnload(GDB* gdb);
-void gdbFindKitsForTeam(GDB* gdb, WORD teamId);
-void gdbLoadConfig(GDB* gdb, string& mykey, Kit* kit);
+    GDB(wstring gdir) : dir(gdir) { load(); }
+private:
+    void load();
+    void findKitsForTeam(WORD teamId);
+    void fillKitCollection(KitCollection& col, int kitType);
+    void loadConfig(wstring& mykey, Kit& kit);
+};
 
 #endif

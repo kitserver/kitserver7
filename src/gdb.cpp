@@ -1,151 +1,93 @@
-#include <stdio.h>
-#include "gdb.h"
+#define UNICODE
 
-#define MAXLINELEN 2048
+#include <stdio.h>
+#include <string>
+#include "gdb.h"
+#include "configs.h"
 
 #ifdef MYDLL_RELEASE_BUILD
 #define GDB_DEBUG(f,x)
-#define GDB_DEBUG_OPEN(f, dir)
+#define GDB_DEBUG_OPEN(f,dir)
 #define GDB_DEBUG_CLOSE(f)
 #else
-#define GDB_DEBUG(f,x) if (f != NULL) fprintf x
-#define GDB_DEBUG_OPEN(f, dir) {\
-	char buf[MAXLINELEN]; \
-	ZeroMemory(buf, MAXLINELEN); \
-	lstrcpy(buf, dir); lstrcat(buf, "GDB.debug.log"); \
-	f = fopen(buf, "wt"); \
+#define GDB_DEBUG(f,x) if (f) fwprintf x
+#define GDB_DEBUG_OPEN(f,dir) {\
+    f = _wfopen((dir + L"GDB.debug.log").c_str(),L"wt");\
 }
-#define GDB_DEBUG_CLOSE(f) if (f != NULL) { fclose(f); f = NULL; }
+#define GDB_DEBUG_CLOSE(f) if (f) fclose(f)
 #endif
 
 #define PLAYERS 0
 #define GOALKEEPERS 1
 
-static FILE* klog;
+FILE* wlog;
 
 // functions
 //////////////////////////////////////////
 
-static void gdbFillKitCollection(GDB* gdb, KitCollection* col, int kitType);
-static BOOL ParseColor(char* str, RGBAColor* color);
-static BOOL ParseByte(char* str, BYTE* byte);
-static int getKeyValuePair(char* buf, char* key, char* value);
+static bool ParseColor(wchar_t* str, RGBAColor* color);
+static bool ParseByte(wchar_t* str, BYTE* byte);
 
 /**
  * Allocate and initialize the GDB structure, read the "map.txt" file
  * but don't look for kit folders themselves.
  */
-GDB* gdbLoad(char* dir)
+void GDB::load()
 {
-	GDB_DEBUG_OPEN(klog, dir);
-	GDB_DEBUG(klog, (klog, "Loading GDB...\n"));
-
-	// initialize an empty database
-	HANDLE heap = GetProcessHeap();
-    GDB* gdb = (GDB*)HeapAlloc(heap, HEAP_ZERO_MEMORY, sizeof(GDB));
-    if (!gdb) {
-        GDB_DEBUG(klog, (klog, "Unable to allocate memory for GDB.\n"));
-        GDB_DEBUG_CLOSE(klog);
-        return NULL;
-    }
-	strncpy(gdb->dir, dir, MAXFILENAME);
-    gdb->uni = new WordKitCollectionMap();
+	GDB_DEBUG_OPEN(wlog,this->dir);
+	GDB_DEBUG(wlog,(wlog,L"Loading GDB...\n"));
 
     // process kit map file
-    char mapFile[MAXFILENAME];
-    ZeroMemory(mapFile,MAXFILENAME);
-    sprintf(mapFile, "%sGDB\\uni\\map.txt", gdb->dir);
-    FILE* map = fopen(mapFile, "rt");
-    if (map == NULL) {
-        GDB_DEBUG(klog, (klog, "Unable to find uni-map: %s.\n", mapFile));
-        GDB_DEBUG_CLOSE(klog);
-        return gdb;
+    hash_map<WORD,wstring> mapFile;
+    if (!readMap((this->dir + L"GDB\\uni\\map.txt").c_str(), mapFile))
+    {
+        GDB_DEBUG(wlog,(wlog,L"Unable to find uni-map: %s\n",mapFile));
+        return;
     }
 
-	// go line by line
-    char buf[MAXLINELEN];
-	while (!feof(map))
-	{
-		ZeroMemory(buf, MAXLINELEN);
-		fgets(buf, MAXLINELEN, map);
-		if (lstrlen(buf) == 0) break;
+    for (hash_map<WORD,wstring>::iterator it = mapFile.begin(); it != mapFile.end(); it++)
+    {
+        KitCollection kitCol(it->second);
 
-		// strip off comments
-		char* comm = strstr(buf, "#");
-		if (comm != NULL) comm[0] = '\0';
+        // strip off quotes, if present
+        if (kitCol.foldername[0]=='"' || kitCol.foldername[0]=='\'')
+            kitCol.foldername.erase(0,1);
+        int last = kitCol.foldername.length()-1;
+        if (kitCol.foldername[last]=='"' || kitCol.foldername[last]=='\'')
+            kitCol.foldername.erase(last);
 
-        // find team id
-        WORD teamId = 0xffff;
-        if (sscanf(buf, "%d", &teamId)==1) {
-            GDB_DEBUG(klog, (klog, "teamId = %d\n", teamId));
-            char* foldername = NULL;
-            // look for comma
-            char* pComma = strstr(buf,",");
-            if (pComma) {
-                // what follows is the filename.
-                // It can be contained within double quotes, so 
-                // strip those off, if found.
-                char* start = NULL;
-                char* end = NULL;
-                start = strstr(pComma + 1,"\"");
-                if (start) end = strstr(start + 1,"\"");
-                if (start && end) {
-                    // take what inside the quotes
-                    end[0]='\0';
-                    foldername = start + 1;
-                } else {
-                    // just take the rest of the line
-                    foldername = pComma + 1;
-                }
+        GDB_DEBUG(wlog,(wlog,L"teamId = {%d}, foldername = {%s}\n",
+                    it->first, kitCol.foldername.c_str()));
 
-                GDB_DEBUG(klog, (klog, "foldername = {%s}\n", foldername));
+        // store in the "uni" map
+        this->uni.insert(pair<WORD,KitCollection>(it->first,kitCol));
 
-                // make new kit collection
-                KitCollection* kitCol = (KitCollection*)HeapAlloc(heap, HEAP_ZERO_MEMORY, sizeof(KitCollection));
-                if (!kitCol) {
-                    GDB_DEBUG(klog, (klog, "Unable to allocate memory for kit collection.\n"));
-                    continue;
-                }
-                strncpy(kitCol->foldername, foldername, MAXFILENAME);
-                kitCol->loaded = FALSE;
-                kitCol->players = new StringKitMap();
-                kitCol->goalkeepers = new StringKitMap();
-
-                // store in the "uni" map
-                (*(gdb->uni))[teamId] = kitCol;
-
-                // find kits for this team
-                //gdbFindKitsForTeam(gdb, teamId);
-            }
-        }
+        // find kits for this team
+        this->findKitsForTeam(it->first);
     }
-    fclose(map);
-    //GDB_DEBUG_CLOSE(klog);
-    return gdb;
+
+	GDB_DEBUG(wlog,(wlog,L"Loading GDB complete.\n"));
+    GDB_DEBUG_CLOSE(wlog);
 }
 
 /**
  * Enumerate all kits in this team folder.
  * and for each one parse the "config.txt" file.
  */
-void gdbFillKitCollection(GDB* gdb, KitCollection* col, int kitType)
+void GDB::fillKitCollection(KitCollection& col, int kitType)
 {
 	WIN32_FIND_DATA fData;
-	char pattern[MAXLINELEN];
-	ZeroMemory(pattern, MAXLINELEN);
+    wstring pattern(this->dir);
 
-	HANDLE heap = GetProcessHeap();
-
-	lstrcpy(pattern, gdb->dir); 
 	if (kitType == PLAYERS) {
-		sprintf(pattern + lstrlen(pattern), "GDB\\uni\\%s\\p*", col->foldername);
+		pattern += L"GDB\\uni\\" + col.foldername + L"\\p*";
     } else if (kitType == GOALKEEPERS) {
-		sprintf(pattern + lstrlen(pattern), "GDB\\uni\\%s\\g*", col->foldername);
+		pattern += L"GDB\\uni\\" + col.foldername + L"\\g*";
     }
 
-	GDB_DEBUG(klog, (klog, "pattern = {%s}\n", pattern));
+	GDB_DEBUG(wlog,(wlog, L"pattern = {%s}\n",pattern));
 
-	HANDLE hff = FindFirstFile(pattern, &fData);
+	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
 	if (hff == INVALID_HANDLE_VALUE) 
 	{
 		// none found.
@@ -153,30 +95,23 @@ void gdbFillKitCollection(GDB* gdb, KitCollection* col, int kitType)
 	}
 	while(true)
 	{
-        GDB_DEBUG(klog, (klog, "found: {%s}\n", fData.cFileName));
+        GDB_DEBUG(wlog,(wlog,L"found: {%s}\n",fData.cFileName));
         // check if this is a directory
         if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            // make new Kit object
-            Kit* kit = (Kit*)HeapAlloc(heap, HEAP_ZERO_MEMORY, sizeof(Kit));
-            if (!kit)
-            {
-                GDB_DEBUG(klog, (klog, "Unable to allocate memory for kit object."));
-                break;
-            }
-			ZeroMemory(kit->foldername, MAXFILENAME);
-            sprintf(kit->foldername, "GDB\\uni\\%s\\%s", col->foldername, fData.cFileName);
-
-            ZeroMemory(kit->description,MAXFILENAME);
+            Kit kit;
+            kit.foldername = L"GDB\\uni\\" + col.foldername + L"\\" + wstring(fData.cFileName);
 
             // read and parse the config.txt
-			kit->attDefined = 0;
+			kit.attDefined = 0;
 
-            string key = fData.cFileName;
-            gdbLoadConfig(gdb, key, kit);
+            wstring key(fData.cFileName);
+            this->loadConfig(key, kit);
 
             // insert kit object into KitCollection map
-            StringKitMap* km = (kitType == PLAYERS) ? col->players : col->goalkeepers;
-            (*km)[key] = kit;
+            if (kitType == PLAYERS)
+                col.players.insert(pair<wstring,Kit>(key,kit));
+            else if (kitType == GOALKEEPERS)
+                col.goalkeepers.insert(pair<wstring,Kit>(key,kit));
 		}
 
 		// proceed to next file
@@ -190,35 +125,37 @@ void gdbFillKitCollection(GDB* gdb, KitCollection* col, int kitType)
  * Enumerate all kits in this team folder.
  * and for each one parse the "config.txt" file.
  */
-void gdbFindKitsForTeam(GDB* gdb, WORD teamId)
+void GDB::findKitsForTeam(WORD teamId)
 {
-    KitCollection* col = (*(gdb->uni))[teamId];
-    if (col && !col->loaded) {
+    hash_map<WORD,KitCollection>::iterator it = this->uni.find(teamId);
+    if (it != this->uni.end() && !it->second.loaded)
+    {
         // players
-        gdbFillKitCollection(gdb, col, PLAYERS);
+        this->fillKitCollection(it->second, PLAYERS);
         // goalkeepers
-        gdbFillKitCollection(gdb, col, GOALKEEPERS);
+        this->fillKitCollection(it->second, GOALKEEPERS);
         // mark kit collection as loaded
-        col->loaded = TRUE;
+        it->second.loaded = TRUE;
     }
 }
 
 /**
  * Read and parse the config.txt for the given kit.
  */
-void gdbLoadConfig(GDB* gdb, string& mykey, Kit* kit)
+void GDB::loadConfig(wstring& mykey, Kit& kit)
 {
+    /*
 	char cfgFileName[MAXFILENAME];
 	ZeroMemory(cfgFileName, MAXFILENAME);
 	sprintf(cfgFileName, "%s%s\\config.txt", gdb->dir, kit->foldername);
 
 	FILE* cfg = fopen(cfgFileName, "rt");
 	if (cfg == NULL) {
-        GDB_DEBUG(klog, (klog, "Unable to find %s\n", cfgFileName));
+        GDB_DEBUG(wlog, (wlog, L"Unable to find %s\n", cfgFileName));
 		return;  // no config.txt file => nothing to do.
     }
 
-	GDB_DEBUG(klog, (klog, "Found %s\n", cfgFileName));
+	GDB_DEBUG(wlog, (wlog, L"Found %s\n", cfgFileName));
     HANDLE heap = GetProcessHeap();
 
 	// go line by line
@@ -239,7 +176,7 @@ void gdbLoadConfig(GDB* gdb, string& mykey, Kit* kit)
 
         if (getKeyValuePair(buf,key,value)==2)
         {
-            GDB_DEBUG(klog, (klog, "key: {%s} has value: {%s}\n", key, value));
+            GDB_DEBUG(wlog, (wlog, L"key: {%s} has value: {%s}\n", key, value));
             RGBAColor color;
 
             if (lstrcmp(key, "model")==0)
@@ -391,19 +328,20 @@ void gdbLoadConfig(GDB* gdb, string& mykey, Kit* kit)
 	}
 
 	fclose(cfg);
+    */
 }
 
 /**
  * parses a RRGGBB(AA) string into RGBAColor structure
  */
-BOOL ParseColor(char* str, RGBAColor* color)
+bool ParseColor(wchar_t* str, RGBAColor* color)
 {
 	int len = lstrlen(str);
 	if (!(len == 6 || len == 8)) 
-		return FALSE;
+		return false;
 
 	int num = 0;
-	if (sscanf(str,"%x",&num)!=1) return FALSE;
+	if (swscanf(str,L"%x",&num)!=1) return false;
 
 	if (len == 6) {
 		// assume alpha as fully opaque.
@@ -419,60 +357,16 @@ BOOL ParseColor(char* str, RGBAColor* color)
 		color->a = (BYTE)(num & 0xff);
 	}
 
-	GDB_DEBUG(klog, (klog, "RGBA color: %02x,%02x,%02x,%02x\n",
+	GDB_DEBUG(wlog, (wlog, L"RGBA color: %02x,%02x,%02x,%02x\n",
 				color->r, color->g, color->b, color->a));
-	return TRUE;
+	return true;
 }
 
 // parses a decimal number string into actual BYTE value
-BOOL ParseByte(char* str, BYTE* byte)
+bool ParseByte(wchar_t* str, BYTE* byte)
 {
 	int num = 0;
-	if (sscanf(str,"%d",&num)!=1) return FALSE;
+	if (swscanf(str,L"%d",&num)!=1) return false;
 	*byte = (BYTE)num;
-	return TRUE;
+	return true;
 }
-
-// parses the string into a key-value pair
-int getKeyValuePair(char* buf, char* key, char* value)
-{
-    if (sscanf(buf, "%s", key)==1) {
-        // look for comma
-        char* delim = strstr(buf,"=");
-        if (delim) {
-            // what follows is the value.
-            // It can be contained within double quotes, so 
-            // strip those off, if found.
-            char* start = NULL;
-            char* end = NULL;
-            start = strstr(delim + 1,"\"");
-            if (start) end = strstr(start + 1,"\"");
-            if (start && end) {
-                // take what inside the quotes
-                end[0]='\0';
-                strncpy(value, start + 1, MAXLINELEN);
-                return 2;
-            } else {
-                // just take the next string value
-                return 1 + sscanf(delim + 1, "%s", value);
-            }
-        } else {
-            value[0] = '\0';
-            return 1;
-        }
-    } else {
-        key[0] = '\0';
-        value[0] = '\0';
-    }
-    return 0;
-}
-
-/**
- * Release the memory allocated for GDB objects.
- */
-void gdbUnload(GDB* gdb)
-{
-    //TODO
-    GDB_DEBUG_CLOSE(klog);
-}
-

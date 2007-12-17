@@ -78,9 +78,9 @@ kload.res:
 	$(RC) -r -fo kload.res kload.rc
 	
 	
-kserv.lib: kserv.obj afsreader.obj crc32.obj gdb.obj pngdib
+kserv.lib: kserv.obj afsreader.obj crc32.obj gdb.obj configs.obj pngdib
 kserv.dll: kserv.lib kserv.res
-	$(LINK) $(LFLAGS) /out:kserv.dll /LIBPATH:$(LPPNGDIB) /LIBPATH:$(LPLIBPNG) /LIBPATH:$(LPZLIB) /DLL kserv.obj afsreader.obj crc32.obj gdb.obj kserv.res $(LIBS) $(D3DX9) kload.lib $(LIBSDLL)
+	$(LINK) $(LFLAGS) /out:kserv.dll /LIBPATH:$(LPPNGDIB) /LIBPATH:$(LPLIBPNG) /LIBPATH:$(LPZLIB) /DLL kserv.obj afsreader.obj crc32.obj gdb.obj configs.obj kserv.res $(LIBS) $(D3DX9) kload.lib $(LIBSDLL)
 kserv.obj: kserv.cpp kserv.h kserv_addr.h kserv.rc
 
 lodmixer.lib: lodmixer.obj

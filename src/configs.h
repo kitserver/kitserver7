@@ -21,3 +21,7 @@ bool writeConfig(wchar_t* cfgFile);
 void _getConfig(char* section, char* name, BYTE dataType, DWORD a, PROCESSCONFIG callback);
 void _setConfig(char* section, char* name, wstring& value, bool replace=true);
 void _removeConfig(char* section, char* name);
+
+// for reading map.txt files
+template <typename T>
+bool readMap(const wchar_t* cfgFile, T& m);
