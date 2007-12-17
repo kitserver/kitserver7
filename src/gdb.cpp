@@ -4,23 +4,33 @@
 #include <string>
 #include "gdb.h"
 #include "configs.h"
+#include "utf8.h"
 
 #ifdef MYDLL_RELEASE_BUILD
 #define GDB_DEBUG(f,x)
 #define GDB_DEBUG_OPEN(f,dir)
 #define GDB_DEBUG_CLOSE(f)
+
 #else
-#define GDB_DEBUG(f,x) if (f) fwprintf x
+#define GDB_DEBUG(f,x) if (f) {\
+    swprintf x;\
+    char a_str[BUFLEN];\
+    ZeroMemory(a_str, BUFLEN);\
+    Utf8::fUnicodeToUtf8((BYTE*)a_str,slog);\
+    fputs(a_str,f);\
+}
 #define GDB_DEBUG_OPEN(f,dir) {\
     f = _wfopen((dir + L"GDB.debug.log").c_str(),L"wt");\
 }
 #define GDB_DEBUG_CLOSE(f) if (f) fclose(f)
+#define BUFLEN 2048
+#define WBUFLEN 2048
+FILE* wlog;
+wchar_t slog[WBUFLEN];
 #endif
 
 #define PLAYERS 0
 #define GOALKEEPERS 1
-
-FILE* wlog;
 
 // functions
 //////////////////////////////////////////
@@ -35,13 +45,13 @@ static bool ParseByte(wchar_t* str, BYTE* byte);
 void GDB::load()
 {
 	GDB_DEBUG_OPEN(wlog,this->dir);
-	GDB_DEBUG(wlog,(wlog,L"Loading GDB...\n"));
+	GDB_DEBUG(wlog,(slog,L"Loading GDB...\n"));
 
     // process kit map file
     hash_map<WORD,wstring> mapFile;
     if (!readMap((this->dir + L"GDB\\uni\\map.txt").c_str(), mapFile))
     {
-        GDB_DEBUG(wlog,(wlog,L"Unable to find uni-map: %s\n",mapFile));
+        GDB_DEBUG(wlog,(slog,L"Unable to find uni-map: %s\n",mapFile));
         return;
     }
 
@@ -56,7 +66,7 @@ void GDB::load()
         if (kitCol.foldername[last]=='"' || kitCol.foldername[last]=='\'')
             kitCol.foldername.erase(last);
 
-        GDB_DEBUG(wlog,(wlog,L"teamId = {%d}, foldername = {%s}\n",
+        GDB_DEBUG(wlog,(slog,L"teamId = {%d}, foldername = {%s}\n", 
                     it->first, kitCol.foldername.c_str()));
 
         // store in the "uni" map
@@ -66,7 +76,7 @@ void GDB::load()
         this->findKitsForTeam(it->first);
     }
 
-	GDB_DEBUG(wlog,(wlog,L"Loading GDB complete.\n"));
+	GDB_DEBUG(wlog,(slog,L"Loading GDB complete.\n"));
     GDB_DEBUG_CLOSE(wlog);
 }
 
@@ -85,7 +95,7 @@ void GDB::fillKitCollection(KitCollection& col, int kitType)
 		pattern += L"GDB\\uni\\" + col.foldername + L"\\g*";
     }
 
-	GDB_DEBUG(wlog,(wlog, L"pattern = {%s}\n",pattern));
+	GDB_DEBUG(wlog,(slog, L"pattern = {%s}\n",pattern));
 
 	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
 	if (hff == INVALID_HANDLE_VALUE) 
@@ -95,7 +105,7 @@ void GDB::fillKitCollection(KitCollection& col, int kitType)
 	}
 	while(true)
 	{
-        GDB_DEBUG(wlog,(wlog,L"found: {%s}\n",fData.cFileName));
+        GDB_DEBUG(wlog,(slog,L"found: {%s}\n",fData.cFileName));
         // check if this is a directory
         if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             Kit kit;
@@ -357,7 +367,7 @@ bool ParseColor(wchar_t* str, RGBAColor* color)
 		color->a = (BYTE)(num & 0xff);
 	}
 
-	GDB_DEBUG(wlog, (wlog, L"RGBA color: %02x,%02x,%02x,%02x\n",
+	GDB_DEBUG(wlog, (slog, L"RGBA color: %02x,%02x,%02x,%02x\n",
 				color->r, color->g, color->b, color->a));
 	return true;
 }
