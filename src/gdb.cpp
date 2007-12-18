@@ -273,7 +273,7 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
             break;
 
         case ATT_RADAR_COLOR:
-            if (ParseColor(((wstring*)pValue)->c_str(), &kd->kit.radarColor))
+            if (ParseColor((wchar_t*)pValue, &kd->kit.radarColor))
                 kd->kit.attDefined |= RADAR_COLOR;
             GDB_DEBUG(wlog,(slog,L"radarColor = %02x%02x%02x%02x\n",
                         kd->kit.radarColor.r,
@@ -284,7 +284,7 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
             break;
 
         case ATT_SHORTS_COLOR:
-            if (ParseColor(((wstring*)pValue)->c_str(), &kd->kit.shortsMainColor))
+            if (ParseColor((wchar_t*)pValue, &kd->kit.shortsMainColor))
                 kd->kit.attDefined |= SHORTS_MAIN_COLOR;
             GDB_DEBUG(wlog,(slog,L"shortsMainColor = %02x%02x%02x%02x\n",
                         kd->kit.shortsMainColor.r,
