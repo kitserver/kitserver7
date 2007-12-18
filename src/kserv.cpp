@@ -90,13 +90,13 @@ void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 void HookAt(DWORD addr, void* func);
 PACKED_BIN* LoadBinFromAFS(DWORD id);
 void DumpData(void* data, size_t size);
-DWORD LoadPNGTexture(BITMAPINFO** tex, wchar_t* filename);
+DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename);
 void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size);
-static int read_file_to_mem(wchar_t *fn,unsigned char **ppfiledata, int *pfilesize);
+static int read_file_to_mem(const wchar_t *fn,unsigned char **ppfiledata, int *pfilesize);
 void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette);
 bool FindFileName(DWORD id, wchar_t* filename);
 void FreePNGTexture(BITMAPINFO* bitmap);
-void ReplaceTexturesInBin(UNPACKED_BIN* bin, wchar_t** files, bool* flags, size_t n);
+void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_t n);
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
 TEAM_KIT_INFO* GetTeamKitInfoById(WORD id);
 void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
@@ -557,9 +557,13 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                     {
                         case BIN_KIT_GK:
                             {
-                                wchar_t* files[2] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\kit.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\kit.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\ga\\kit.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\gb\\kit.png",
                                 };
                                 bool flags[] = {true,true};
                                 ReplaceTexturesInBin(bin, files, flags, 2);
@@ -567,9 +571,13 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_KIT_PL:
                             {
-                                wchar_t* files[2] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\kit.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\kit.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pa\\kit.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pb\\kit.png",
                                 };
                                 bool flags[] = {true,true};
                                 ReplaceTexturesInBin(bin, files, flags, 2);
@@ -584,8 +592,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                     {
                         case BIN_FONT_GA:
                             {
-                                wchar_t* files[1] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\font.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\ga\\font.png",
                                 };
                                 bool flags[] = {false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 1);
@@ -593,8 +603,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_FONT_GB:
                             {
-                                wchar_t* files[1] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\font.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\"
+                                            + wkit->second.foldername 
+                                            + L"\\gb\\font.png",
                                 };
                                 bool flags[] = {false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 1);
@@ -602,8 +614,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_FONT_PA:
                             {
-                                wchar_t* files[1] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\font.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pa\\font.png",
                                 };
                                 bool flags[] = {false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 1);
@@ -611,8 +625,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_FONT_PB:
                             {
-                                wchar_t* files[1] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\font.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pb\\font.png",
                                 };
                                 bool flags[] = {false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 1);
@@ -620,11 +636,19 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_NUMS_GA:
                             {
-                                wchar_t* files[4] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-back.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-front.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-shorts.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\ga\\numbers-shorts.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\ga\\numbers-back.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\ga\\numbers-front.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\ga\\numbers-shorts.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\ga\\numbers-shorts.png",
                                 };
                                 bool flags[] = {false,false,false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 4);
@@ -632,11 +656,19 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_NUMS_GB:
                             {
-                                wchar_t* files[4] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-back.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-front.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-shorts.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\gb\\numbers-shorts.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\gb\\numbers-back.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\gb\\numbers-front.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\gb\\numbers-shorts.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\gb\\numbers-shorts.png",
                                 };
                                 bool flags[] = {false,false,false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 4);
@@ -644,11 +676,19 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_NUMS_PA:
                             {
-                                wchar_t* files[4] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-back.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-front.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pa\\numbers-shorts.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pa\\numbers-back.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pa\\numbers-front.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pa\\numbers-shorts.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pa\\numbers-shorts.png",
                                 };
                                 bool flags[] = {false,false,false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 4);
@@ -656,11 +696,19 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                             break;
                         case BIN_NUMS_PB:
                             {
-                                wchar_t* files[4] = {
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-back.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-front.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
-                                        L"kitserver\\GDB\\uni\\National\\Russia\\pb\\numbers-shorts.png",
+                                wstring files[] = {
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pb\\numbers-back.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pb\\numbers-front.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pb\\numbers-shorts.png",
+                                        gdb->dir + L"GDB\\uni\\" 
+                                            + wkit->second.foldername 
+                                            + L"\\pb\\numbers-shorts.png",
                                 };
                                 bool flags[] = {false,false,false,false};
                                 ReplaceTexturesInBin(bin, files, flags, 4);
@@ -675,13 +723,13 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     return result;
 }
 
-void ReplaceTexturesInBin(UNPACKED_BIN* bin, wchar_t** files, bool* flags, size_t n)
+void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_t n)
 {
     for (int i=0; i<n; i++)
     {
         TEXTURE_ENTRY* tex = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[i].offset);
         BITMAPINFO* bmp = NULL;
-        DWORD texSize = LoadPNGTexture(&bmp, files[i]);
+        DWORD texSize = LoadPNGTexture(&bmp, files[i].c_str());
         if (texSize)
         {
             ApplyDIBTexture(tex, bmp, flags[i]);
@@ -739,9 +787,9 @@ void DumpData(void* data, size_t size)
 }
 
 // Load texture from PNG file. Returns the size of loaded texture
-DWORD LoadPNGTexture(BITMAPINFO** tex, wchar_t* filename)
+DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename)
 {
-	TRACE1S(L"LoadPNGTexture: loading %s", filename);
+	TRACE1S(L"LoadPNGTexture: loading %s", (wchar_t*)filename);
     DWORD size = 0;
 
     PNGDIB *pngdib;
@@ -819,7 +867,7 @@ void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size)
 }
 
 // Read a file into a memory block.
-static int read_file_to_mem(wchar_t *fn,unsigned char **ppfiledata, int *pfilesize)
+static int read_file_to_mem(const wchar_t *fn,unsigned char **ppfiledata, int *pfilesize)
 {
 	HANDLE hfile;
 	DWORD fsize;
