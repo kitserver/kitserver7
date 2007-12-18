@@ -43,27 +43,27 @@ DWORD codeArray[][CODELEN] = {
 	},
 };
 
-#define DATALEN 2
+#define DATALEN 4
 enum {
-	NUMNOPS_1, NUMNOPS_2,	
+	NUMNOPS_1, NUMNOPS_2, TEAM_KIT_INFO_BASE, ML_POINTER,
 };
 
-#define NODATAADDR {0,0},
+#define NODATAADDR {0,0,0,0},
 DWORD dataArray[][DATALEN] = {
   // PES2008 DEMO
 	NODATAADDR
 	// [Settings] PES2008 PC DEMO
 	NODATAADDR
   // PES2008
-    { 6, 2, },
+    { 6, 2, 0, 0, },
 	// [Settings] PES2008 PC
 	NODATAADDR
 	NODATAADDR
     // PES2008 1.10
-    { 6, 2, },
-    { 6, 2, },
+    { 6, 2, 0, 0, },
+    { 6, 2, 0, 0, },
     // PES2008 1.20
-    { 6, 2, },
+    { 6, 2, 0x1252d68, 0x1252d70, },
 };
 
 DWORD code[CODELEN];

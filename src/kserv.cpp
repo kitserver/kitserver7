@@ -51,6 +51,12 @@ enum
     BIN_NUMS_PB,
 };
 
+typedef struct _ML_INFO
+{
+    ML_TEAM_INFO* pHomeTeam;
+    ML_TEAM_INFO* pAwayTeam;
+} ML_INFO;
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -147,8 +153,12 @@ void InitSlotMap()
 {
     if (!g_teamKitInfoBase)
     {
-        LOG(L"ERROR: Unable to initialize slot maps: g_teamKitInfoBase = 0");
-        return;
+        g_teamKitInfoBase = *(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4;
+        if (!g_teamKitInfoBase)
+        {
+            LOG(L"ERROR: Unable to initialize slot maps: g_teamKitInfoBase = 0");
+            return;
+        }
     }
 
     TEAM_KIT_INFO* teamKitInfo = (TEAM_KIT_INFO*)g_teamKitInfoBase;
@@ -176,8 +186,6 @@ void kservReadTeamKitInfoCallPoint1()
         push ebx
         push ecx
         push edx
-        sub eax,edx
-        mov g_teamKitInfoBase, eax
         push esi
         push edi
         sub esi,0x200  // go back to original offset - before copy
@@ -971,6 +979,16 @@ void FreePNGTexture(BITMAPINFO* bitmap)
 
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
 {
+    // check MasterLeague areas first
+    ML_INFO* masterLeagueInfo = *(ML_INFO**)data[ML_POINTER];
+    ML_TEAM_INFO* homeTI = masterLeagueInfo->pHomeTeam;
+    if (&homeTI->tki == src)
+        return homeTI->teamId;
+    ML_TEAM_INFO* awayTI = masterLeagueInfo->pAwayTeam;
+    if (&awayTI->tki == src)
+        return awayTI->teamId;
+
+    // check normal area
     return ((DWORD)src - (DWORD)g_teamKitInfoBase) >> 9;
 }
 
@@ -1160,14 +1178,13 @@ int GetKitSlot(DWORD id)
 
 WORD FindFreeKitSlot()
 {
-    TEAM_KIT_INFO* teamKitInfo = (TEAM_KIT_INFO*)g_teamKitInfoBase;
     for (WORD i=0; i<NUM_SLOTS; i++)
     {
         hash_map<WORD,WORD>::iterator tid = g_teamIdByKitSlot.find(i);
         if (tid == g_teamIdByKitSlot.end())
             return i;
+        TRACE2N(L"FindFreeKitSlot: slot %04x is taken, by teamId = %d",tid->first,tid->second);
     }
     return -1;
 }
-
 

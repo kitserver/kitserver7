@@ -86,3 +86,12 @@ typedef struct _TEAM_KIT_INFO
     KIT_INFO pb;
 } TEAM_KIT_INFO;
 
+typedef struct _ML_TEAM_INFO
+{
+    DWORD unknown1;
+    WORD unknown2;
+    WORD teamId;
+    BYTE unknown3[0x2d3c];
+    TEAM_KIT_INFO tki;
+} ML_TEAM_INFO;
+
