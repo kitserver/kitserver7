@@ -23,8 +23,6 @@
     f = _wfopen((dir + L"GDB.debug.log").c_str(),L"wt");\
 }
 #define GDB_DEBUG_CLOSE(f) if (f) fclose(f)
-#define BUFLEN 2048
-#define WBUFLEN 2048
 FILE* wlog;
 wchar_t slog[WBUFLEN];
 #endif
@@ -32,11 +30,35 @@ wchar_t slog[WBUFLEN];
 #define PLAYERS 0
 #define GOALKEEPERS 1
 
+#define EQUALS(a,b) wcscmp((wchar_t*)a,b)==0
+
+enum {
+    ATT_MODEL,
+    ATT_COLLAR,
+    ATT_SHIRT_NUMBER_LOCATION,
+    ATT_SHORTS_NUMBER_LOCATION,
+    ATT_NAME_LOCATION,
+    ATT_NAME_SHAPE,
+    ATT_LOGO_LOCATION,
+    ATT_RADAR_COLOR,
+    ATT_SHORTS_COLOR,
+    ATT_DESCRIPTION,
+};
+
+class kattr_data
+{
+public:
+    Kit& kit;
+    int attr;
+
+    kattr_data(Kit& k, int a) : kit(k), attr(a) {}
+};
+
 // functions
 //////////////////////////////////////////
 
-static bool ParseColor(wchar_t* str, RGBAColor* color);
-static bool ParseByte(wchar_t* str, BYTE* byte);
+static bool ParseColor(const wchar_t* str, RGBAColor* color);
+static void kitConfig(char* pName, const void* pValue, DWORD a);
 
 /**
  * Allocate and initialize the GDB structure, read the "map.txt" file
@@ -154,197 +176,135 @@ void GDB::findKitsForTeam(WORD teamId)
  */
 void GDB::loadConfig(wstring& mykey, Kit& kit)
 {
-    /*
-	char cfgFileName[MAXFILENAME];
-	ZeroMemory(cfgFileName, MAXFILENAME);
-	sprintf(cfgFileName, "%s%s\\config.txt", gdb->dir, kit->foldername);
-
-	FILE* cfg = fopen(cfgFileName, "rt");
-	if (cfg == NULL) {
-        GDB_DEBUG(wlog, (wlog, L"Unable to find %s\n", cfgFileName));
-		return;  // no config.txt file => nothing to do.
+    if (readConfig((this->dir + L"\\" + kit.foldername + L"\\config.txt").c_str()))
+    {
+        _getConfig("", "model", DT_DWORD, (DWORD)&kattr_data(kit,ATT_MODEL), kitConfig);
+        _getConfig("", "collar", DT_STRING, (DWORD)&kattr_data(kit,ATT_COLLAR), kitConfig);
+        _getConfig("", "shirt.number.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHIRT_NUMBER_LOCATION), kitConfig);
+        _getConfig("", "shorts.number.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHORTS_NUMBER_LOCATION), kitConfig);
+        _getConfig("", "name.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_NAME_LOCATION), kitConfig);
+        _getConfig("", "name.shape", DT_STRING, (DWORD)&kattr_data(kit,ATT_NAME_SHAPE), kitConfig);
+        _getConfig("", "logo.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_LOGO_LOCATION), kitConfig);
+        _getConfig("", "rader.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_RADAR_COLOR), kitConfig);
+        _getConfig("", "shorts.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHORTS_COLOR), kitConfig);
+        _getConfig("", "description", DT_STRING, (DWORD)&kattr_data(kit,ATT_DESCRIPTION), kitConfig);
     }
+    else
+    {
+        GDB_DEBUG(wlog, (slog, L"Unable to find config.txt for %s\n", kit.foldername.c_str()));
+    }
+}
 
-	GDB_DEBUG(wlog, (wlog, L"Found %s\n", cfgFileName));
-    HANDLE heap = GetProcessHeap();
+/**
+ * Callback function for reading of config.txt
+ */
+static void kitConfig(char* pName, const void* pValue, DWORD a)
+{
+    kattr_data* kd = (kattr_data*)a;
+    if (!kd) return;
 
-	// go line by line
-	while (!feof(cfg))
-	{
-		char buf[MAXLINELEN];
-		ZeroMemory(buf, MAXLINELEN);
-		fgets(buf, MAXLINELEN, cfg);
-		if (lstrlen(buf) == 0) break;
+    switch (kd->attr)
+    {
+        case ATT_MODEL:
+            kd->kit.model = *(DWORD*)pValue;
+            kd->kit.attDefined |= MODEL;
+            GDB_DEBUG(wlog,(slog,L"model = %d\n",kd->kit.model));
+            break;
 
-		// strip off comments
-		char* comm = strstr(buf, "#");
-		if (comm != NULL) comm[0] = '\0';
+        case ATT_COLLAR:
+            kd->kit.collar = (*(wstring*)pValue == L"yes") ? 0 : 1;
+            kd->kit.attDefined |= COLLAR;
+            GDB_DEBUG(wlog,(slog,L"collar = %d\n",kd->kit.collar));
+            break;
 
-		// look for attribute definitions
-        char key[80]; ZeroMemory(key, 80);
-        char value[MAXLINELEN]; ZeroMemory(value, MAXLINELEN);
+        case ATT_SHIRT_NUMBER_LOCATION:
+            if (EQUALS(pValue, L"off"))
+                kd->kit.shirtNumberLocation = 0;
+            else if (EQUALS(pValue, L"center"))
+                kd->kit.shirtNumberLocation = 1;
+            else if (EQUALS(pValue, L"topright"))
+                kd->kit.shirtNumberLocation = 2;
+            kd->kit.attDefined |= SHIRT_NUMBER_LOCATION;
+            GDB_DEBUG(wlog,(slog,L"shirtNumberLocation = %d\n",kd->kit.shirtNumberLocation));
+            break;
 
-        if (getKeyValuePair(buf,key,value)==2)
-        {
-            GDB_DEBUG(wlog, (wlog, L"key: {%s} has value: {%s}\n", key, value));
-            RGBAColor color;
+        case ATT_SHORTS_NUMBER_LOCATION:
+            if (EQUALS(pValue,L"off"))
+                kd->kit.shortsNumberLocation = 0;
+            else if (EQUALS(pValue,L"left"))
+                kd->kit.shortsNumberLocation = 1;
+            else if (EQUALS(pValue,L"right"))
+                kd->kit.shortsNumberLocation = 2;
+            kd->kit.attDefined |= SHORTS_NUMBER_LOCATION;
+            GDB_DEBUG(wlog,(slog,L"shortsNumberLocation = %d\n",kd->kit.shortsNumberLocation));
+            break;
 
-            if (lstrcmp(key, "model")==0)
-            {
-                if (ParseByte(value, &kit->model))
-                    kit->attDefined |= MODEL;
-            }
-            else if (lstrcmp(key, "collar")==0)
-            {
-                kit->collar = (lstrcmp(value,"yes")==0) ? 0 : 1;
-                kit->attDefined |= COLLAR;
-            }
-            else if (lstrcmp(key, "shirt.number.location")==0)
-            {
-                if (lstrcmp(value,"off")==0) {
-                    kit->shirtNumberLocation = 0;
-                    kit->attDefined |= SHIRT_NUMBER_LOCATION;
-                }
-                else if (lstrcmp(value,"center")==0) {
-                    kit->shirtNumberLocation = 1;
-                    kit->attDefined |= SHIRT_NUMBER_LOCATION;
-                }
-                else if (lstrcmp(value,"topright")==0) {
-                    kit->shirtNumberLocation = 2;
-                    kit->attDefined |= SHIRT_NUMBER_LOCATION;
-                }
-            }
-            else if (lstrcmp(key, "shorts.number.location")==0)
-            {
-                if (lstrcmp(value,"off")==0) {
-                    kit->shortsNumberLocation = 0;
-                    kit->attDefined |= SHORTS_NUMBER_LOCATION;
-                }
-                else if (lstrcmp(value,"left")==0) {
-                    kit->shortsNumberLocation = 1;
-                    kit->attDefined |= SHORTS_NUMBER_LOCATION;
-                }
-                else if (lstrcmp(value,"right")==0) {
-                    kit->shortsNumberLocation = 2;
-                    kit->attDefined |= SHORTS_NUMBER_LOCATION;
-                }
-                else if (lstrcmp(value,"both")==0) {
-                    kit->shortsNumberLocation = 3;
-                    kit->attDefined |= SHORTS_NUMBER_LOCATION;
-                }
-            }
-            else if (lstrcmp(key, "name.location")==0)
-            {
-                if (lstrcmp(value,"off")==0) {
-                    kit->nameLocation = 0;
-                    kit->attDefined |= NAME_LOCATION;
-                }
-                else if (lstrcmp(value,"top")==0) {
-                    kit->nameLocation = 1;
-                    kit->attDefined |= NAME_LOCATION;
-                }
-                else if (lstrcmp(value,"bottom")==0) {
-                    kit->nameLocation = 2;
-                    kit->attDefined |= NAME_LOCATION;
-                }
-            }
-            else if (lstrcmp(key, "logo.location")==0)
-            {
-                if (lstrcmp(value,"off")==0) {
-                    kit->logoLocation = 0;
-                    kit->attDefined |= LOGO_LOCATION;
-                }
-                else if (lstrcmp(value,"top")==0) {
-                    kit->logoLocation = 1;
-                    kit->attDefined |= LOGO_LOCATION;
-                }
-                else if (lstrcmp(value,"bottom")==0) {
-                    kit->logoLocation = 2;
-                    kit->attDefined |= LOGO_LOCATION;
-                }
-            }
-            else if (lstrcmp(key, "name.shape")==0)
-            {
-                if (lstrcmp(value, "type1")==0) {
-                    kit->nameShape = 0;
-                    kit->attDefined |= NAME_SHAPE;
-                }
-                else if (lstrcmp(value, "type2")==0) {
-                    kit->nameShape = 1;
-                    kit->attDefined |= NAME_SHAPE;
-                }
-                else if (lstrcmp(value, "type3")==0) {
-                    kit->nameShape = 2;
-                    kit->attDefined |= NAME_SHAPE;
-                }
-            }
-			else if (lstrcmp(key, "radar.color")==0)
-            {
-                if (ParseColor(value, &kit->radarColor))
-                    kit->attDefined |= RADAR_COLOR;
-            }
-			else if (lstrcmp(key, "shorts.color")==0)
-            {
-                if (ParseColor(value, &kit->shortsMainColor))
-                    kit->attDefined |= SHORTS_MAIN_COLOR;
-            }
-            //else if (lstrcmp(key, "mask")==0)
-            //{
-            //    ZeroMemory(kit->maskFile,MAXFILENAME);
-            //    strncpy(kit->maskFile, value, MAXFILENAME);
-            //    kit->attDefined |= MASK_FILE;
-            //}
-			else if (lstrcmp(key, "description")==0)
-            {
-                ZeroMemory(kit->description,MAXFILENAME);
-                strncpy(kit->description, value, MAXFILENAME);
-                kit->attDefined |= KITDESCRIPTION;
-            }
+        case ATT_NAME_LOCATION:
+            if (EQUALS(pValue, L"off"))
+                kd->kit.nameLocation = 0;
+            else if (EQUALS(pValue, L"left"))
+                kd->kit.nameLocation = 1;
+            else if (EQUALS(pValue, L"right"))
+                kd->kit.nameLocation = 2;
+            kd->kit.attDefined |= NAME_LOCATION;
+            GDB_DEBUG(wlog,(slog,L"nameLocation = %d\n",kd->kit.nameLocation));
+            break;
 
-            // Kit-mixing attributes. Unsupported for now.
-            //else if (lstrcmp(key, "shirt.folder")==0)
-            //{
-            //    ZeroMemory(kit->shirtFolder, 256);
-            //    strncpy(kit->shirtFolder, value, 256);
-            //    kit->attDefined |= SHIRT_FOLDER;
-            //}
-			//else if (lstrcmp(key, "shorts.folder")==0)
-            //{
-            //    ZeroMemory(kit->shortsFolder, 256);
-            //    strncpy(kit->shortsFolder, value, 256);
-            //    kit->attDefined |= SHORTS_FOLDER;
-            //}
-			//else if (lstrcmp(key, "socks.folder")==0)
-            //{
-            //    ZeroMemory(kit->socksFolder, 256);
-            //    strncpy(kit->socksFolder, value, 256);
-            //    kit->attDefined |= SOCKS_FOLDER;
-            //}
-            //else if (lstrcmp(key, "overlay")==0)
-            //{
-            //    ZeroMemory(kit->overlayFile, MAXFILENAME);
-            //    strncpy(kit->overlayFile, value, MAXFILENAME);
-            //    kit->attDefined |= OVERLAY_FILE;
-            //}
+        case ATT_NAME_SHAPE:
+            if (EQUALS(pValue, L"type1"))
+                kd->kit.nameShape = 0;
+            else if (EQUALS(pValue, L"type2"))
+                kd->kit.nameShape = 1;
+            else if (EQUALS(pValue, L"type3"))
+                kd->kit.nameShape = 2;
+            kd->kit.attDefined |= NAME_SHAPE;
+            GDB_DEBUG(wlog,(slog,L"nameShape = %d\n",kd->kit.nameShape));
+            break;
 
-            // legacy attributes. Unsupported or irrelevant
-            //else if (lstrcmp(key, "cuff")==0)
-            //{
-            //    kit->cuff = (lstrcmp(value,"yes")==0) ? 1 : 0;
-            //    kit->attDefined |= CUFF;
-            //}
-        }
-		// go to next line
-	}
+        case ATT_LOGO_LOCATION:
+            if (EQUALS(pValue, L"off"))
+                kd->kit.logoLocation = 0;
+            else if (EQUALS(pValue, L"left"))
+                kd->kit.logoLocation = 1;
+            else if (EQUALS(pValue, L"right"))
+                kd->kit.logoLocation = 2;
+            kd->kit.attDefined |= LOGO_LOCATION;
+            GDB_DEBUG(wlog,(slog,L"logoLocation = %d\n",kd->kit.logoLocation));
+            break;
 
-	fclose(cfg);
-    */
+        case ATT_RADAR_COLOR:
+            if (ParseColor(((wstring*)pValue)->c_str(), &kd->kit.radarColor))
+                kd->kit.attDefined |= RADAR_COLOR;
+            GDB_DEBUG(wlog,(slog,L"radarColor = %02x%02x%02x%02x\n",
+                        kd->kit.radarColor.r,
+                        kd->kit.radarColor.g,
+                        kd->kit.radarColor.b,
+                        kd->kit.radarColor.a
+                        ));
+            break;
+
+        case ATT_SHORTS_COLOR:
+            if (ParseColor(((wstring*)pValue)->c_str(), &kd->kit.shortsMainColor))
+                kd->kit.attDefined |= SHORTS_MAIN_COLOR;
+            GDB_DEBUG(wlog,(slog,L"shortsMainColor = %02x%02x%02x%02x\n",
+                        kd->kit.shortsMainColor.r,
+                        kd->kit.shortsMainColor.g,
+                        kd->kit.shortsMainColor.b,
+                        kd->kit.shortsMainColor.a
+                        ));
+            break;
+
+        case ATT_DESCRIPTION:
+            kd->kit.description = (wchar_t*)pValue;
+            GDB_DEBUG(wlog,(slog,L"description = %s\n",kd->kit.description));
+            break;
+    }
 }
 
 /**
  * parses a RRGGBB(AA) string into RGBAColor structure
  */
-bool ParseColor(wchar_t* str, RGBAColor* color)
+bool ParseColor(const wchar_t* str, RGBAColor* color)
 {
 	int len = lstrlen(str);
 	if (!(len == 6 || len == 8)) 
@@ -372,11 +332,3 @@ bool ParseColor(wchar_t* str, RGBAColor* color)
 	return true;
 }
 
-// parses a decimal number string into actual BYTE value
-bool ParseByte(wchar_t* str, BYTE* byte)
-{
-	int num = 0;
-	if (swscanf(str,L"%d",&num)!=1) return false;
-	*byte = (BYTE)num;
-	return true;
-}

@@ -14,7 +14,7 @@
 multimap<string, wstring> g_knownConfigs;
 multimap<string, wstring>::iterator g_knownConfigsIt;
 
-bool readConfig(wchar_t* cfgFile)
+bool readConfig(const wchar_t* cfgFile)
 {
 	FILE* f = _wfopen(cfgFile, L"rb");
 	if (!f) return false;
@@ -105,7 +105,7 @@ bool readConfig(wchar_t* cfgFile)
 	return true;
 }
 
-bool writeConfig(wchar_t* cfgFile)
+bool writeConfig(const wchar_t* cfgFile)
 {
 	FILE* f = _wfopen(cfgFile, L"wb");
 	if (!f) return false;

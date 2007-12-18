@@ -16,8 +16,8 @@ typedef void  (*PROCESSCONFIG)(char* pName, const void* pValue, DWORD a);
 enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE, DT_FLOAT};
 #define C_ALL 0x80000000
 
-bool readConfig(wchar_t* cfgFile);
-bool writeConfig(wchar_t* cfgFile);
+bool readConfig(const wchar_t* cfgFile);
+bool writeConfig(const wchar_t* cfgFile);
 void _getConfig(char* section, char* name, BYTE dataType, DWORD a, PROCESSCONFIG callback);
 void _setConfig(char* section, char* name, wstring& value, bool replace=true);
 void _removeConfig(char* section, char* name);

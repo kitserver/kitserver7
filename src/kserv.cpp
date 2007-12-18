@@ -996,6 +996,14 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
 
         // apply attributes
         // TODO
+        // test: set shorts number location
+        map<wstring,Kit>::iterator kiter;
+        kiter = it->second.players.find(L"pa");
+        if (kiter != it->second.players.end() && kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
+            dest->pa.shortsNumberPosition = kiter->second.shortsNumberLocation;
+        kiter = it->second.players.find(L"pb");
+        if (kiter != it->second.players.end() && kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
+            dest->pb.shortsNumberPosition = kiter->second.shortsNumberLocation;
     }
 }
 
