@@ -212,7 +212,7 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
             break;
 
         case ATT_COLLAR:
-            kd->kit.collar = (*(wstring*)pValue == L"yes") ? 0 : 1;
+            kd->kit.collar = (EQUALS(pValue, L"yes")) ? 0 : 1;
             kd->kit.attDefined |= COLLAR;
             GDB_DEBUG(wlog,(slog,L"collar = %d\n",kd->kit.collar));
             break;

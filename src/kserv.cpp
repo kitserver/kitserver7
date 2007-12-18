@@ -94,7 +94,6 @@ DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename);
 void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size);
 static int read_file_to_mem(const wchar_t *fn,unsigned char **ppfiledata, int *pfilesize);
 void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette);
-bool FindFileName(DWORD id, wchar_t* filename);
 void FreePNGTexture(BITMAPINFO* bitmap);
 void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_t n);
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
@@ -109,6 +108,7 @@ void InitSlotMap();
 int GetBinType(DWORD id);
 int GetKitSlot(DWORD id);
 WORD FindFreeKitSlot();
+void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki);
 
 // FUNCTION POINTERS
 DWORD g_orgReadRadarInfo = 0;
@@ -738,11 +738,6 @@ void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_
     }
 }
 
-bool FindFileName(DWORD id, wchar_t* filename)
-{
-    return false;
-}
-
 PACKED_BIN* LoadBinFromAFS(DWORD id)
 {
     PACKED_BIN* result = NULL;
@@ -1043,15 +1038,38 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
         }
 
         // apply attributes
-        // TODO
-        // test: set shorts number location
-        map<wstring,Kit>::iterator kiter;
-        kiter = it->second.players.find(L"pa");
-        if (kiter != it->second.players.end() && kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
-            dest->pa.shortsNumberPosition = kiter->second.shortsNumberLocation;
-        kiter = it->second.players.find(L"pb");
-        if (kiter != it->second.players.end() && kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
-            dest->pb.shortsNumberPosition = kiter->second.shortsNumberLocation;
+        ApplyKitAttributes(it->second.goalkeepers,L"ga",dest->ga);
+        ApplyKitAttributes(it->second.goalkeepers,L"gb",dest->gb);
+        ApplyKitAttributes(it->second.players,L"pa",dest->pa);
+        ApplyKitAttributes(it->second.players,L"pb",dest->pb);
+    }
+}
+
+void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki)
+{
+    map<wstring,Kit>::iterator kiter = m.find(kitKey);
+    if (kiter != m.end())
+    {
+        if (kiter->second.attDefined & MODEL)
+            ki.model = kiter->second.model;
+        if (kiter->second.attDefined & COLLAR)
+            ki.collar = kiter->second.collar;
+        if (kiter->second.attDefined & SHIRT_NUMBER_LOCATION)
+            ki.frontNumberPosition = kiter->second.shirtNumberLocation;
+        if (kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
+            ki.shortsNumberPosition = kiter->second.shortsNumberLocation;
+        if (kiter->second.attDefined & NAME_LOCATION)
+            ki.fontEnabled = kiter->second.nameLocation;
+        if (kiter->second.attDefined & NAME_SHAPE)
+            ki.fontStyle = kiter->second.nameShape;
+        //if (kiter->second.attDefined & LOGO_LOCATION)
+        //    ki.logoLocation = kiter->second.logoLocation;
+        // radar: the game seems to read it elsewhere
+        // shorts main color
+        if (kiter->second.attDefined & SHORTS_MAIN_COLOR)
+        {
+            //TODO: convert RGBAColor to KCOLOR
+        }
     }
 }
 
