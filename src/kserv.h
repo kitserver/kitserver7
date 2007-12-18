@@ -50,7 +50,9 @@ typedef struct _KIT_INFO
 {
     DWORD unknown0[2];
     KCOLOR radarColor;
-    KCOLOR editKitColors[14];
+    KCOLOR editShirtColors[4];
+    KCOLOR shortsFirstColor;
+    KCOLOR editKitColors[9];
     DWORD unknown1;
     KCOLOR editNumberAndFontColors1;
     DWORD unknown2;

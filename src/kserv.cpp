@@ -109,6 +109,7 @@ int GetBinType(DWORD id);
 int GetKitSlot(DWORD id);
 WORD FindFreeKitSlot();
 void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki);
+void RGBAColor2KCOLOR(RGBAColor& color, KCOLOR& kcolor);
 
 // FUNCTION POINTERS
 DWORD g_orgReadRadarInfo = 0;
@@ -1064,13 +1065,21 @@ void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki
             ki.fontStyle = kiter->second.nameShape;
         //if (kiter->second.attDefined & LOGO_LOCATION)
         //    ki.logoLocation = kiter->second.logoLocation;
-        // radar: the game seems to read it elsewhere
+        // radar: NOTE: the game seems to read it elsewhere
+        if (kiter->second.attDefined & RADAR_COLOR) 
+            RGBAColor2KCOLOR(kiter->second.radarColor, ki.radarColor);
         // shorts main color
         if (kiter->second.attDefined & SHORTS_MAIN_COLOR)
-        {
-            //TODO: convert RGBAColor to KCOLOR
-        }
+            RGBAColor2KCOLOR(kiter->second.shortsMainColor, ki.shortsFirstColor);
     }
+}
+
+void RGBAColor2KCOLOR(RGBAColor& color, KCOLOR& kcolor)
+{
+    kcolor = 0x8000
+        +((color.r>>3) & 31)
+        +0x20*((color.g>>3) & 31)
+        +0x400*((color.b>>3) & 31);
 }
 
 void kservBeforeReadRadarInfo(READ_RADAR_INFO** ppReadRadarInfo)
