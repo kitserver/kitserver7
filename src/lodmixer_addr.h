@@ -62,7 +62,7 @@ DWORD dataArray[][DATALEN] = {
         0xdb5484, 0xdb57fc,
         0xdb3044, 0xdb3040,
     },
-    NOCODEADDR
+    NODATAADDR
     // PES2008 1.20
     {
         0x1252a08, 0x1252a0c,0x1252a10, 
