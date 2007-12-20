@@ -72,9 +72,9 @@ void ResetLodSwitches();
 void ResetLodSwitches()
 {
     SendMessage(g_lodEditControl[0],WM_SETTEXT,0,(LPARAM)"0.095");
-    SendMessage(g_lodEditControl[1],WM_SETTEXT,0,(LPARAM)"0.070");
+    SendMessage(g_lodEditControl[1],WM_SETTEXT,0,(LPARAM)"0.074");
     SendMessage(g_lodTrackBarControl[0],TBM_SETPOS,TRUE,(LPARAM)getTickValue(0.095));
-    SendMessage(g_lodTrackBarControl[1],TBM_SETPOS,TRUE,(LPARAM)getTickValue(0.070));
+    SendMessage(g_lodTrackBarControl[1],TBM_SETPOS,TRUE,(LPARAM)getTickValue(0.074));
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -366,8 +366,8 @@ void UpdateControls(LMCONFIG& cfg)
     }
     else
     {
-        SendMessage(g_lodEditControl[1],WM_SETTEXT,0,(LPARAM)"0.070");
-        SendMessage(g_lodTrackBarControl[1],TBM_SETPOS,TRUE,(LPARAM)getTickValue(0.070));
+        SendMessage(g_lodEditControl[1],WM_SETTEXT,0,(LPARAM)"0.074");
+        SendMessage(g_lodTrackBarControl[1],TBM_SETPOS,TRUE,(LPARAM)getTickValue(0.074));
     }
 
     // Controller check

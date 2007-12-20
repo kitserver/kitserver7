@@ -2,6 +2,13 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2007-12-20
+----------
+v7.0.5
+- bug-fix: LOD switch 1/2 wasn't working correctly with 
+           PES2008 1.20. This is now fixed.
+
+
 2007-12-03
 ----------
 v7.0.4

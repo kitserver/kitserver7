@@ -1,7 +1,7 @@
 // lodmixer.h
 
 #define MODID 101
-#define NAMELONG L"LOD Mixer 7.0.4"
+#define NAMELONG L"LOD Mixer 7.0.5"
 #define NAMESHORT L"LODMIXER"
 #define DEFAULT_DEBUG 0
 
@@ -32,6 +32,6 @@ typedef struct _LMCONFIG {
 #define DEFAULT_LOD_SWITCH1 0.0f
 #define DEFAULT_LOD_SWITCH2 0.0f
 #define GAME_DEFAULT_LOD_SWITCH1 0.095f
-#define GAME_DEFAULT_LOD_SWITCH2 0.070f
+#define GAME_DEFAULT_LOD_SWITCH2 0.074f
 #define DEFAULT_CONTROLLER_CHECK_ENABLED false
 

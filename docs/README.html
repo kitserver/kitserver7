@@ -5,6 +5,7 @@
         img { display:block;margin:10px 0 10px 0;border:1px solid #000; }
         table td img {border:0}
         div.note { background-color:#fdc;color:#800;padding:5px; }
+        div.minornote { background-color:#eee;color:#666;padding:5px;font-style:italic }
         p.devnote { font-weight:bold;font-style:italic;color:#666; }
         table {padding:10px 0 10px 0;margin-top:5px}
         table td {padding:5px;border:1px solid #000}
@@ -41,8 +42,8 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-December 3, 2007 - <b>Kitserver 7.0.4</b><br />
-Module Versions: <a href="#lodmixer">LOD Mixer 7.0.4</a>
+December 20, 2007 - <b>Kitserver 7.0.5</b><br />
+Module Versions: <a href="#lodmixer">LOD Mixer 7.0.5</a>
 </div>
 
 <h3>Introduction</h3>
@@ -165,6 +166,13 @@ making the engine switch to the low-poly models sooner than normal. This may
 improve the framerate, although at the expense of picture quality. To achieve
 that, <b>move the sliders to the left.</b>
 </p>
+
+<div class="minornote">
+Note that in game versions 1.0 and 1.10, the second LOD slider had the default
+value of <b>0.070</b>. In version 1.20, KONAMI had changed this value slightly 
+and it is now <b>0.074</b>, which makes the game switch from LOD1 to LOD2
+a tiny bit sooner than before (if default LOD configuration is used that is).
+</div>
 
 <h5>4. Controller check</h5>
 <p>

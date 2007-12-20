@@ -306,10 +306,10 @@ bool BuildControls(HWND parent)
 
     x += statW + spacer;
     g_lodTrackBarControl[1] = CreateTrackbar(parent,x,y,tw,th,LDSW_MIN,LDSW_MAX,
-            getTickValue(0.070),getTickValue(0.070));
+            getTickValue(0.074),getTickValue(0.074));
     x += tw + spacer;
 	g_lodEditControl[1] = CreateWindowEx(
-			xstyle, L"static", L"0.070", WS_CHILD | WS_VISIBLE,
+			xstyle, L"static", L"0.074", WS_CHILD | WS_VISIBLE,
 			x, y, editW, editH,
 			parent, NULL, NULL, NULL);
     y += th + spacer;
