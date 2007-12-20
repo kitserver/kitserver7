@@ -67,7 +67,7 @@ DWORD dataArray[][DATALEN] = {
     {
         0x1252a08, 0x1252a0c,0x1252a10, 
         0xdb6434, 0xdb67b0,
-        0xdb4024, 0xdb4020,
+        0xdb4024, 0xdb4084,
     },
 };
 
