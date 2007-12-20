@@ -99,9 +99,9 @@ void DumpData(void* data, size_t size);
 DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename);
 void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size);
 static int read_file_to_mem(const wchar_t *fn,unsigned char **ppfiledata, int *pfilesize);
-void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette);
+void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap);
 void FreePNGTexture(BITMAPINFO* bitmap);
-void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_t n);
+void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], size_t n);
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
 TEAM_KIT_INFO* GetTeamKitInfoById(WORD id);
 void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
@@ -574,8 +574,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\gb\\kit.png",
                                 };
-                                bool flags[] = {true,true};
-                                ReplaceTexturesInBin(bin, files, flags, 2);
+                                ReplaceTexturesInBin(bin, files, 2);
                             }
                             break;
                         case BIN_KIT_PL:
@@ -588,8 +587,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\pb\\kit.png",
                                 };
-                                bool flags[] = {true,true};
-                                ReplaceTexturesInBin(bin, files, flags, 2);
+                                ReplaceTexturesInBin(bin, files, 2);
                             }
                             break;
                     }
@@ -606,8 +604,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\ga\\font.png",
                                 };
-                                bool flags[] = {false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 1);
+                                ReplaceTexturesInBin(bin, files, 1);
                             }
                             break;
                         case BIN_FONT_GB:
@@ -617,8 +614,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\gb\\font.png",
                                 };
-                                bool flags[] = {false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 1);
+                                ReplaceTexturesInBin(bin, files, 1);
                             }
                             break;
                         case BIN_FONT_PA:
@@ -628,8 +624,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\pa\\font.png",
                                 };
-                                bool flags[] = {false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 1);
+                                ReplaceTexturesInBin(bin, files, 1);
                             }
                             break;
                         case BIN_FONT_PB:
@@ -639,8 +634,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\pb\\font.png",
                                 };
-                                bool flags[] = {false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 1);
+                                ReplaceTexturesInBin(bin, files, 1);
                             }
                             break;
                         case BIN_NUMS_GA:
@@ -659,8 +653,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\ga\\numbers-shorts.png",
                                 };
-                                bool flags[] = {false,false,false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 4);
+                                ReplaceTexturesInBin(bin, files, 4);
                             }
                             break;
                         case BIN_NUMS_GB:
@@ -679,8 +672,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\gb\\numbers-shorts.png",
                                 };
-                                bool flags[] = {false,false,false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 4);
+                                ReplaceTexturesInBin(bin, files, 4);
                             }
                             break;
                         case BIN_NUMS_PA:
@@ -699,8 +691,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\pa\\numbers-shorts.png",
                                 };
-                                bool flags[] = {false,false,false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 4);
+                                ReplaceTexturesInBin(bin, files, 4);
                             }
                             break;
                         case BIN_NUMS_PB:
@@ -719,8 +710,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                             + wkit->second.foldername 
                                             + L"\\pb\\numbers-shorts.png",
                                 };
-                                bool flags[] = {false,false,false,false};
-                                ReplaceTexturesInBin(bin, files, flags, 4);
+                                ReplaceTexturesInBin(bin, files, 4);
                             }
                             break;
                     }
@@ -732,7 +722,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     return result;
 }
 
-void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_t n)
+void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], size_t n)
 {
     for (int i=0; i<n; i++)
     {
@@ -741,7 +731,7 @@ void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], bool* flags, size_
         DWORD texSize = LoadPNGTexture(&bmp, files[i].c_str());
         if (texSize)
         {
-            ApplyDIBTexture(tex, bmp, flags[i]);
+            ApplyDIBTexture(tex, bmp);
             FreePNGTexture(bmp);
         }
     }
@@ -906,7 +896,7 @@ static int read_file_to_mem(const wchar_t *fn,unsigned char **ppfiledata, int *p
 
 // Substitute kit textures with data from DIB
 // Currently supports only 4bit and 8bit paletted DIBs
-void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette)
+void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap)
 {
     TRACE(L"Applying DIB texture");
 
@@ -936,9 +926,6 @@ void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap, bool adjustPalette)
 		BYTE red = tex->palette[i].r;
 		tex->palette[i].b = red;
 		tex->palette[i].r = blue;
-        if (adjustPalette)
-            // adjust palette to KONAMI range (0:0xff --> 0x80:0xff)
-            tex->palette[i].a = 0x80 + (tex->palette[i].a >> 1);
 	}
 	TRACE(L"Palette copied.");
 
