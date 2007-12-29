@@ -2,7 +2,7 @@
 
 #ifdef _COMPILING_KLOAD
 #define MODID 0
-#define NAMELONG L"Module Loader 7.0.4"
+#define NAMELONG L"Module Loader 7.0.5"
 #define NAMESHORT L"KLOAD"
 
 #define DEFAULT_DEBUG 0
@@ -28,3 +28,7 @@ KEXPORT bool MasterHookFunction(DWORD call_site, DWORD numArgs, void* target);
 KEXPORT bool MasterUnhookFunction(DWORD call_site, void* target);
 DWORD MasterCallFirst(...);
 KEXPORT DWORD MasterCallNext(...);
+
+// global critical section
+extern CRITICAL_SECTION g_cs;
+

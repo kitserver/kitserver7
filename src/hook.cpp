@@ -19,6 +19,7 @@
 #include <hash_map>
 #include <string>
 
+
 extern KMOD k_kload;
 extern PESINFO g_pesinfo;
 extern HINSTANCE hInst;
@@ -95,17 +96,17 @@ KEXPORT void hookFunction(HOOKS h, void* addr)
 	if (h >= hk_LAST) return;
 	
 	g_callChains[h].push_back(addr);
-		
-	return;
 }
 
 KEXPORT void unhookFunction(HOOKS h, void* addr)
 {
 	if (h >= hk_LAST) return;
 		
-	remove(g_callChains[h].begin(),	g_callChains[h].end(), addr);
-	
-	return;
+    // we need "erase", because "remove" doesn't actually remove the items, but
+    // instead re-arranges them.
+    g_callChains[h].erase(
+            remove(g_callChains[h].begin(),	g_callChains[h].end(), addr),
+            g_callChains[h].end());
 }
 
 void initAddresses()
@@ -144,10 +145,12 @@ IDirect3D9* STDMETHODCALLTYPE newDirect3DCreate9(UINT sdkVersion) {
 	
 		TRACE(L"newDirect3DCreate9 called.");
 		
-		CALLCHAIN(hk_D3D_Create, it) {
+        CALLCHAIN_BEGIN(hk_D3D_Create, it) 
+        {
 			NextCall = (ALLVOID)*it;
 			NextCall();
-		}
+        } 
+        CALLCHAIN_END
 		
 		return g_orgDirect3DCreate9(sdkVersion);
 	}

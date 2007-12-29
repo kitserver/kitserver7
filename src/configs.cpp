@@ -19,6 +19,9 @@ bool readConfig(const wchar_t* cfgFile)
 	FILE* f = _wfopen(cfgFile, L"rb");
 	if (!f) return false;
 
+    // clear the map
+    g_knownConfigs.clear();
+
 	DWORD firstDWORD;
 	bool unicodeFile = false;
 	fgets((char*)&firstDWORD, 4, f);

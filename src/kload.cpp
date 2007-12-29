@@ -18,6 +18,9 @@
 #include "hook.h"
 #define lang(s) getTransl("kload",s)
 
+// GLOBALS
+CRITICAL_SECTION g_cs;
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kload = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -62,6 +65,9 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		OpenLog(g_pesinfo.logName);
 		LOG(L"Log started.");
 		RegisterKModule(THISMOD);
+
+        // initialize global critical section
+        InitializeCriticalSection(&g_cs);
 		
 		if (!checkGameVersion()) {
 			LOG(L"Sorry, your game version isn't supported!");
@@ -119,6 +125,9 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	{
 		LOG(L"Closing log.");
 		CloseLog();
+
+        // dispose of critical section
+        DeleteCriticalSection(&g_cs);
 	}
 	
 	return true;
