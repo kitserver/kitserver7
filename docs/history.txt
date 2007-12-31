@@ -2,6 +2,12 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2007-12-30
+----------
+v7.0.6
+- added support for PES2008 1.20 ViTALiTY NO-DVD
+
+
 2007-12-20
 ----------
 v7.0.5
