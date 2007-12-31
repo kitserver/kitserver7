@@ -14,6 +14,7 @@ wchar_t* GAME[] = {
 	L"PES2008 PC 1.10",
 	L"PES2008 PC 1.10 NODVD",
 	L"PES2008 PC 1.20",
+	L"PES2008 PC 1.20 ViTALiTY NODVD",
 };
 char* GAME_GUID[] = {
 	"Pro Evolution Soccer 2008 DEMO",
@@ -24,10 +25,11 @@ char* GAME_GUID[] = {
     "PC  1.10",
     "PC  1.10",
     "PC  1.20",
+    "+V!TAL!TY+",
 };
-DWORD GAME_GUID_OFFSETS[] = { 0x67aca8, 0x5b5c4, 0x994e74, 0x5ec34, 0x3e0, 0x977c50, 0x977c50, 0x978be8 };
-bool ISGAME[] = { true, false, true, false, true, true, true, true };
-BYTE BASE_GAME[] = {0, 1, 2, 3, 2, 5, 5, 7};
+DWORD GAME_GUID_OFFSETS[] = { 0x67aca8, 0x5b5c4, 0x994e74, 0x5ec34, 0x3e0, 0x977c50, 0x977c50, 0x978be8, 0x16e };
+bool ISGAME[] = { true, false, true, false, true, true, true, true, true };
+BYTE BASE_GAME[] = {0, 1, 2, 3, 2, 5, 5, 7, 7};
 
 // Returns the game version id
 int GetRealGameVersion(void)

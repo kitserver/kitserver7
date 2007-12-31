@@ -182,6 +182,7 @@ Couldn't find LoadLibraryA in\n\
 			// find empty space at the end of .rdata
 			bool rdataFound = SeekSectionHeader(f, ".rdata");
 			if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+			if (!rdataFound) rdataFound = SeekSectionHeader(f, ".IN");
 			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	
@@ -221,7 +222,7 @@ Couldn't find LoadLibraryA in\n\
 					// ok, we found an empty place. Let's live here.
 					fseek(f, -0x20, SEEK_CUR);
 					DWORD* p = (DWORD*)buf;
-					p[0] = ep; // save old empty pointer for easy uninstall
+					p[0] = ep; // save old entry pointer for easy uninstall
 					p[1] = loadLib;
 					if (i==0)
 						memcpy(buf + 8, installDllPath, strlen(installDllPath)+1);
@@ -262,6 +263,7 @@ KitServer 7 is already installed (1) for\n\
 			// find empty space at the end of .text
 	        bool textFound = SeekSectionHeader(f, ".text");
 	        if (!textFound) textFound = SeekSectionHeader(f,"rr02");
+	        if (!textFound) textFound = SeekSectionHeader(f,".HEAVEN");
 	        if (!textFound) textFound = SeekSectionHeader(f,"");
 			if (textFound) {
 				fread(&textHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
@@ -435,6 +437,7 @@ void RemoveKserv(void)
 			// find empty space at the end of .rdata
 			bool rdataFound = SeekSectionHeader(f, ".rdata");
             if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+            if (!rdataFound) rdataFound = SeekSectionHeader(f, ".IN");
 			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	
@@ -490,6 +493,7 @@ KitServer 7 is not installed for\n\
 			// find empty space at the end of .text
 	        bool textFound = SeekSectionHeader(f, ".text");
 	        if (!textFound) textFound = SeekSectionHeader(f,"rr02");
+	        if (!textFound) textFound = SeekSectionHeader(f,".HEAVEN");
 	        if (!textFound) textFound = SeekSectionHeader(f,"");
 			if (textFound) {
 				fread(&textHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
@@ -647,6 +651,7 @@ executable.\0");
 			// find empty space at the end of .rdata
 			bool rdataFound = SeekSectionHeader(f, ".rdata");
             if (!rdataFound) rdataFound = SeekSectionHeader(f, ".rsrc");
+            if (!rdataFound) rdataFound = SeekSectionHeader(f, ".IN");
 			if (rdataFound) {
 				fread(&dataHeader, sizeof(IMAGE_SECTION_HEADER), 1, f);
 	
