@@ -6,19 +6,21 @@ BYTE allowedGames[] = {
 	gvPES2008v120,
 };
 
-#define CODELEN 10
+#define CODELEN 12
 enum {
 	C_CONTROLLERFIX1, C_CONTROLLERFIX2, C_QUALITYCHECK1, C_QUALITYCHECK2,
     C_SETFILEPOINTEREX, C_UNPACK_BIN, 
     C_AFTER_READTEAMKITINFO_1, C_AFTER_READTEAMKITINFO_2, C_READ_RADAR_INFO, C_READ_RADAR_INFO_TARGET,
+    C_SUB_MENUMODE, C_ADD_MENUMODE, 
 };
 
-#define NOCODEADDR {0,0,0,0,0,0,0,0,0,0},
+#define NOCODEADDR {0,0,0,0,0,0,0,0,0,0,0,0},
 DWORD codeArray[][CODELEN] = { 
   // PES2008 DEMO
 	{
 		0x86dd12, 0x86dd22, 0x904b0f, 0x904bc5, 0, 0,
         0, 0, 0, 0,
+        0, 0,
 	},
 	// [Settings] PES2008 PC DEMO
   NOCODEADDR
@@ -26,6 +28,7 @@ DWORD codeArray[][CODELEN] = {
 	{
 		0, 0, 0xbb6adf, 0xbb6b95, 0x4962e7, 0xc8d911,
         0, 0, 0, 0,
+        0, 0,
 	},
 	// [Settings] PES2008 PC
   NOCODEADDR
@@ -34,36 +37,44 @@ DWORD codeArray[][CODELEN] = {
 	{
 		0, 0, 0xbb68cf, 0xbb6985, 0x496c37, 0xc8f3e1,
         0, 0, 0, 0,
+        0, 0,
 	},
   NOCODEADDR
   // PES2008 1.20
 	{
 		0, 0, 0xbbaf9d, 0xbbb053, 0x496bc7, 0xc907f1, 
         0xc96a80, 0xc96585, 0xba408e, 0xba35d0,
+        0x427a20, 0xb32d0d,
 	},
 };
 
-#define DATALEN 4
+#define DATALEN 8
 enum {
 	NUMNOPS_1, NUMNOPS_2, TEAM_KIT_INFO_BASE, ML_POINTER,
+    MENU_MODE_IDX, MAIN_SCREEN_INDICATOR, INGAME_INDICATOR,
+    NEXT_MATCH_DATA_PTR, 
 };
 
-#define NODATAADDR {0,0,0,0},
+#define NODATAADDR {0,0,0,0,0,0,0,0},
 DWORD dataArray[][DATALEN] = {
   // PES2008 DEMO
 	NODATAADDR
 	// [Settings] PES2008 PC DEMO
 	NODATAADDR
   // PES2008
-    { 6, 2, 0, 0, },
+    { 6, 2, 0, 0, 0, 0, 0,
+      0, },
 	// [Settings] PES2008 PC
 	NODATAADDR
 	NODATAADDR
     // PES2008 1.10
-    { 6, 2, 0, 0, },
-    { 6, 2, 0, 0, },
+    { 6, 2, 0, 0, 0, 0, 0,
+      0, },
+    { 6, 2, 0, 0, 0, 0, 0,
+      0, },
     // PES2008 1.20
-    { 6, 2, 0x1252d68, 0x1252d70, },
+    { 6, 2, 0x1252d68, 0x1252d70, 0x1252ff0, 0x1253010, 0x1252df8,
+      0x1252d70, },
 };
 
 DWORD code[CODELEN];

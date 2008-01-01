@@ -95,3 +95,16 @@ typedef struct _ML_TEAM_INFO
     TEAM_KIT_INFO tki;
 } ML_TEAM_INFO;
 
+typedef struct _TEAM_MATCH_DATA_INFO
+{
+    BYTE unknown1[4];
+    WORD teamIdSpecial;
+    WORD teamId;
+    BYTE unknown2[0x4358];
+} TEAM_MATCH_DATA_INFO;
+
+typedef struct _NEXT_MATCH_DATA_INFO
+{
+    TEAM_MATCH_DATA_INFO* home;
+    TEAM_MATCH_DATA_INFO* away;
+} NEXT_MATCH_DATA_INFO;

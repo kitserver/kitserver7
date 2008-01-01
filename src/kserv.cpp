@@ -10,6 +10,7 @@
 #include "dllinit.h"
 #include "gdb.h"
 #include "pngdib.h"
+#include "utf8.h"
 
 #define lang(s) getTransl("kserv",s)
 
@@ -76,10 +77,20 @@ hash_map<WORD,WORD> g_teamIdByKitSlot; // to lookup team ID, using kit slot
 hash_map<WORD,WORD> g_kitSlotByTeamId; // to lookup kit slot, using team ID
 DWORD g_teamKitInfoBase = 0;
 bool g_slotMapsInitialized = false;
+bool g_presentHooked = false;
+DWORD g_menuMode = 0;
 
 GDB* gdb = NULL;
 DWORD g_return_addr = 0;
 DWORD g_param = 0;
+
+// kit iterators
+map<wstring,Kit>::iterator g_iterHomePL = NULL;
+map<wstring,Kit>::iterator g_iterAwayPL = NULL;
+map<wstring,Kit>::iterator g_iterHomeGK = NULL;
+map<wstring,Kit>::iterator g_iterAwayGK = NULL;
+
+HHOOK g_hKeyboardHook = NULL;
 
 // FUNCTIONS
 void initKserv();
@@ -115,7 +126,16 @@ int GetBinType(DWORD id);
 int GetKitSlot(DWORD id);
 WORD FindFreeKitSlot();
 void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki);
+void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki);
 void RGBAColor2KCOLOR(RGBAColor& color, KCOLOR& kcolor);
+void HookKeyboard();
+void UnhookKeyboard();
+LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
+void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
+void kservShowKitSelection(); 
+void kservHideKitSelection(); 
+void kservAddMenuModeCallPoint();
+void kservSubMenuModeCallPoint();
 
 // FUNCTION POINTERS
 DWORD g_orgReadRadarInfo = 0;
@@ -144,6 +164,11 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	{
 		TRACE(L"Shutting down this module...");
         delete gdb;
+		unhookFunction(hk_D3D_Present, kservPresent);
+
+        #ifndef MYDLL_RELEASE_BUILD
+        unhookFunction(hk_RenderPlayer, kservRenderPlayer);
+        #endif
 	}
 	
 	return true;
@@ -294,6 +319,64 @@ void kservReadRadarInfoCallPoint()
     }
 }
 
+void kservAddMenuModeCallPoint()
+{
+    // this is helper function so that we can
+    // hook kservShowKitSelection() at a certain place
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov esi,g_menuMode
+        add [esi],1 // execute replaced code
+        call kservShowKitSelection
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        retn
+    }
+}
+
+void kservSubMenuModeCallPoint()
+{
+    // this is helper function so that we can
+    // hook kservHideKitSelection() at a certain place
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov esi,g_menuMode
+        sub [esi],1 // execute replaced code
+        call kservHideKitSelection
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        retn
+    }
+}
+
 void initKserv() {
 	TRACE(L"Going to hook some functions now.");
 	
@@ -375,6 +458,8 @@ void initKserv() {
     // Load GDB
     gdb = new GDB(L".\\kitserver\\");
 
+    // hook Present
+    //hookFunction(hk_D3D_Present, kservPresent);
     // hook UnpackBin
     MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
     // hook SetFilePointerEx
@@ -385,6 +470,13 @@ void initKserv() {
     // hook radar info function
     //g_orgReadRadarInfo = code[C_READ_RADAR_INFO_TARGET];
     //HookCallPoint(code[C_READ_RADAR_INFO], kservReadRadarInfoCallPoint, 6, 0);
+
+    // hook kit selection points
+    //MasterHookFunction(code[C_SHOW_KITSELECTION], 1, kservShowKitSelection);
+    //MasterHookFunction(code[C_HIDE_KITSELECTION], 1, kservHideKitSelection);
+    g_menuMode = data[MENU_MODE_IDX];
+    HookCallPoint(code[C_ADD_MENUMODE], kservAddMenuModeCallPoint, 6, 2);
+    HookCallPoint(code[C_SUB_MENUMODE], kservSubMenuModeCallPoint, 6, 2);
 }
 
 void HookSetFilePointerEx()
@@ -507,6 +599,8 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     hash_map<DWORD,BIN_INFO>::iterator it = g_kitsBinInfoById.find(currBin);
     if (it != g_kitsBinInfoById.end()) // bin found in map.
     {
+        //unhookFunction(hk_D3D_Present, kservPresent);
+
         LOG1N(L"Unpacking bin %d", currBin);
 
         /*
@@ -1055,28 +1149,31 @@ void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki
 {
     map<wstring,Kit>::iterator kiter = m.find(kitKey);
     if (kiter != m.end())
-    {
-        if (kiter->second.attDefined & MODEL)
-            ki.model = kiter->second.model;
-        if (kiter->second.attDefined & COLLAR)
-            ki.collar = kiter->second.collar;
-        if (kiter->second.attDefined & SHIRT_NUMBER_LOCATION)
-            ki.frontNumberPosition = kiter->second.shirtNumberLocation;
-        if (kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
-            ki.shortsNumberPosition = kiter->second.shortsNumberLocation;
-        if (kiter->second.attDefined & NAME_LOCATION)
-            ki.fontEnabled = kiter->second.nameLocation;
-        if (kiter->second.attDefined & NAME_SHAPE)
-            ki.fontStyle = kiter->second.nameShape;
-        //if (kiter->second.attDefined & LOGO_LOCATION)
-        //    ki.logoLocation = kiter->second.logoLocation;
-        // radar: NOTE: the game seems to read it elsewhere
-        if (kiter->second.attDefined & RADAR_COLOR) 
-            RGBAColor2KCOLOR(kiter->second.radarColor, ki.radarColor);
-        // shorts main color
-        if (kiter->second.attDefined & SHORTS_MAIN_COLOR)
-            RGBAColor2KCOLOR(kiter->second.shortsMainColor, ki.shortsFirstColor);
-    }
+        ApplyKitAttributes(kiter, ki);
+}
+
+void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki)
+{
+    if (kiter->second.attDefined & MODEL)
+        ki.model = kiter->second.model;
+    if (kiter->second.attDefined & COLLAR)
+        ki.collar = kiter->second.collar;
+    if (kiter->second.attDefined & SHIRT_NUMBER_LOCATION)
+        ki.frontNumberPosition = kiter->second.shirtNumberLocation;
+    if (kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
+        ki.shortsNumberPosition = kiter->second.shortsNumberLocation;
+    if (kiter->second.attDefined & NAME_LOCATION)
+        ki.fontEnabled = kiter->second.nameLocation;
+    if (kiter->second.attDefined & NAME_SHAPE)
+        ki.fontStyle = kiter->second.nameShape;
+    //if (kiter->second.attDefined & LOGO_LOCATION)
+    //    ki.logoLocation = kiter->second.logoLocation;
+    // radar: NOTE: the game seems to read it elsewhere
+    if (kiter->second.attDefined & RADAR_COLOR) 
+        RGBAColor2KCOLOR(kiter->second.radarColor, ki.radarColor);
+    // shorts main color
+    if (kiter->second.attDefined & SHORTS_MAIN_COLOR)
+        RGBAColor2KCOLOR(kiter->second.shortsMainColor, ki.shortsFirstColor);
 }
 
 void RGBAColor2KCOLOR(RGBAColor& color, KCOLOR& kcolor)
@@ -1175,3 +1272,126 @@ WORD FindFreeKitSlot()
     return -1;
 }
 
+void HookKeyboard()
+{
+    if (g_hKeyboardHook == NULL) 
+    {
+		g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, hInst, GetCurrentThreadId());
+		LOG1N(L"Installed keyboard hook: g_hKeyboardHook = %d", (DWORD)g_hKeyboardHook);
+	}
+}
+
+void UnhookKeyboard()
+{
+	if (g_hKeyboardHook != NULL) 
+    {
+		UnhookWindowsHookEx(g_hKeyboardHook);
+		LOG(L"Keyboard hook uninstalled.");
+		g_hKeyboardHook = NULL;
+	}
+}
+
+LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
+{
+    /*
+	if (IsKitSelectMode && code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
+        KEYCFG* keyCfg = GetInputCfg();
+		if (wParam == keyCfg->keyboard.keyInfoPageNext)
+			SetNewDrawKitInfoMenu(usedKitInfoMenu+1,false);
+		else if (wParam == keyCfg->keyboard.keyInfoPagePrev) {
+			SetNewDrawKitInfoMenu(usedKitInfoMenu-1,false);
+		};
+	};
+    */
+	
+	/*
+	// Dump all textures of team 1 goalie, for all lod levels
+	if (!IsKitSelectMode && code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
+		KEYCFG* keyCfg = GetInputCfg();
+		if (wParam == keyCfg->keyboard.keyInfoPageNext) {
+			for (int j=0;j<5;j++) {
+				for (int i=0;i<9;i++) {
+					//DumpTexture(GetPlayerTexture(1, isTrainingMode()?1:0, i, j));
+					//DumpTexture(GetPlayerTexture(1, 3, i, 2));
+				};
+			};
+        }
+    }
+    */
+	
+    /*
+	CINPUT NextCall=NULL;
+	for (int i=0;i<(l_Input.num);i++)
+	if (l_Input.addr[i]!=0) {
+		NextCall=(CINPUT)l_Input.addr[i];
+		NextCall(code1,wParam,lParam);
+	};
+    */
+
+	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
+};
+
+void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
+	HWND hWnd, LPVOID unused)
+{
+    /*
+	wchar_t* rp = Utf8::ansiToUnicode("kservPresent");
+	KDrawText(rp, 0, 0, D3DCOLOR_RGBA(255,0,0,192));
+	Utf8::free(rp);
+    */
+	//KDrawText(L"kservPresent", 0, 0, D3DCOLOR_RGBA(0xff,0xff,0xff,0xff), 20.0f);
+
+    // print team IDs
+    NEXT_MATCH_DATA_INFO* pNextMatch = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    char buf[20] = {0};
+    sprintf(buf, "%d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
+	wchar_t* rp = Utf8::ansiToUnicode(buf);
+	KDrawText(rp, 0, 0, D3DCOLOR_RGBA(255,255,255,255));
+	Utf8::free(rp);
+}
+
+void kservShowKitSelection()
+{
+    DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+    DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
+    DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
+    if (ind == 0 && inGameInd == 0 && menuMode == 2)
+    {
+        if (!g_presentHooked)
+        {
+            hookFunction(hk_D3D_Present, kservPresent);
+            g_presentHooked = true;
+        }
+    }
+    else
+    {
+        if (g_presentHooked)
+        {
+            unhookFunction(hk_D3D_Present, kservPresent);
+            g_presentHooked = false;
+        }
+    }
+}
+
+void kservHideKitSelection()
+{
+    DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+    DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
+    DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
+    if (ind == 0 && inGameInd == 0 && menuMode == 2)
+    {
+        if (!g_presentHooked)
+        {
+            hookFunction(hk_D3D_Present, kservPresent);
+            g_presentHooked = true;
+        }
+    }
+    else
+    {
+        if (g_presentHooked)
+        {
+            unhookFunction(hk_D3D_Present, kservPresent);
+            g_presentHooked = false;
+        }
+    }
+}
