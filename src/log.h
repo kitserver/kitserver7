@@ -59,19 +59,19 @@
 #define TRACE1D(x,a)
 #endif
 
-KEXPORT void OpenLog(wchar_t* logName);
+KEXPORT void OpenLog(const wchar_t* logName);
 KEXPORT void CloseLog();
 
-KEXPORT void _Log(KMOD *caller, wchar_t* msg);
-KEXPORT void _LogWithNumber(KMOD *caller, wchar_t* msg, DWORD number);
-KEXPORT void _LogWithTwoNumbers(KMOD *caller, wchar_t* msg, DWORD a, DWORD b);
-KEXPORT void _LogWithThreeNumbers(KMOD *caller, wchar_t* msg, DWORD a, DWORD b, DWORD c);
-KEXPORT void _LogWithString(KMOD *caller, wchar_t* msg, wchar_t* str);
-KEXPORT void _LogWithTwoStrings(KMOD *caller, wchar_t* msg, wchar_t* a, wchar_t* b);
-KEXPORT void _LogWithNumberAndString(KMOD *caller, wchar_t *msg, DWORD a, wchar_t* b);
-KEXPORT void _LogWithStringAndNumber(KMOD *caller, wchar_t *msg, wchar_t* a, DWORD b);
-KEXPORT void _LogWithFloat(KMOD *caller, wchar_t* msg, float number);
-KEXPORT void _LogWithFourFloats(KMOD *caller, wchar_t* msg, float a, float b, float c, float d);
-KEXPORT void _LogWithDouble(KMOD *caller, wchar_t* msg, double number);
+KEXPORT void _Log(KMOD *caller, const wchar_t* msg);
+KEXPORT void _LogWithNumber(KMOD *caller, const wchar_t* msg, DWORD number);
+KEXPORT void _LogWithTwoNumbers(KMOD *caller, const wchar_t* msg, DWORD a, DWORD b);
+KEXPORT void _LogWithThreeNumbers(KMOD *caller, const wchar_t* msg, DWORD a, DWORD b, DWORD c);
+KEXPORT void _LogWithString(KMOD *caller, const wchar_t* msg, const wchar_t* str);
+KEXPORT void _LogWithTwoStrings(KMOD *caller, const wchar_t* msg, const wchar_t* a, const wchar_t* b);
+KEXPORT void _LogWithNumberAndString(KMOD *caller, const wchar_t *msg, DWORD a, const wchar_t* b);
+KEXPORT void _LogWithStringAndNumber(KMOD *caller, const wchar_t *msg, const wchar_t* a, DWORD b);
+KEXPORT void _LogWithFloat(KMOD *caller, const wchar_t* msg, float number);
+KEXPORT void _LogWithFourFloats(KMOD *caller, const wchar_t* msg, float a, float b, float c, float d);
+KEXPORT void _LogWithDouble(KMOD *caller, const wchar_t* msg, double number);
 
 #endif

@@ -14,7 +14,7 @@ static HANDLE mylog = INVALID_HANDLE_VALUE;
 
 
 // Creates log file
-void OpenLog(wchar_t* logName)
+void OpenLog(const wchar_t* logName)
 {
 		mylog = CreateFile(logName,                    // file to create 
 					 GENERIC_WRITE,                    // open for writing 
@@ -38,7 +38,7 @@ void CloseLog()
 }
 
 // Simple logger
-KEXPORT void _Log(KMOD *caller, wchar_t *msg)
+KEXPORT void _Log(KMOD *caller, const wchar_t *msg)
 {
 	if (!caller || mylog == INVALID_HANDLE_VALUE) return;
 	/*#ifdef MYDLL_RELEASE_BUILD
@@ -59,7 +59,7 @@ KEXPORT void _Log(KMOD *caller, wchar_t *msg)
 }
 
 // Simple logger 2
-KEXPORT void _LogWithNumber(KMOD *caller, wchar_t *msg, DWORD number)
+KEXPORT void _LogWithNumber(KMOD *caller, const wchar_t *msg, DWORD number)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -72,7 +72,7 @@ KEXPORT void _LogWithNumber(KMOD *caller, wchar_t *msg, DWORD number)
 }
 
 // Simple logger
-KEXPORT void _LogWithTwoNumbers(KMOD *caller, wchar_t *msg, DWORD a, DWORD b)
+KEXPORT void _LogWithTwoNumbers(KMOD *caller, const wchar_t *msg, DWORD a, DWORD b)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -85,7 +85,7 @@ KEXPORT void _LogWithTwoNumbers(KMOD *caller, wchar_t *msg, DWORD a, DWORD b)
 }
 
 // Simple debugging logger
-KEXPORT void _LogWithThreeNumbers(KMOD *caller, wchar_t *msg, DWORD a, DWORD b, DWORD c)
+KEXPORT void _LogWithThreeNumbers(KMOD *caller, const wchar_t *msg, DWORD a, DWORD b, DWORD c)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -98,7 +98,7 @@ KEXPORT void _LogWithThreeNumbers(KMOD *caller, wchar_t *msg, DWORD a, DWORD b, 
 }
 
 // Simple logger 4
-KEXPORT void _LogWithString(KMOD *caller, wchar_t *msg, wchar_t* str)
+KEXPORT void _LogWithString(KMOD *caller, const wchar_t *msg, const wchar_t* str)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -111,7 +111,7 @@ KEXPORT void _LogWithString(KMOD *caller, wchar_t *msg, wchar_t* str)
 }
 
 // Simple logger 5
-KEXPORT void _LogWithTwoStrings(KMOD *caller, wchar_t *msg, wchar_t* a, wchar_t* b)
+KEXPORT void _LogWithTwoStrings(KMOD *caller, const wchar_t *msg, const wchar_t* a, const wchar_t* b)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -124,7 +124,7 @@ KEXPORT void _LogWithTwoStrings(KMOD *caller, wchar_t *msg, wchar_t* a, wchar_t*
 }
 
 // Simple logger 6
-KEXPORT void _LogWithNumberAndString(KMOD *caller, wchar_t *msg, DWORD a, wchar_t* b)
+KEXPORT void _LogWithNumberAndString(KMOD *caller, const wchar_t *msg, DWORD a, const wchar_t* b)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -137,7 +137,7 @@ KEXPORT void _LogWithNumberAndString(KMOD *caller, wchar_t *msg, DWORD a, wchar_
 }
 
 // Simple logger 7
-KEXPORT void _LogWithStringAndNumber(KMOD *caller, wchar_t *msg, wchar_t* a, DWORD b)
+KEXPORT void _LogWithStringAndNumber(KMOD *caller, const wchar_t *msg, const wchar_t* a, DWORD b)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -150,7 +150,7 @@ KEXPORT void _LogWithStringAndNumber(KMOD *caller, wchar_t *msg, wchar_t* a, DWO
 }
 
 // Simple logger 2
-KEXPORT void _LogWithFloat(KMOD *caller, wchar_t *msg, float number)
+KEXPORT void _LogWithFloat(KMOD *caller, const wchar_t *msg, float number)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -163,7 +163,7 @@ KEXPORT void _LogWithFloat(KMOD *caller, wchar_t *msg, float number)
 }
 
 // Simple debugging logger
-KEXPORT void _LogWithFourFloats(KMOD *caller, wchar_t *msg, float a, float b, float c, float d)
+KEXPORT void _LogWithFourFloats(KMOD *caller, const wchar_t *msg, float a, float b, float c, float d)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;
@@ -176,7 +176,7 @@ KEXPORT void _LogWithFourFloats(KMOD *caller, wchar_t *msg, float a, float b, fl
 }
 
 // Simple logger 3
-KEXPORT void _LogWithDouble(KMOD *caller, wchar_t *msg, double number)
+KEXPORT void _LogWithDouble(KMOD *caller, const wchar_t *msg, double number)
 {
 	wchar_t buf[BUFLEN];
 	DWORD wbytes;

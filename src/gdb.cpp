@@ -98,6 +98,17 @@ void GDB::load()
         this->findKitsForTeam(it->first);
     }
 
+    // create two dummy kit collections: for use with AFS kits
+    this->dummyHome.players.insert(pair<wstring,Kit>(L"pa",Kit()));
+    this->dummyHome.players.insert(pair<wstring,Kit>(L"pb",Kit()));
+    this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"ga",Kit()));
+    this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"gb",Kit()));
+
+    this->dummyAway.players.insert(pair<wstring,Kit>(L"pa",Kit()));
+    this->dummyAway.players.insert(pair<wstring,Kit>(L"pb",Kit()));
+    this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"ga",Kit()));
+    this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"gb",Kit()));
+
 	GDB_DEBUG(wlog,(slog,L"Loading GDB complete.\n"));
     GDB_DEBUG_CLOSE(wlog);
 }
@@ -185,7 +196,7 @@ void GDB::loadConfig(wstring& mykey, Kit& kit)
         _getConfig("", "name.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_NAME_LOCATION), kitConfig);
         _getConfig("", "name.shape", DT_STRING, (DWORD)&kattr_data(kit,ATT_NAME_SHAPE), kitConfig);
         _getConfig("", "logo.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_LOGO_LOCATION), kitConfig);
-        _getConfig("", "rader.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_RADAR_COLOR), kitConfig);
+        _getConfig("", "radar.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_RADAR_COLOR), kitConfig);
         _getConfig("", "shorts.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHORTS_COLOR), kitConfig);
         _getConfig("", "description", DT_STRING, (DWORD)&kattr_data(kit,ATT_DESCRIPTION), kitConfig);
     }

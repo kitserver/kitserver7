@@ -81,8 +81,10 @@ class GDB {
 public:
     wstring dir;
     hash_map<WORD,KitCollection> uni;
+    KitCollection dummyHome;
+    KitCollection dummyAway;
 
-    GDB(wstring gdir) : dir(gdir) { load(); }
+    GDB(wstring gdir) : dir(gdir), dummyHome(L""), dummyAway(L"") { load(); }
 private:
     void load();
     void findKitsForTeam(WORD teamId);
