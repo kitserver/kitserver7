@@ -845,10 +845,9 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
         {
             WORD teamId = ksit->second;
             hash_map<WORD,KitCollection>::iterator wkit = gdb->uni.find(teamId);
-            if (wkit == gdb->uni.end())
+            //if (wkit == gdb->uni.end())
+            // First, operate on bins from AFS
             {
-                // team not found in GDB --> operate with bins from AFS
-
                 // set iterators
                 map<wstring,Kit>::iterator iterPL = NULL;
                 map<wstring,Kit>::iterator iterGK = NULL;
@@ -937,6 +936,118 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
         if (ksit != g_teamIdByKitSlot.end())
         {
             WORD teamId = ksit->second;
+
+            // First, operate with bins from AFS
+            {
+                // set iterators
+                map<wstring,Kit>::iterator iterPL = NULL;
+                map<wstring,Kit>::iterator iterGK = NULL;
+                map<wstring,Kit>::iterator iterPL_end = NULL;
+                map<wstring,Kit>::iterator iterGK_end = NULL;
+                NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+                if (pNM)
+                {
+                    TRACE2N(L"kservUnpackBin (AFS 2): teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
+                    iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
+                    iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
+                    iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
+                    iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
+                } 
+
+                wstring keysGK[] = {L"",L""};
+                if (iterGK == iterGK_end) { keysGK[0] = L"ga"; keysGK[1] = L"gb"; }
+                else { keysGK[0] = iterGK->first; keysGK[1] = iterGK->first; }
+                wstring keysPL[] = {L"",L""};
+                if (iterPL == iterPL_end) { keysPL[0] = L"pa"; keysPL[1] = L"pb"; }
+                else { keysPL[0] = iterPL->first; keysPL[1] = iterPL->first; }
+
+                // copy textures in place
+                if (bin->header.numEntries == 2 && 
+                        bin->entryInfo[0].size == 0x40410 &&
+                        bin->entryInfo[1].size == 0x40410)
+                {
+                    switch (type)
+                    {
+                        case BIN_KIT_GK:
+                            {
+                                if (keysGK[1] == L"ga") {
+                                    // make 2 home textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
+                                    memcpy(tex2, tex1, bin->entryInfo[0].size);
+                                }
+                                else if (keysGK[0] == L"gb") {
+                                    // make 2 away textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
+                                    memcpy(tex1, tex2, bin->entryInfo[0].size);
+                                }
+                            }
+                            break;
+                        case BIN_KIT_PL:
+                            {
+                                if (keysPL[1] == L"pa") {
+                                    // make 2 home textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
+                                    memcpy(tex2, tex1, bin->entryInfo[0].size);
+                                }
+                                else if (keysPL[0] == L"pb") {
+                                    // make 2 away textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
+                                    memcpy(tex1, tex2, bin->entryInfo[0].size);
+                                }
+                            }
+                            break;
+                    }
+                }
+                else if (bin->header.numEntries == 4 &&
+                        bin->entryInfo[2].size == 0x8410 &&
+                        bin->entryInfo[3].size == 0x8410)
+                {
+                    // need to correct the short-numbers textures in NUMS bins
+                    switch (type)
+                    {
+                        case BIN_NUMS_PA:
+                        case BIN_NUMS_PB:
+                            {
+                                if (keysPL[1] == L"pa") {
+                                    // make 2 home textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex2, tex1, bin->entryInfo[2].size);
+                                }
+                                else if (keysPL[0] == L"pb") {
+                                    // make 2 away textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex1, tex2, bin->entryInfo[2].size);
+                                }
+                            }
+                            break;
+                        case BIN_NUMS_GA:
+                        case BIN_NUMS_GB:
+                            {
+                                if (keysGK[1] == L"ga") {
+                                    // make 2 home textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex2, tex1, bin->entryInfo[2].size);
+                                }
+                                else if (keysGK[0] == L"gb") {
+                                    // make 2 away textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex1, tex2, bin->entryInfo[2].size);
+                                }
+                            }
+                            break;
+                    }
+                }
+            }
+
+            // Second: replace textures from GDB, if found
             hash_map<WORD,KitCollection>::iterator wkit = gdb->uni.find(teamId);
             if (wkit != gdb->uni.end())
             {
@@ -1123,117 +1234,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                     }
                 }
             } // end if wkit
-            else
-            {
-                // team not found in GDB --> operate with bins from AFS
 
-                // set iterators
-                map<wstring,Kit>::iterator iterPL = NULL;
-                map<wstring,Kit>::iterator iterGK = NULL;
-                map<wstring,Kit>::iterator iterPL_end = NULL;
-                map<wstring,Kit>::iterator iterGK_end = NULL;
-                NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-                if (pNM)
-                {
-                    TRACE2N(L"kservUnpackBin (AFS 2): teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
-                    iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
-                    iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
-                    iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
-                    iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
-                } 
-
-                wstring keysGK[] = {L"",L""};
-                if (iterGK == iterGK_end) { keysGK[0] = L"ga"; keysGK[1] = L"gb"; }
-                else { keysGK[0] = iterGK->first; keysGK[1] = iterGK->first; }
-                wstring keysPL[] = {L"",L""};
-                if (iterPL == iterPL_end) { keysPL[0] = L"pa"; keysPL[1] = L"pb"; }
-                else { keysPL[0] = iterPL->first; keysPL[1] = iterPL->first; }
-
-                // copy textures in place
-                if (bin->header.numEntries == 2 && 
-                        bin->entryInfo[0].size == 0x40410 &&
-                        bin->entryInfo[1].size == 0x40410)
-                {
-                    switch (type)
-                    {
-                        case BIN_KIT_GK:
-                            {
-                                if (keysGK[1] == L"ga") {
-                                    // make 2 home textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
-                                    memcpy(tex2, tex1, bin->entryInfo[0].size);
-                                }
-                                else if (keysGK[0] == L"gb") {
-                                    // make 2 away textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
-                                    memcpy(tex1, tex2, bin->entryInfo[0].size);
-                                }
-                            }
-                            break;
-                        case BIN_KIT_PL:
-                            {
-                                if (keysPL[1] == L"pa") {
-                                    // make 2 home textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
-                                    memcpy(tex2, tex1, bin->entryInfo[0].size);
-                                }
-                                else if (keysPL[0] == L"pb") {
-                                    // make 2 away textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
-                                    memcpy(tex1, tex2, bin->entryInfo[0].size);
-                                }
-                            }
-                            break;
-                    }
-                }
-                else if (bin->header.numEntries == 4 &&
-                        bin->entryInfo[2].size == 0x8410 &&
-                        bin->entryInfo[3].size == 0x8410)
-                {
-                    // need to correct the short-numbers textures in NUMS bins
-                    switch (type)
-                    {
-                        case BIN_NUMS_PA:
-                        case BIN_NUMS_PB:
-                            {
-                                if (keysPL[1] == L"pa") {
-                                    // make 2 home textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
-                                    memcpy(tex2, tex1, bin->entryInfo[2].size);
-                                }
-                                else if (keysPL[0] == L"pb") {
-                                    // make 2 away textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
-                                    memcpy(tex1, tex2, bin->entryInfo[2].size);
-                                }
-                            }
-                            break;
-                        case BIN_NUMS_GA:
-                        case BIN_NUMS_GB:
-                            {
-                                if (keysGK[1] == L"ga") {
-                                    // make 2 home textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
-                                    memcpy(tex2, tex1, bin->entryInfo[2].size);
-                                }
-                                else if (keysGK[0] == L"gb") {
-                                    // make 2 away textures
-                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
-                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
-                                    memcpy(tex1, tex2, bin->entryInfo[2].size);
-                                }
-                            }
-                            break;
-                    }
-                }
-            }
         } // end if ksit
     }
 
@@ -1518,6 +1519,39 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
     }
 
     WORD teamId = GetTeamIdBySrc(src);
+
+    // First, handle the standard permutations
+    {
+        NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+        if (pNM && (pNM->home->teamId == teamId || pNM->away->teamId == teamId))
+        {
+            map<wstring,Kit>::iterator iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
+            map<wstring,Kit>::iterator iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
+            map<wstring,Kit>::iterator iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
+            map<wstring,Kit>::iterator iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
+
+            // GK
+            if (iterGK != iterGK_end && iterGK->first == L"ga")
+            {
+                memcpy(&dest->gb, &dest->ga, sizeof(KIT_INFO));
+            }
+            else if (iterGK != iterGK_end && iterGK->first == L"gb")
+            {
+                memcpy(&dest->ga, &dest->gb, sizeof(KIT_INFO));
+            }
+            // PL
+            if (iterPL != iterPL_end && iterPL->first == L"pa")
+            {
+                memcpy(&dest->pb, &dest->pa, sizeof(KIT_INFO));
+            }
+            else if (iterPL != iterPL_end && iterPL->first == L"pb")
+            {
+                memcpy(&dest->pa, &dest->pb, sizeof(KIT_INFO));
+            }
+        }
+    }
+
+    // Second, check for attributes from GDB
     hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(teamId);
     if (it != gdb->uni.end())
     {
@@ -1630,37 +1664,6 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
         {
             ApplyKitAttributes(it->second.players,L"pa",dest->pa);
             ApplyKitAttributes(it->second.players,L"pb",dest->pb);
-        }
-    }
-    else
-    {
-        // team not found in GDB --> operate with AFS
-        NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-        if (pNM && (pNM->home->teamId == teamId || pNM->away->teamId == teamId))
-        {
-            map<wstring,Kit>::iterator iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
-            map<wstring,Kit>::iterator iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
-            map<wstring,Kit>::iterator iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
-            map<wstring,Kit>::iterator iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
-
-            // GK
-            if (iterGK != iterGK_end && iterGK->first == L"ga")
-            {
-                memcpy(&dest->gb, &dest->ga, sizeof(KIT_INFO));
-            }
-            else if (iterGK != iterGK_end && iterGK->first == L"gb")
-            {
-                memcpy(&dest->ga, &dest->gb, sizeof(KIT_INFO));
-            }
-            // PL
-            if (iterPL != iterPL_end && iterPL->first == L"pa")
-            {
-                memcpy(&dest->pb, &dest->pa, sizeof(KIT_INFO));
-            }
-            else if (iterPL != iterPL_end && iterPL->first == L"pb")
-            {
-                memcpy(&dest->pa, &dest->pb, sizeof(KIT_INFO));
-            }
         }
     }
 }
@@ -1857,10 +1860,20 @@ void ResetIterators()
         hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->home->teamId);
         if (it != gdb->uni.end())
         {
-            g_iterHomePL_begin = it->second.players.begin();
-            g_iterHomeGK_begin = it->second.goalkeepers.begin();
-            g_iterHomePL_end = it->second.players.end();
-            g_iterHomeGK_end = it->second.goalkeepers.end();
+            if (it->second.players.begin() != it->second.players.end())
+            {
+                g_iterHomePL_begin = it->second.players.begin();
+                g_iterHomePL_end = it->second.players.end();
+            }
+            // otherwise: leave them as dummy iterators: this way we can still
+            // choose a/b, even if no kits are in GDB folder
+            if (it->second.goalkeepers.begin() != it->second.goalkeepers.end())
+            {
+                g_iterHomeGK_begin = it->second.goalkeepers.begin();
+                g_iterHomeGK_end = it->second.goalkeepers.end();
+            }
+            // otherwise: leave them as dummy iterators: this way we can still
+            // choose a/b, even if no kits are in GDB folder
         }
     }
     if (pNextMatch && pNextMatch->away)
@@ -1868,10 +1881,20 @@ void ResetIterators()
         hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->away->teamId);
         if (it != gdb->uni.end())
         {
-            g_iterAwayPL_begin = it->second.players.begin();
-            g_iterAwayGK_begin = it->second.goalkeepers.begin();
-            g_iterAwayPL_end = it->second.players.end();
-            g_iterAwayGK_end = it->second.goalkeepers.end();
+            if (it->second.players.begin() != it->second.players.end())
+            {
+                g_iterAwayPL_begin = it->second.players.begin();
+                g_iterAwayPL_end = it->second.players.end();
+            }
+            // otherwise: leave them as dummy iterators: this way we can still
+            // choose a/b, even if no kits are in GDB folder
+            if (it->second.goalkeepers.begin() != it->second.goalkeepers.end())
+            {
+                g_iterAwayGK_begin = it->second.goalkeepers.begin();
+                g_iterAwayGK_end = it->second.goalkeepers.end();
+            }
+            // otherwise: leave them as dummy iterators: this way we can still
+            // choose a/b, even if no kits are in GDB folder
         }
     }
 
