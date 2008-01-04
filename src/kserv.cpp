@@ -80,6 +80,7 @@ bool g_slotMapsInitialized = false;
 bool g_presentHooked = false;
 bool g_needsIteratorReset = false;
 DWORD g_menuMode = 0;
+DWORD g_cupModeInd = 0;
 hash_map<DWORD,TEAM_KIT_INFO> g_savedTki;
 
 GDB* gdb = NULL;
@@ -157,6 +158,11 @@ void kservStartReadKitInfo(TEAM_KIT_INFO* src);
 void kservEndReadKitInfo();
 void SetAttributes(TEAM_KIT_INFO* src, WORD teamId);
 void RestoreAttributes(TEAM_KIT_INFO* src);
+void kservOnEnterCupsCallPoint();
+void kservOnLeaveCupsCallPoint();
+void kservOnLeaveCupsCallPoint2();
+void kservOnEnterCups();
+void kservOnLeaveCups();
 
 // FUNCTION POINTERS
 
@@ -496,6 +502,86 @@ void kservSubMenuModeCallPoint()
     }
 }
 
+void kservOnEnterCupsCallPoint()
+{
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov edi,g_cupModeInd // execute repaced code
+        mov [edi],esi
+        call kservOnEnterCups
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        retn
+    }
+}
+
+void kservOnLeaveCupsCallPoint()
+{
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov esi,g_cupModeInd // execute repaced code
+        mov [esi],ebp
+        call kservOnLeaveCups
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        retn
+    }
+}
+
+void kservOnLeaveCupsCallPoint2()
+{
+    __asm 
+    {
+        pushf
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        call kservOnLeaveCups
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popf
+        add esp,4  // execute replaced code
+        retn
+    }
+}
+
 void initKserv() {
 	TRACE(L"Going to hook some functions now.");
 	
@@ -597,6 +683,12 @@ void initKserv() {
     g_menuMode = data[MENU_MODE_IDX];
     HookCallPoint(code[C_ADD_MENUMODE], kservAddMenuModeCallPoint, 6, 2);
     HookCallPoint(code[C_SUB_MENUMODE], kservSubMenuModeCallPoint, 6, 2);
+
+    // hook mode enter/exit points
+    g_cupModeInd = data[CUP_MODE_PTR];
+    HookCallPoint(code[C_ON_ENTER_CUPS], kservOnEnterCupsCallPoint, 6, 1);
+    HookCallPoint(code[C_ON_LEAVE_CUPS], kservOnLeaveCupsCallPoint, 6, 1);
+    HookCallPoint(code[C_ON_LEAVE_CUPS_2], kservOnLeaveCupsCallPoint2, 6, 0);
 }
 
 void HookSetFilePointerEx()
@@ -1093,6 +1185,49 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                                     TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[0].offset);
                                     TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[1].offset);
                                     memcpy(tex1, tex2, bin->entryInfo[0].size);
+                                }
+                            }
+                            break;
+                    }
+                }
+                else if (bin->header.numEntries == 4 &&
+                        bin->entryInfo[2].size == 0x8410 &&
+                        bin->entryInfo[3].size == 0x8410)
+                {
+                    // need to correct the short-numbers textures in NUMS bins
+                    switch (type)
+                    {
+                        case BIN_NUMS_PA:
+                        case BIN_NUMS_PB:
+                            {
+                                if (keysPL[1] == L"pa") {
+                                    // make 2 home textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex2, tex1, bin->entryInfo[2].size);
+                                }
+                                else if (keysPL[0] == L"pb") {
+                                    // make 2 away textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex1, tex2, bin->entryInfo[2].size);
+                                }
+                            }
+                            break;
+                        case BIN_NUMS_GA:
+                        case BIN_NUMS_GB:
+                            {
+                                if (keysGK[1] == L"ga") {
+                                    // make 2 home textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex2, tex1, bin->entryInfo[2].size);
+                                }
+                                else if (keysGK[0] == L"gb") {
+                                    // make 2 away textures
+                                    TEXTURE_ENTRY* tex1 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[2].offset);
+                                    TEXTURE_ENTRY* tex2 = (TEXTURE_ENTRY*)((BYTE*)bin + bin->entryInfo[3].offset);
+                                    memcpy(tex1, tex2, bin->entryInfo[2].size);
                                 }
                             }
                             break;
@@ -1705,39 +1840,41 @@ void ResetIterators()
 {
     // reset kit iterators
     NEXT_MATCH_DATA_INFO* pNextMatch = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-    TRACE2N(L"Teams: %d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
-    hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->home->teamId);
-    if (it != gdb->uni.end())
+    //TRACE2N(L"Teams: %d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
+    
+    g_iterHomePL_begin = gdb->dummyHome.players.begin();
+    g_iterHomeGK_begin = gdb->dummyHome.goalkeepers.begin();
+    g_iterHomePL_end = gdb->dummyHome.players.end();
+    g_iterHomeGK_end = gdb->dummyHome.goalkeepers.end();
+
+    g_iterAwayPL_begin = gdb->dummyAway.players.begin();
+    g_iterAwayGK_begin = gdb->dummyAway.goalkeepers.begin();
+    g_iterAwayPL_end = gdb->dummyAway.players.end();
+    g_iterAwayGK_end = gdb->dummyAway.goalkeepers.end();
+
+    if (pNextMatch && pNextMatch->home)
     {
-        g_iterHomePL_begin = it->second.players.begin();
-        g_iterHomeGK_begin = it->second.goalkeepers.begin();
-        g_iterHomePL_end = it->second.players.end();
-        g_iterHomeGK_end = it->second.goalkeepers.end();
+        hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->home->teamId);
+        if (it != gdb->uni.end())
+        {
+            g_iterHomePL_begin = it->second.players.begin();
+            g_iterHomeGK_begin = it->second.goalkeepers.begin();
+            g_iterHomePL_end = it->second.players.end();
+            g_iterHomeGK_end = it->second.goalkeepers.end();
+        }
     }
-    else
+    if (pNextMatch && pNextMatch->away)
     {
-        // team not in GDB: get info from AFS
-        g_iterHomePL_begin = gdb->dummyHome.players.begin();
-        g_iterHomeGK_begin = gdb->dummyHome.goalkeepers.begin();
-        g_iterHomePL_end = gdb->dummyHome.players.end();
-        g_iterHomeGK_end = gdb->dummyHome.goalkeepers.end();
+        hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->away->teamId);
+        if (it != gdb->uni.end())
+        {
+            g_iterAwayPL_begin = it->second.players.begin();
+            g_iterAwayGK_begin = it->second.goalkeepers.begin();
+            g_iterAwayPL_end = it->second.players.end();
+            g_iterAwayGK_end = it->second.goalkeepers.end();
+        }
     }
-    it = gdb->uni.find(pNextMatch->away->teamId);
-    if (it != gdb->uni.end())
-    {
-        g_iterAwayPL_begin = it->second.players.begin();
-        g_iterAwayGK_begin = it->second.goalkeepers.begin();
-        g_iterAwayPL_end = it->second.players.end();
-        g_iterAwayGK_end = it->second.goalkeepers.end();
-    }
-    else
-    {
-        // team not in GDB: get info from AFS
-        g_iterAwayPL_begin = gdb->dummyAway.players.begin();
-        g_iterAwayGK_begin = gdb->dummyAway.goalkeepers.begin();
-        g_iterAwayPL_end = gdb->dummyAway.players.end();
-        g_iterAwayGK_end = gdb->dummyAway.goalkeepers.end();
-    }
+
     g_iterHomePL = g_iterHomePL_end;
     g_iterHomeGK = g_iterHomeGK_end;
     g_iterAwayPL = g_iterAwayPL_end;
@@ -1825,7 +1962,8 @@ void kservTriggerKitSelection(int delta)
     DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
     DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
     DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
-    if (ind == 0 && inGameInd == 0 && menuMode == 2)
+    DWORD cupModeInd = *(DWORD*)data[CUP_MODE_PTR];
+    if (ind == 0 && inGameInd == 0 && menuMode == 2 && cupModeInd != 0)
     {
         if (!g_presentHooked)
         {
@@ -1936,5 +2074,19 @@ void kservEndReadKitInfo()
 {
     // restore previous
     RestoreAttributes();
+}
+
+void kservOnEnterCups()
+{
+    // need to make sure iterators are reset
+    LOG(L"Entering cup/league/ml mode");
+    ResetIterators();
+}
+
+void kservOnLeaveCups()
+{
+    // need to make sure iterators are reset
+    LOG(L"Exiting cup/league/ml mode");
+    ResetIterators();
 }
 
