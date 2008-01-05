@@ -1367,8 +1367,7 @@ void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size)
             break;
         }
         // move on to next chunk
-        //offset += sizeof(chunk->dwSize) + sizeof(chunk->dwName) + 
-        offset += sizeof(DWORD) + sizeof(DWORD) + 
+        offset += sizeof(chunk->dwSize) + sizeof(chunk->dwName) + 
             SWAPBYTES(chunk->dwSize) + sizeof(DWORD); // last one is CRC
     }
 
