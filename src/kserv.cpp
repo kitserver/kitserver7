@@ -613,7 +613,10 @@ void initKserv() {
 	unhookFunction(hk_D3D_Create, initKserv);
 
     // initialize kits iteminfo structure
-    FILE* f = fopen("img/cv_0.img","rb");
+    wstring cv_0(getPesInfo()->pesDir);
+    cv_0 += L"img\\cv_0.img";
+    LOG1S(L"cv_0 = {%s}",cv_0.c_str());
+    FILE* f = _wfopen(cv_0.c_str(),L"rb");
     if (f)
     {
         //for (int i=0; i<sizeof(g_kitsAfsIds)/sizeof(DWORD); i++)
@@ -657,7 +660,9 @@ void initKserv() {
     }
 
     // Load GDB
-    gdb = new GDB(L".\\kitserver\\");
+    LOG1S(L"myDir: {%s}",getPesInfo()->myDir);
+    LOG1S(L"gdbDir: {%s}",getPesInfo()->gdbDir);
+    gdb = new GDB(getPesInfo()->gdbDir);
 
     // Initial iterators reset
     ResetIterators();
@@ -1258,7 +1263,9 @@ void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], size_t n)
 PACKED_BIN* LoadBinFromAFS(DWORD id)
 {
     PACKED_BIN* result = NULL;
-    FILE* f = fopen("img/cv_0.img","rb");
+    wstring cv_0(getPesInfo()->pesDir);
+    cv_0 += L"img\\cv_0.img";
+    FILE* f = _wfopen(cv_0.c_str(),L"rb");
     if (f)
     {
         AFSITEMINFO itemInfo;

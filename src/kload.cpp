@@ -100,7 +100,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			wcscat(temp, g_pesinfo.gdbDir);
 			
 			ZeroMemory(g_pesinfo.gdbDir, WBUFLEN);
-			wcscpy(g_pesinfo.myDir, temp);
+			wcscpy(g_pesinfo.gdbDir, temp);
 		}
 		
 		wchar_t langFile[BUFLEN];
