@@ -78,10 +78,13 @@ hash_map<WORD,WORD> g_kitSlotByTeamId; // to lookup kit slot, using team ID
 DWORD g_teamKitInfoBase = 0;
 bool g_slotMapsInitialized = false;
 bool g_presentHooked = false;
-bool g_needsIteratorReset = false;
+bool g_beginShowKitSelection = false;
 DWORD g_menuMode = 0;
 DWORD g_cupModeInd = 0;
 hash_map<DWORD,TEAM_KIT_INFO> g_savedTki;
+
+WORD g_lastHome = 0xffff;
+WORD g_lastAway = 0xffff;
 
 GDB* gdb = NULL;
 DWORD g_return_addr = 0;
@@ -662,6 +665,9 @@ void initKserv() {
 
     // Load GDB
     gdb = new GDB(L".\\kitserver\\");
+
+    // Initial iterators reset
+    ResetIterators();
 
     // hook Present
     //hookFunction(hk_D3D_Present, kservPresent);
@@ -1686,9 +1692,9 @@ void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki)
     if (kiter->second.attDefined & SHORTS_NUMBER_LOCATION)
         ki.shortsNumberPosition = kiter->second.shortsNumberLocation;
     if (kiter->second.attDefined & NAME_LOCATION)
-        ki.fontEnabled = kiter->second.nameLocation;
+        ki.fontPosition = kiter->second.nameLocation;
     if (kiter->second.attDefined & NAME_SHAPE)
-        ki.fontStyle = kiter->second.nameShape;
+        ki.fontShape = kiter->second.nameShape;
     //if (kiter->second.attDefined & LOGO_LOCATION)
     //    ki.logoLocation = kiter->second.logoLocation;
     if (kiter->second.attDefined & RADAR_COLOR) 
@@ -1905,13 +1911,27 @@ void ResetIterators()
     TRACE(L"Iterators reset");
 }
 
+void GetCurrentTeams(WORD& home, WORD& away)
+{
+    NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    if (pNM && pNM->home) home = pNM->home->teamId;
+    if (pNM && pNM->away) away = pNM->away->teamId;
+}
+
 void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused)
 {
-    if (g_needsIteratorReset)
+    if (g_beginShowKitSelection)
     {
-        ResetIterators();
-        g_needsIteratorReset = false;
+        // may need to reset iterators, if the teams have changed since last time
+        WORD home = 0xffff, away = 0xffff;
+        GetCurrentTeams(home,away);
+        if (home == 0xffff || away == 0xffff || home != g_lastHome || away != g_lastAway)
+            ResetIterators(); // new teams, therefore need a reset
+
+        g_lastHome = home;
+        g_lastAway = away;
+        g_beginShowKitSelection = false;
     }
 
     /*
@@ -1992,7 +2012,7 @@ void kservTriggerKitSelection(int delta)
         {
             hookFunction(hk_D3D_Present, kservPresent);
             g_presentHooked = true;
-            g_needsIteratorReset = true;
+            g_beginShowKitSelection = true;
 
             HookKeyboard();
         }

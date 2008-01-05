@@ -64,9 +64,9 @@ typedef struct _KIT_INFO
     BYTE collar;
     BYTE editKitStyles[9];
     BYTE fontStyle;
-    BYTE fontEnabled;
+    BYTE fontPosition;
     BYTE unknown5;
-    BYTE unknown6;
+    BYTE fontShape;
     BYTE unknown7;
     BYTE frontNumberPosition;
     BYTE shortsNumberPosition;

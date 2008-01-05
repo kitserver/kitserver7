@@ -253,9 +253,9 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
         case ATT_NAME_LOCATION:
             if (EQUALS(pValue, L"off"))
                 kd->kit.nameLocation = 0;
-            else if (EQUALS(pValue, L"left"))
+            else if (EQUALS(pValue, L"top"))
                 kd->kit.nameLocation = 1;
-            else if (EQUALS(pValue, L"right"))
+            else if (EQUALS(pValue, L"bottom"))
                 kd->kit.nameLocation = 2;
             kd->kit.attDefined |= NAME_LOCATION;
             GDB_DEBUG(wlog,(slog,L"nameLocation = %d\n",kd->kit.nameLocation));
@@ -275,9 +275,9 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
         case ATT_LOGO_LOCATION:
             if (EQUALS(pValue, L"off"))
                 kd->kit.logoLocation = 0;
-            else if (EQUALS(pValue, L"left"))
+            else if (EQUALS(pValue, L"top"))
                 kd->kit.logoLocation = 1;
-            else if (EQUALS(pValue, L"right"))
+            else if (EQUALS(pValue, L"bottom"))
                 kd->kit.logoLocation = 2;
             kd->kit.attDefined |= LOGO_LOCATION;
             GDB_DEBUG(wlog,(slog,L"logoLocation = %d\n",kd->kit.logoLocation));
