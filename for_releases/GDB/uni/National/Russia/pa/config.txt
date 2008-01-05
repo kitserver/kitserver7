@@ -1,0 +1,6 @@
+model = 0
+shorts.color = ffffff
+shirt.number.location = center
+shorts.number.location = left
+radar.color = ff0000
+description = "Home Kit"

@@ -1,0 +1,4 @@
+main.color = 1166ff
+#name.location = off
+#shorts.number.location = off
+#shirt.number.location = topright

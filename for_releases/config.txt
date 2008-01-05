@@ -1,6 +1,9 @@
-[kload]
+﻿[kload]
+dll = zlib1.dll
+dll = libpng13.dll
 dll = kserv.dll
 dll = lodmixer.dll
 
 [lodmixer]
 aspect-ratio.correction.enabled = 1
+

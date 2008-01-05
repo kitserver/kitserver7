@@ -1,4 +1,6 @@
-# Kit map
+﻿# Kit map
 ########################
 
-21, National/Russia
+21, "National\Russia"
+69, "EPL\Chelsea"
+73, "EPL\Liverpool"

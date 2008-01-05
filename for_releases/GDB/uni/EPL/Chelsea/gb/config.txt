@@ -1,0 +1,1 @@
+radar.color = 102040
