@@ -40,7 +40,7 @@ enum {
     ATT_NAME_LOCATION,
     ATT_NAME_SHAPE,
     ATT_LOGO_LOCATION,
-    ATT_RADAR_COLOR,
+    ATT_MAIN_COLOR,
     ATT_SHORTS_COLOR,
     ATT_DESCRIPTION,
 };
@@ -196,7 +196,8 @@ void GDB::loadConfig(wstring& mykey, Kit& kit)
         _getConfig("", "name.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_NAME_LOCATION), kitConfig);
         _getConfig("", "name.shape", DT_STRING, (DWORD)&kattr_data(kit,ATT_NAME_SHAPE), kitConfig);
         _getConfig("", "logo.location", DT_STRING, (DWORD)&kattr_data(kit,ATT_LOGO_LOCATION), kitConfig);
-        _getConfig("", "radar.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_RADAR_COLOR), kitConfig);
+        _getConfig("", "main.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_MAIN_COLOR), kitConfig);
+        _getConfig("", "radar.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_MAIN_COLOR), kitConfig); // for backward compatibility
         _getConfig("", "shorts.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHORTS_COLOR), kitConfig);
         _getConfig("", "description", DT_STRING, (DWORD)&kattr_data(kit,ATT_DESCRIPTION), kitConfig);
     }
@@ -283,14 +284,14 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
             GDB_DEBUG(wlog,(slog,L"logoLocation = %d\n",kd->kit.logoLocation));
             break;
 
-        case ATT_RADAR_COLOR:
-            if (ParseColor((wchar_t*)pValue, &kd->kit.radarColor))
-                kd->kit.attDefined |= RADAR_COLOR;
-            GDB_DEBUG(wlog,(slog,L"radarColor = %02x%02x%02x%02x\n",
-                        kd->kit.radarColor.r,
-                        kd->kit.radarColor.g,
-                        kd->kit.radarColor.b,
-                        kd->kit.radarColor.a
+        case ATT_MAIN_COLOR:
+            if (ParseColor((wchar_t*)pValue, &kd->kit.mainColor))
+                kd->kit.attDefined |= MAIN_COLOR;
+            GDB_DEBUG(wlog,(slog,L"mainColor = %02x%02x%02x%02x\n",
+                        kd->kit.mainColor.r,
+                        kd->kit.mainColor.g,
+                        kd->kit.mainColor.b,
+                        kd->kit.mainColor.a
                         ));
             break;
 

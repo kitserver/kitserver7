@@ -1,9 +1,9 @@
 // ADDRESSES for kserv.cpp
 BYTE allowedGames[] = {
-	gvPES2008demo,
-	gvPES2008,
-	gvPES2008v110,
-	gvPES2008v120,
+	//gvPES2008demo,
+	//gvPES2008,
+	//gvPES2008v110,
+	gvPES2008v120,    //TODO addresses
 };
 
 #define CODELEN 18
@@ -72,18 +72,22 @@ DWORD dataArray[][DATALEN] = {
 	// [Settings] PES2008 PC DEMO
 	NODATAADDR
   // PES2008
-    { 6, 2, 0, 0, 0, 0, 0,
+    { 6, 2, 0, 
+      0, 0, 0, 0,
       0, 0, },
 	// [Settings] PES2008 PC
 	NODATAADDR
 	NODATAADDR
     // PES2008 1.10
-    { 6, 2, 0, 0, 0, 0, 0,
+    { 6, 2, 0, 0, 
+      0, 0, 0,
       0, 0, },
-    { 6, 2, 0, 0, 0, 0, 0,
+    { 6, 2, 0, 0, 
+      0, 0, 0,
       0, 0, },
     // PES2008 1.20
-    { 6, 2, 0x1252d68, 0x1252d70, 0x1252ff0, 0x1253010, 0x1252df8,
+    { 6, 2, 0x1252d68, 0x1252d70, 
+      0x1252ff0, 0x1253010, 0x1252df8,
       0x1252d70, 0x1253f08 },
 };
 

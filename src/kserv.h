@@ -3,7 +3,7 @@
 #include "afsreader.h"
 
 #define MODID 100
-#define NAMELONG L"Kitserver Module 7.1.2"
+#define NAMELONG L"Kitserver Module 7.1.0.5"
 #define NAMESHORT L"KSERV"
 #define DEFAULT_DEBUG 0
 
@@ -49,7 +49,7 @@ typedef DWORD KCOLOR;
 typedef struct _KIT_INFO
 {
     DWORD unknown0[2];
-    KCOLOR radarColor;
+    KCOLOR mainColor;
     KCOLOR editShirtColors[4];
     KCOLOR shortsFirstColor;
     KCOLOR editKitColors[9];
@@ -86,21 +86,13 @@ typedef struct _TEAM_KIT_INFO
     KIT_INFO pb;
 } TEAM_KIT_INFO;
 
-typedef struct _ML_TEAM_INFO
-{
-    DWORD unknown1;
-    WORD unknown2;
-    WORD teamId;
-    BYTE unknown3[0x2d3c];
-    TEAM_KIT_INFO tki;
-} ML_TEAM_INFO;
-
 typedef struct _TEAM_MATCH_DATA_INFO
 {
     BYTE unknown1[4];
     WORD teamIdSpecial;
     WORD teamId;
-    BYTE unknown2[0x4358];
+    BYTE unknown2[0x2d3c];
+    TEAM_KIT_INFO tki;
 } TEAM_MATCH_DATA_INFO;
 
 typedef struct _NEXT_MATCH_DATA_INFO

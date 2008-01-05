@@ -19,8 +19,13 @@
 #include <wchar.h>
 
 #define SWAPBYTES(dw) \
-    (dw<<24 & 0xff000000) | (dw<<8  & 0x00ff0000) | \
-    (dw>>8  & 0x0000ff00) | (dw>>24 & 0x000000ff)
+    ((dw<<24 & 0xff000000) | (dw<<8  & 0x00ff0000) | \
+    (dw>>8  & 0x0000ff00) | (dw>>24 & 0x000000ff))
+
+#define COLOR_BLACK D3DCOLOR_RGBA(0,0,0,128)
+#define COLOR_AUTO D3DCOLOR_RGBA(135,135,135,255)
+#define COLOR_CHOSEN D3DCOLOR_RGBA(210,210,210,255)
+#define COLOR_INFO D3DCOLOR_RGBA(0xb0,0xff,0xb0,0xff)
 
 typedef struct _UNPACK_INFO 
 {
@@ -31,12 +36,6 @@ typedef struct _UNPACK_INFO
     DWORD unknown1; // 0
     DWORD destSize;
 } UNPACK_INFO;
-
-typedef struct _READ_RADAR_INFO
-{
-    DWORD unknown1;
-    WORD teamId;
-} READ_RADAR_INFO;
 
 enum
 {
@@ -51,12 +50,6 @@ enum
     BIN_NUMS_PA,
     BIN_NUMS_PB,
 };
-
-typedef struct _ML_INFO
-{
-    ML_TEAM_INFO* pHomeTeam;
-    ML_TEAM_INFO* pAwayTeam;
-} ML_INFO;
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -130,7 +123,6 @@ void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap);
 void FreePNGTexture(BITMAPINFO* bitmap);
 void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], size_t n);
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
-void GetKitInfoBySrc(TEAM_KIT_INFO* src, WORD& teamId, wstring& key);
 TEAM_KIT_INFO* GetTeamKitInfoById(WORD id);
 void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
 void kservReadTeamKitInfoCallPoint1();
@@ -142,7 +134,8 @@ int GetKitSlot(DWORD id);
 WORD FindFreeKitSlot();
 void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki);
 void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki);
-void RGBAColor2KCOLOR(RGBAColor& color, KCOLOR& kcolor);
+void RGBAColor2KCOLOR(const RGBAColor& color, KCOLOR& kcolor);
+void KCOLOR2RGBAColor(const KCOLOR kcolor, RGBAColor& color);
 void HookKeyboard();
 void UnhookKeyboard();
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
@@ -728,7 +721,7 @@ void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
 	        ptr[0] = target - (DWORD)(addr + 5);
             // padding with NOPs
             for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
-	        LOG2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
+	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
 	    }
 	}
 }
@@ -819,7 +812,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     {
         //unhookFunction(hk_D3D_Present, kservPresent);
 
-        LOG1N(L"Unpacking bin %d", currBin);
+        TRACE1N(L"Unpacking bin %d", currBin);
 
         /*
         // test: replace whole bins for numbers and fonts
@@ -930,7 +923,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
 
     if (it != g_kitsBinInfoById.end()) // bin found in map.
     {
-        LOG1N(L"num entries = %d", bin->header.numEntries);
+        TRACE1N(L"num entries = %d", bin->header.numEntries);
         //DumpData((BYTE*)bin, pUnpackInfo->destSize);
 
         // determine type of bin
@@ -1371,14 +1364,17 @@ void ApplyAlphaChunk(RGBQUAD* palette, BYTE* memblk, DWORD size)
                 palette[i].rgbReserved = alphaValues[i];
             }
             got_alpha = true;
+            break;
         }
         // move on to next chunk
-        offset += sizeof(chunk->dwSize) + sizeof(chunk->dwName) + 
+        //offset += sizeof(chunk->dwSize) + sizeof(chunk->dwName) + 
+        offset += sizeof(DWORD) + sizeof(DWORD) + 
             SWAPBYTES(chunk->dwSize) + sizeof(DWORD); // last one is CRC
     }
 
     // initialize alpha to all-opaque, if haven't gotten it
     if (!got_alpha) {
+        LOG(L"ApplyAlphaChunk::WARNING: no transparency.");
         for (int i=0; i<256; i++) {
             palette[i].rgbReserved = 0xff;
         }
@@ -1428,7 +1424,10 @@ void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap)
 	BYTE* srcTex = (BYTE*)bitmap;
 	BITMAPINFOHEADER* bih = &bitmap->bmiHeader;
 	DWORD palOff = bih->biSize;
-    DWORD numColors = 1 << bih->biBitCount;
+    DWORD numColors = bih->biClrUsed;
+    if (numColors == 0)
+        numColors = 1 << bih->biBitCount;
+
     DWORD palSize = numColors*4;
 	DWORD bitsOff = palOff + palSize;
 
@@ -1491,16 +1490,14 @@ void FreePNGTexture(BITMAPINFO* bitmap)
 
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
 {
-    // check MasterLeague areas first
-    ML_INFO* masterLeagueInfo = *(ML_INFO**)data[ML_POINTER];
-    if (masterLeagueInfo)
+    // check NextMatch areas first
+    NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    if (pNM)
     {
-        ML_TEAM_INFO* homeTI = masterLeagueInfo->pHomeTeam;
-        if (&homeTI->tki == src)
-            return homeTI->teamId;
-        ML_TEAM_INFO* awayTI = masterLeagueInfo->pAwayTeam;
-        if (&awayTI->tki == src)
-            return awayTI->teamId;
+        if (pNM->home &&  &pNM->home->tki == src)
+            return pNM->home->teamId;
+        if (pNM->away &&  &pNM->away->tki == src)
+            return pNM->away->teamId;
     }
 
     // check normal area
@@ -1510,7 +1507,8 @@ WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
 
 TEAM_KIT_INFO* GetTeamKitInfoById(WORD id)
 {
-    return (TEAM_KIT_INFO*)(g_teamKitInfoBase + (id<<9));
+    TEAM_KIT_INFO* teamKitInfoBase = (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
+    return &teamKitInfoBase[id];
 }
 
 void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
@@ -1565,13 +1563,13 @@ void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
         hash_map<WORD,WORD>::iterator tid = g_kitSlotByTeamId.find(teamId);
         if (tid == g_kitSlotByTeamId.end())
         {
-            LOG1N(L"Re-linking team %d...", teamId);
+            TRACE1N(L"Re-linking team %d...", teamId);
             // this is a team in GDB, but without a kit slot in AFS
             // We need to temporarily re-link it to an available slot.
             WORD kitSlot = FindFreeKitSlot();
             if (kitSlot != 0xffff)
             {
-                LOG2N(L"Team %d now uses slot 0x%04x", teamId, kitSlot);
+                TRACE2N(L"Team %d now uses slot 0x%04x", teamId, kitSlot);
                 g_kitSlotByTeamId.insert(pair<WORD,WORD>(teamId,kitSlot));
                 g_teamIdByKitSlot.insert(pair<WORD,WORD>(kitSlot,teamId));
                 if (!it->second.goalkeepers.empty())
@@ -1697,24 +1695,32 @@ void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki)
         ki.fontShape = kiter->second.nameShape;
     //if (kiter->second.attDefined & LOGO_LOCATION)
     //    ki.logoLocation = kiter->second.logoLocation;
-    if (kiter->second.attDefined & RADAR_COLOR) 
+    if (kiter->second.attDefined & MAIN_COLOR) 
     {
-        RGBAColor2KCOLOR(kiter->second.radarColor, ki.radarColor);
-        // kit selection uses all 5 shirt colors - not only radar (first one)
+        RGBAColor2KCOLOR(kiter->second.mainColor, ki.mainColor);
+        // kit selection uses all 5 shirt colors - not only main (first one)
         for (int i=0; i<4; i++)
-            RGBAColor2KCOLOR(kiter->second.radarColor, ki.editShirtColors[i]);
+            RGBAColor2KCOLOR(kiter->second.mainColor, ki.editShirtColors[i]);
     }
     // shorts main color
     if (kiter->second.attDefined & SHORTS_MAIN_COLOR)
         RGBAColor2KCOLOR(kiter->second.shortsMainColor, ki.shortsFirstColor);
 }
 
-void RGBAColor2KCOLOR(RGBAColor& color, KCOLOR& kcolor)
+void RGBAColor2KCOLOR(const RGBAColor& color, KCOLOR& kcolor)
 {
     kcolor = 0x8000
         +((color.r>>3) & 31)
         +0x20*((color.g>>3) & 31)
         +0x400*((color.b>>3) & 31);
+}
+
+void KCOLOR2RGBAColor(const KCOLOR kcolor, RGBAColor& color)
+{
+    color.r = (kcolor & 31)<<3;
+    color.g = (kcolor>>5 & 31)<<3;
+    color.b = (kcolor>>10 & 31)<<3;
+    color.a = 0xff;
 }
 
 int GetBinType(DWORD id)
@@ -1946,54 +1952,171 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     char buf[20] = {0};
     sprintf(buf, "%d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
 	wchar_t* rp = Utf8::ansiToUnicode(buf);
-	KDrawText(rp, 0, 0, D3DCOLOR_RGBA(255,255,255,255), 30.0f);
+	KDrawText(rp, 7, 7, COLOR_BLACK, 26.0f);
+	KDrawText(rp, 5, 5, COLOR_INFO, 26.0f);
 	Utf8::free(rp);
+
+    // display "home"/"away" helper for Master League games
+    if (pNextMatch->home->teamIdSpecial != pNextMatch->home->teamId)
+    {
+        KDrawText(L"Home", 7, 35, COLOR_BLACK, 26.0f);
+        KDrawText(L"Home", 5, 33, COLOR_INFO, 26.0f);
+    }
+    else if (pNextMatch->away->teamIdSpecial != pNextMatch->away->teamId)
+    {
+        KDrawText(L"Away", 7, 35, COLOR_BLACK, 26.0f);
+        KDrawText(L"Away", 5, 33, COLOR_INFO, 26.0f);
+    }
 
     // display current kit selection
 
     // Home PL
     if (g_iterHomePL == g_iterHomePL_end)
     {
-        KDrawText(L"P: auto", 200, 5, D3DCOLOR_RGBA(128,128,128,255), 30.0f);
+        KDrawText(L"P: auto", 200, 7, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 202, 5, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 202, 7, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 200, 5, COLOR_AUTO, 30.0f);
     }
     else
     {
         wchar_t wbuf[512] = {0};
         swprintf(wbuf, L"P: %s", g_iterHomePL->first.c_str());
-        KDrawText(wbuf, 200, 5, D3DCOLOR_RGBA(255,255,255,255), 30.0f);
+        KDrawText(wbuf, 200, 7, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 202, 5, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 202, 7, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 200, 5, COLOR_CHOSEN, 30.0f);
+        if (g_iterHomePL->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterHomePL->second.mainColor;
+            KDrawText(L"\x2588", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomePL->second.foldername == L"")
+        {
+            // non-GDB kit => get main color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
+            if (pNM->home->teamIdSpecial != pNM->home->teamId)
+                tki = &pNM->home->tki;
+
+            KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.mainColor : tki->pb.mainColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2588", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
     }
     // Home GK
     if (g_iterHomeGK == g_iterHomeGK_end)
     {
-        KDrawText(L"G: auto", 200, 35, D3DCOLOR_RGBA(128,128,128,255), 30.0f);
+        KDrawText(L"G: auto", 200, 35, COLOR_BLACK, 30.0f);
+        KDrawText(L"G: auto", 202, 33, COLOR_BLACK, 30.0f);
+        KDrawText(L"G: auto", 202, 35, COLOR_BLACK, 30.0f);
+        KDrawText(L"G: auto", 200, 33, COLOR_AUTO, 30.0f);
     }
     else
     {
         wchar_t wbuf[512] = {0};
         swprintf(wbuf, L"G: %s", g_iterHomeGK->first.c_str());
-        KDrawText(wbuf, 200, 35, D3DCOLOR_RGBA(255,255,255,255), 30.0f);
+        KDrawText(wbuf, 200, 35, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 202, 33, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 202, 35, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 200, 33, COLOR_CHOSEN, 30.0f);
+        if (g_iterHomeGK->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterHomeGK->second.mainColor;
+            KDrawText(L"\x2588", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomeGK->second.foldername == L"")
+        {
+            // non-GDB kit => get main color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
+            if (pNM->home->teamIdSpecial != pNM->home->teamId)
+                tki = &pNM->home->tki;
+
+            KCOLOR kc = (g_iterHomeGK->first == L"ga") ? tki->ga.mainColor : tki->gb.mainColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2588", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
     }
     // Away PL
     if (g_iterAwayPL == g_iterAwayPL_end)
     {
-        KDrawText(L"P: auto", 600, 5, D3DCOLOR_RGBA(128,128,128,255), 30.0f);
+        KDrawText(L"P: auto", 600, 7, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 602, 5, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 602, 7, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 600, 5, COLOR_AUTO, 30.0f);
     }
     else
     {
         wchar_t wbuf[512] = {0};
         swprintf(wbuf, L"P: %s", g_iterAwayPL->first.c_str());
-        KDrawText(wbuf, 600, 5, D3DCOLOR_RGBA(255,255,255,255), 30.0f);
+        KDrawText(wbuf, 600, 7, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 602, 5, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 602, 7, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 600, 5, COLOR_CHOSEN, 30.0f);
+        if (g_iterAwayPL->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterAwayPL->second.mainColor;
+            KDrawText(L"\x2588", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterAwayPL->second.foldername == L"")
+        {
+            // non-GDB kit => get main color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->away->teamId);
+            if (pNM->away->teamIdSpecial != pNM->away->teamId)
+                tki = &pNM->away->tki;
+
+            KCOLOR kc = (g_iterAwayPL->first == L"pa") ? tki->pa.mainColor : tki->pb.mainColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2588", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
     }
     // Away GK
     if (g_iterAwayGK == g_iterAwayGK_end)
     {
-        KDrawText(L"G: auto", 600, 35, D3DCOLOR_RGBA(128,128,128,255), 30.0f);
+        KDrawText(L"G: auto", 600, 35, COLOR_BLACK, 30.0f);
+        KDrawText(L"G: auto", 602, 33, COLOR_BLACK, 30.0f);
+        KDrawText(L"G: auto", 602, 35, COLOR_BLACK, 30.0f);
+        KDrawText(L"G: auto", 600, 33, COLOR_AUTO, 30.0f);
     }
     else
     {
         wchar_t wbuf[512] = {0};
         swprintf(wbuf, L"G: %s", g_iterAwayGK->first.c_str());
-        KDrawText(wbuf, 600, 35, D3DCOLOR_RGBA(255,255,255,255), 30.0f);
+        KDrawText(wbuf, 600, 35, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 602, 33, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 602, 35, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 600, 33, COLOR_CHOSEN, 30.0f);
+        if (g_iterAwayGK->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterAwayGK->second.mainColor;
+            KDrawText(L"\x2588", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterAwayGK->second.foldername == L"")
+        {
+            // non-GDB kit => get main color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->away->teamId);
+            if (pNM->away->teamIdSpecial != pNM->away->teamId)
+                tki = &pNM->away->tki;
+
+            KCOLOR kc = (g_iterAwayGK->first == L"ga") ? tki->ga.mainColor : tki->gb.mainColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2588", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2588", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
     }
 }
 
@@ -2050,33 +2173,6 @@ void RestoreOriginalAttributes()
     g_savedAttributes.clear();
 }
 
-void GetKitInfoBySrc(TEAM_KIT_INFO* src, WORD& teamId, wstring& key)
-{
-    wstring keys[] = {L"pa",L"gb",L"pb",L"ga"};
-
-    // check MasterLeague areas first
-    ML_INFO* masterLeagueInfo = *(ML_INFO**)data[ML_POINTER];
-    ML_TEAM_INFO* homeTI = masterLeagueInfo->pHomeTeam;
-    if ((DWORD)src - (DWORD)&homeTI->tki < sizeof(TEAM_KIT_INFO))
-    {
-        teamId = homeTI->teamId;
-        key = keys[((DWORD)src - (DWORD)&homeTI->tki) / sizeof(KIT_INFO) % 4];
-        return;
-    }
-    ML_TEAM_INFO* awayTI = masterLeagueInfo->pAwayTeam;
-    if ((DWORD)src - (DWORD)&awayTI->tki < sizeof(TEAM_KIT_INFO))
-    {
-        teamId = awayTI->teamId;
-        key = keys[((DWORD)src - (DWORD)&awayTI->tki) / sizeof(KIT_INFO) % 4];
-        return;
-    }
-
-    // check normal area
-    TEAM_KIT_INFO* teamKitInfoBase = (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
-    teamId = ((DWORD)src - (DWORD)teamKitInfoBase) >> 9;
-    key = keys[((DWORD)src - (DWORD)teamKitInfoBase) / sizeof(KIT_INFO) % 4];
-}
-
 void SetAttributes(TEAM_KIT_INFO* src, WORD teamId)
 {
     // save orginals
@@ -2122,14 +2218,14 @@ void kservEndReadKitInfo()
 void kservOnEnterCups()
 {
     // need to make sure iterators are reset
-    LOG(L"Entering cup/league/ml mode");
+    TRACE(L"Entering cup/league/ml mode");
     ResetIterators();
 }
 
 void kservOnLeaveCups()
 {
     // need to make sure iterators are reset
-    LOG(L"Exiting cup/league/ml mode");
+    TRACE(L"Exiting cup/league/ml mode");
     ResetIterators();
 }
 

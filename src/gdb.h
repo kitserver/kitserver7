@@ -23,7 +23,7 @@ using namespace std;
 #define NUMBERS_PALETTE_FILE 0x800
 #define NAME_LOCATION 0x1000
 #define LOGO_LOCATION 0x2000
-#define RADAR_COLOR   0x4000
+#define MAIN_COLOR   0x4000
 #define MASK_FILE     0x8000
 #define KITDESCRIPTION   0x10000
 #define SHIRT_NUMBER_LOCATION 0x20000
@@ -57,7 +57,7 @@ public:
     BYTE nameType;
     BYTE nameShape;
     BYTE logoLocation;
-    RGBAColor radarColor;
+    RGBAColor mainColor;
     RGBAColor shortsMainColor;
     //wstring maskFile;
     //wstring shirtFolder;
