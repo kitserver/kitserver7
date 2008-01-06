@@ -703,7 +703,7 @@ void HookSetFilePointerEx()
 	
 	    DWORD protection = 0;
 	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 8, newProtection, &protection)) {
+	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
 	        bptr[0] = 0xe8; bptr[5] = 0x90; // NOP
 	        DWORD* ptr = (DWORD*)(code[C_SETFILEPOINTEREX] + 1);
 	        ptr[0] = (DWORD)kservSetFilePointerEx - (DWORD)(code[C_SETFILEPOINTEREX] + 5);
@@ -720,7 +720,7 @@ void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
 	    BYTE* bptr = (BYTE*)addr;
 	    DWORD protection = 0;
 	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 8, newProtection, &protection)) {
+	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
 	        bptr[0] = 0xe8;
 	        DWORD* ptr = (DWORD*)(addr + 1);
 	        ptr[0] = target - (DWORD)(addr + 5);
@@ -1953,8 +1953,13 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     */
 	//KDrawText(L"kservPresent", 0, 0, D3DCOLOR_RGBA(0xff,0xff,0xff,0xff), 20.0f);
 
-    // test: print team IDs
     NEXT_MATCH_DATA_INFO* pNextMatch = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    // safety checks
+    if (!pNextMatch || !pNextMatch->home || !pNextMatch->away)
+        return;
+    if (pNextMatch->home->teamId == 0xffff || pNextMatch->away->teamId == 0xffff)
+        return;
+
     char buf[20] = {0};
     sprintf(buf, "%d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
 	wchar_t* rp = Utf8::ansiToUnicode(buf);

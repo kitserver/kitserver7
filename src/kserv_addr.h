@@ -1,9 +1,9 @@
 // ADDRESSES for kserv.cpp
 BYTE allowedGames[] = {
 	//gvPES2008demo,
-	//gvPES2008,
-	//gvPES2008v110,
-	gvPES2008v120,    //TODO addresses
+	gvPES2008,
+	gvPES2008v110,
+	gvPES2008v120,
 };
 
 #define CODELEN 18
@@ -31,10 +31,10 @@ DWORD codeArray[][CODELEN] = {
   // PES2008
 	{
 		0, 0, 0xbb6adf, 0xbb6b95, 0x4962e7, 0xc8d911,
-        0, 0, 
-        0, 0, 0, 0, 
-        0, 0, 0, 
-        0, 0, 0,
+        0xc93970, 0xc93475, 
+        0x427f80, 0xb2ce3d, 0xb9c963, 0xb9c552, 
+        0xabf0f8, 0xb9c7ff, 0xc93057, 
+        0xc5ee6c, 0x90dd64, 0x90ddc3,
 	},
 	// [Settings] PES2008 PC
   NOCODEADDR
@@ -42,10 +42,10 @@ DWORD codeArray[][CODELEN] = {
   // PES2008 1.10
 	{
 		0, 0, 0xbb68cf, 0xbb6985, 0x496c37, 0xc8f3e1,
-        0, 0, 
-        0, 0, 0, 0, 
-        0, 0, 0, 
-        0, 0, 0,
+        0xc95440, 0xc94f45, 
+        0x427e20, 0xb2cc5d, 0xb9c783, 0xb9c372, 
+        0xac09a8, 0xb9c61f, 0xc94b27, 
+        0xc5d1dc, 0x90b024, 0x90b083,
 	},
   NOCODEADDR
   // PES2008 1.20
@@ -58,36 +58,34 @@ DWORD codeArray[][CODELEN] = {
 	},
 };
 
-#define DATALEN 9 
+#define DATALEN 8 
 enum {
-	NUMNOPS_1, NUMNOPS_2, TEAM_KIT_INFO_BASE, ML_POINTER,
+	NUMNOPS_1, NUMNOPS_2, TEAM_KIT_INFO_BASE,
     MENU_MODE_IDX, MAIN_SCREEN_INDICATOR, INGAME_INDICATOR,
     NEXT_MATCH_DATA_PTR, CUP_MODE_PTR,
 };
 
-#define NODATAADDR {0,0,0,0,0,0,0,0,0},
+#define NODATAADDR {0,0,0,0,0,0,0,0},
 DWORD dataArray[][DATALEN] = {
   // PES2008 DEMO
 	NODATAADDR
 	// [Settings] PES2008 PC DEMO
 	NODATAADDR
   // PES2008
-    { 6, 2, 0, 
-      0, 0, 0, 0,
-      0, 0, },
+    { 6, 2, 0x1250d44, 
+      0x1250fc8, 0x1250fb8, 0x1250e08, 
+      0x1250d4c, 0x1251ec8, },
 	// [Settings] PES2008 PC
 	NODATAADDR
 	NODATAADDR
     // PES2008 1.10
-    { 6, 2, 0, 0, 
-      0, 0, 0,
-      0, 0, },
-    { 6, 2, 0, 0, 
-      0, 0, 0,
-      0, 0, },
+    { 6, 2, 0x1251d6c,  
+      0x1251ff0, 0x1251fe0, 0x1251e30,
+      0x1251d74, 0x1252ef0, },
+	NODATAADDR
     // PES2008 1.20
-    { 6, 2, 0x1252d68, 0x1252d70, 
-      0x1252ff0, 0x1253010, 0x1252df8,
+    { 6, 2, 0x1252d68,
+      0x1252ff0, 0x1253010, 0x1252e48,
       0x1252d70, 0x1253f08 },
 };
 
