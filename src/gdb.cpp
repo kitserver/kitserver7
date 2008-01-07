@@ -30,8 +30,6 @@ wchar_t slog[WBUFLEN];
 #define PLAYERS 0
 #define GOALKEEPERS 1
 
-#define EQUALS(a,b) wcscmp((wchar_t*)a,b)==0
-
 enum {
     ATT_MODEL,
     ATT_COLLAR,
@@ -59,6 +57,26 @@ public:
 
 static bool ParseColor(const wchar_t* str, RGBAColor* color);
 static void kitConfig(char* pName, const void* pValue, DWORD a);
+static bool equals(const void* a, const void* b);
+static void string_strip(wstring& s);
+
+static bool equals(const void* a, const void* b)
+{
+    wstring sa((wchar_t*)a);
+    wstring sb((wchar_t*)b);
+    string_strip(sa);
+    string_strip(sb);
+    return sa == sb;
+}
+
+void string_strip(wstring& s)
+{
+    static const wchar_t* empties = L" \t\n\r";
+    int e = s.find_last_not_of(empties);
+    s.erase(e + 1);
+    int b = s.find_first_not_of(empties);
+    s.erase(0,b);
+}
 
 /**
  * Allocate and initialize the GDB structure, read the "map.txt" file
@@ -224,61 +242,67 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
             break;
 
         case ATT_COLLAR:
-            kd->kit.collar = (EQUALS(pValue, L"yes")) ? 0 : 1;
+            if (equals(pValue, L"yes")) kd->kit.collar = 0;
+            else if (equals(pValue, L"no")) kd->kit.collar = 1;
+            else if (equals(pValue, L"0")) kd->kit.collar = 0;
+            else if (equals(pValue, L"1")) kd->kit.collar = 1;
+            else if (equals(pValue, L"2")) kd->kit.collar = 2;
+            else if (equals(pValue, L"3")) kd->kit.collar = 3;
+            else kd->kit.collar = 1;
             kd->kit.attDefined |= COLLAR;
             GDB_DEBUG(wlog,(slog,L"collar = %d\n",kd->kit.collar));
             break;
 
         case ATT_SHIRT_NUMBER_LOCATION:
-            if (EQUALS(pValue, L"off"))
+            if (equals(pValue, L"off"))
                 kd->kit.shirtNumberLocation = 0;
-            else if (EQUALS(pValue, L"center"))
+            else if (equals(pValue, L"center"))
                 kd->kit.shirtNumberLocation = 1;
-            else if (EQUALS(pValue, L"topright"))
+            else if (equals(pValue, L"topright"))
                 kd->kit.shirtNumberLocation = 2;
             kd->kit.attDefined |= SHIRT_NUMBER_LOCATION;
             GDB_DEBUG(wlog,(slog,L"shirtNumberLocation = %d\n",kd->kit.shirtNumberLocation));
             break;
 
         case ATT_SHORTS_NUMBER_LOCATION:
-            if (EQUALS(pValue,L"off"))
+            if (equals(pValue,L"off"))
                 kd->kit.shortsNumberLocation = 0;
-            else if (EQUALS(pValue,L"left"))
+            else if (equals(pValue,L"left"))
                 kd->kit.shortsNumberLocation = 1;
-            else if (EQUALS(pValue,L"right"))
+            else if (equals(pValue,L"right"))
                 kd->kit.shortsNumberLocation = 2;
             kd->kit.attDefined |= SHORTS_NUMBER_LOCATION;
             GDB_DEBUG(wlog,(slog,L"shortsNumberLocation = %d\n",kd->kit.shortsNumberLocation));
             break;
 
         case ATT_NAME_LOCATION:
-            if (EQUALS(pValue, L"off"))
+            if (equals(pValue, L"off"))
                 kd->kit.nameLocation = 0;
-            else if (EQUALS(pValue, L"top"))
+            else if (equals(pValue, L"top"))
                 kd->kit.nameLocation = 1;
-            else if (EQUALS(pValue, L"bottom"))
+            else if (equals(pValue, L"bottom"))
                 kd->kit.nameLocation = 2;
             kd->kit.attDefined |= NAME_LOCATION;
             GDB_DEBUG(wlog,(slog,L"nameLocation = %d\n",kd->kit.nameLocation));
             break;
 
         case ATT_NAME_SHAPE:
-            if (EQUALS(pValue, L"type1"))
+            if (equals(pValue, L"type1"))
                 kd->kit.nameShape = 0;
-            else if (EQUALS(pValue, L"type2"))
+            else if (equals(pValue, L"type2"))
                 kd->kit.nameShape = 1;
-            else if (EQUALS(pValue, L"type3"))
+            else if (equals(pValue, L"type3"))
                 kd->kit.nameShape = 2;
             kd->kit.attDefined |= NAME_SHAPE;
             GDB_DEBUG(wlog,(slog,L"nameShape = %d\n",kd->kit.nameShape));
             break;
 
         case ATT_LOGO_LOCATION:
-            if (EQUALS(pValue, L"off"))
+            if (equals(pValue, L"off"))
                 kd->kit.logoLocation = 0;
-            else if (EQUALS(pValue, L"top"))
+            else if (equals(pValue, L"top"))
                 kd->kit.logoLocation = 1;
-            else if (EQUALS(pValue, L"bottom"))
+            else if (equals(pValue, L"bottom"))
                 kd->kit.logoLocation = 2;
             kd->kit.attDefined |= LOGO_LOCATION;
             GDB_DEBUG(wlog,(slog,L"logoLocation = %d\n",kd->kit.logoLocation));
@@ -308,7 +332,7 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
 
         case ATT_DESCRIPTION:
             kd->kit.description = (wchar_t*)pValue;
-            GDB_DEBUG(wlog,(slog,L"description = %s\n",kd->kit.description));
+            GDB_DEBUG(wlog,(slog,L"description = {%s}\n",kd->kit.description));
             break;
     }
 }
