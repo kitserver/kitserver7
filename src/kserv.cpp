@@ -619,7 +619,6 @@ void initKserv() {
     FILE* f = _wfopen(cv_0.c_str(),L"rb");
     if (f)
     {
-        //for (int i=0; i<sizeof(g_kitsAfsIds)/sizeof(DWORD); i++)
         for (int i=0; i<NUM_SLOTS; i++)
         {
             int k;
@@ -660,8 +659,9 @@ void initKserv() {
     }
 
     // Load GDB
-    LOG1S(L"myDir: {%s}",getPesInfo()->myDir);
-    LOG1S(L"gdbDir: {%s}",getPesInfo()->gdbDir);
+    LOG1S(L"pesDir: {%s}",getPesInfo()->pesDir);
+    LOG1S(L"myDir : {%s}",getPesInfo()->myDir);
+    LOG1S(L"gdbDir: {%sGDB}",getPesInfo()->gdbDir);
     gdb = new GDB(getPesInfo()->gdbDir);
 
     // Initial iterators reset
@@ -805,6 +805,8 @@ BOOL WINAPI kservSetFilePointerEx(
 DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
 {
     PACKED_BIN* swap_bin = NULL;
+    BYTE* orgSrcBuffer = pUnpackInfo->srcBuffer;
+    DWORD orgBytesToProcess = pUnpackInfo->bytesToProcess;
     DWORD currBin = g_currentBin;
     // reset bin indicator
     g_currentBin = 0xffffffff;
@@ -858,7 +860,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                 map<wstring,Kit>::iterator iterPL_end = NULL;
                 map<wstring,Kit>::iterator iterGK_end = NULL;
                 NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-                if (pNM)
+                if (pNM && pNM->home && pNM->away)
                 {
                     TRACE2N(L"kservUnpackBin (AFS 1): teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
                     iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
@@ -884,6 +886,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                 {
                     case BIN_FONT_GA:
                     case BIN_NUMS_GA:
+                        if (shiftGK[0] != 0)
                         {
                             swap_bin = LoadBinFromAFS(currBin + shiftGK[0]);
                             pUnpackInfo->srcBuffer = swap_bin->data;
@@ -892,6 +895,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                         break;
                     case BIN_FONT_GB:
                     case BIN_NUMS_GB:
+                        if (shiftGK[1] != 0)
                         {
                             swap_bin = LoadBinFromAFS(currBin + shiftGK[1]);
                             pUnpackInfo->srcBuffer = swap_bin->data;
@@ -900,6 +904,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                         break;
                     case BIN_FONT_PA:
                     case BIN_NUMS_PA:
+                        if (shiftPL[0] != 0)
                         {
                             swap_bin = LoadBinFromAFS(currBin + shiftPL[0]);
                             pUnpackInfo->srcBuffer = swap_bin->data;
@@ -908,6 +913,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                         break;
                     case BIN_FONT_PB:
                     case BIN_NUMS_PB:
+                        if (shiftPL[1] != 0)
                         {
                             swap_bin = LoadBinFromAFS(currBin + shiftPL[1]);
                             pUnpackInfo->srcBuffer = swap_bin->data;
@@ -922,9 +928,17 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     // call original
     DWORD result = MasterCallNext(pUnpackInfo, p2);
 
-    // release swap bin memory
+    // if replaced BIN, do some housekeeping
     if (swap_bin)
+    {
+        // release memory
         HeapFree(GetProcessHeap(), 0, swap_bin);
+
+        // restore original addresses and semantics. Assumption here is that
+        // the processing completed ok: all bytes were processed.
+        pUnpackInfo->srcBuffer = orgSrcBuffer + orgBytesToProcess;
+        pUnpackInfo->bytesToProcess = 0;
+    }
 
     if (it != g_kitsBinInfoById.end()) // bin found in map.
     {
@@ -949,7 +963,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                 map<wstring,Kit>::iterator iterPL_end = NULL;
                 map<wstring,Kit>::iterator iterGK_end = NULL;
                 NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-                if (pNM)
+                if (pNM && pNM->home && pNM->away)
                 {
                     TRACE2N(L"kservUnpackBin (AFS 2): teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
                     iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
@@ -1061,7 +1075,7 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                 map<wstring,Kit>::iterator iterPL_end = NULL;
                 map<wstring,Kit>::iterator iterGK_end = NULL;
                 NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-                if (pNM)
+                if (pNM && pNM->home && pNM->away)
                 {
                     TRACE2N(L"kservUnpackBin: teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
                     iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
