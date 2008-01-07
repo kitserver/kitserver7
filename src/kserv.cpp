@@ -179,7 +179,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		}
 
 		copyAdresses();
-		hookFunction(hk_D3D_Create, initKserv);
+		//hookFunction(hk_D3D_Create, initKserv);
+		hookFunction(hk_D3D_CreateDevice, initKserv);
 	}
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
@@ -656,6 +657,7 @@ void initKserv() {
     else
     {
         LOG(L"ERROR: Unable to initialize AFS itemInfo structures.");
+        LOG1S(L"ERROR: Problem while openning {%s} for reading", cv_0.c_str());
     }
 
     // Load GDB
@@ -1296,6 +1298,7 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
     else 
     {
         LOG1N(L"ERROR: Unable to load BIN #%d", id);
+        LOG1S(L"ERROR: Problem while openning {%s} for reading", cv_0.c_str());
     }
     return result;
 }
