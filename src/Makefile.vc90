@@ -2,8 +2,8 @@ CC=cl
 LINK=link
 RC=rc
 
-CFLAGS=/nologo /GX $(EXTRA_CFLAGS)
-LFLAGS=/NOLOGO /NODEFAULTLIB:libcmt.lib
+CFLAGS=/nologo /EHsc $(EXTRA_CFLAGS)
+LFLAGS=/NOLOGO
 LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
 LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
 

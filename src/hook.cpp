@@ -32,7 +32,7 @@ bool freeEditModeData = false;
 
 
 map<DWORD*, DWORD> g_replacedHeaders;
-map<DWORD*, DWORD>::iterator g_replacedHeadersIt = NULL;
+map<DWORD*, DWORD>::iterator g_replacedHeadersIt;
 hash_map<DWORD, IDirect3DTexture9*> g_replacedMap;
 hash_map<DWORD, IDirect3DTexture9*>::iterator g_replacedMapIt;
 	
@@ -372,7 +372,7 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 	HRESULT res = g_orgReset(self, params);
 	TRACE(L"newReset: Reset() is done. About to return.");
 	
-	for (i = 0; i<400; i++) {
+	for (int i = 0; i<400; i++) {
 		if (myFonts[i/100][i%100]) {
 			myFonts[i/100][i%100]->OnResetDevice();
 		}

@@ -1,0 +1,125 @@
+CC=cl
+LINK=link
+RC=rc
+
+CFLAGS=/nologo /EHsc $(EXTRA_CFLAGS)
+LFLAGS=/NOLOGO /NODEFAULTLIB:libcmt.lib
+LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
+LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
+
+INCPNGDIB=soft\pngdib
+LPPNGDIB=soft\pngdib 
+LPLIBPNG=soft\libpng-1.2.8-lib\lib
+LPZLIB=soft\zlib123-dll\lib
+LIBPNGDLL=soft\libpng-1.2.8-bin\libpng13.dll 
+ZLIBDLL=soft\zlib123-dll\zlib1.dll
+
+!ifdef MYDLL_RELEASE_BUILD
+D3DX9=d3dx9.lib
+!else
+D3DX9=d3dx9d.lib
+!endif
+
+all: dlls apps
+	if exist output (rd /S /Q output)
+	mkdir output
+	copy *.dll output
+	copy $(LIBPNGDLL) output
+	copy $(ZLIBDLL) output
+	copy setup.exe output
+	copy lodcfg.exe output
+	copy lang_*.txt output
+	
+all_dlls: dlls
+	if exist output (rd /S /Q output)
+	mkdir output
+	copy *.dll output
+	copy $(LIBPNGDLL) output
+	copy $(ZLIBDLL) output
+	copy lang_*.txt output
+	
+all_apps: apps
+	if exist output (rd /S /Q output)
+	mkdir output
+	copy setup.exe output
+	copy lodcfg.exe output
+	copy lang_*.txt output
+
+pngdib:
+	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
+
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll
+apps: setup.exe lodcfg.exe
+
+release:
+	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD MYDLL_RELEASE_BUILD=1
+
+setup: setup.exe
+kset: kset.dll
+kload: kload.dll
+lodmixer: lodmixer.dll
+
+imageutil.obj: imageutil.cpp imageutil.h
+detect.obj: detect.cpp detect.h
+lang.obj: lang.cpp lang.h
+configs.obj: configs.cpp configs.h
+hooklib.obj: hooklib.cpp hooklib.h
+log.obj: log.cpp log.h
+crc32.obj: crc32.cpp crc32.h
+hook.obj: hook.cpp hook.h
+
+
+kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
+kload.dll: kload.lib kload.res
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj kload.res $(LIBS) $(D3DX9) winmm.lib
+kload.obj: kload.cpp kload.h
+
+kload.res: 
+	$(RC) -r -fo kload.res kload.rc
+	
+	
+kserv.lib: kserv.obj afsreader.obj crc32.obj gdb.obj configs.obj pngdib
+kserv.dll: kserv.lib kserv.res
+	$(LINK) $(LFLAGS) /out:kserv.dll /LIBPATH:$(LPPNGDIB) /LIBPATH:$(LPLIBPNG) /LIBPATH:$(LPZLIB) /DLL kserv.obj afsreader.obj crc32.obj gdb.obj configs.obj kserv.res $(LIBS) $(D3DX9) kload.lib $(LIBSDLL)
+kserv.obj: kserv.cpp kserv.h kserv_addr.h kserv.rc
+
+lodmixer.lib: lodmixer.obj
+lodmixer.dll: lodmixer.lib lodmixer.res
+	$(LINK) $(LFLAGS) /out:lodmixer.dll /DLL lodmixer.obj lodmixer.res $(LIBS) $(D3DX9) kload.lib
+lodmixer.obj: lodmixer.cpp lodmixer.h lodmixer_addr.h
+
+kset.lib: kset.obj
+kset.dll: kset.lib detect.obj imageutil.obj configs.obj lang.obj kset.res
+	$(LINK) $(LFLAGS) /out:kset.dll /DLL kset.obj detect.obj imageutil.obj configs.obj lang.obj kset.res $(LIBS)
+kset.obj: kset.cpp kset.h
+
+kset.res: 
+	$(RC) -r -fo kset.res kset.rc
+
+
+setupgui.obj: setupgui.cpp setupgui.h
+setup.obj: setup.cpp setup.h setupgui.h
+setup.exe: setup.obj detect.obj setupgui.obj imageutil.obj lang.obj configs.obj setup.res
+	$(LINK) $(LFLAGS) /out:setup.exe setup.obj detect.obj setupgui.obj imageutil.obj lang.obj configs.obj setup.res $(LIBS) shell32.lib
+	
+setup.res: 
+	$(RC) -r -fo setup.res setup.rc
+	
+lodcfg.obj: lodcfg.cpp lodcfg.h lodcfgui.h
+lodcfgui.obj: lodcfgui.cpp lodcfgui.h
+lodcfg.exe: lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj
+	$(LINK) $(LFLAGS) /out:lodcfg.exe lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj $(LIBS)
+
+.cpp.obj:
+	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) $<
+
+clean:
+	del /Q /F *.exp *.lib *.obj *.res *.dll *.exe
+	if exist soft\pngdib (cd soft\pngdib && $(MAKE) clean)
+	if exist output (rd /S /Q output)
+
+clean-all:
+	del /Q /F *.exp *.lib *.obj *.res *.dll *.exe *.log *~
+	if exist soft\pngdib (cd soft\pngdib && $(MAKE) clean-all)
+	if exist output (rd /S /Q output)
+	

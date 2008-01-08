@@ -84,19 +84,19 @@ DWORD g_return_addr = 0;
 DWORD g_param = 0;
 
 // kit iterators
-map<wstring,Kit>::iterator g_iterHomePL = NULL;
-map<wstring,Kit>::iterator g_iterAwayPL = NULL;
-map<wstring,Kit>::iterator g_iterHomeGK = NULL;
-map<wstring,Kit>::iterator g_iterAwayGK = NULL;
+map<wstring,Kit>::iterator g_iterHomePL;
+map<wstring,Kit>::iterator g_iterAwayPL;
+map<wstring,Kit>::iterator g_iterHomeGK;
+map<wstring,Kit>::iterator g_iterAwayGK;
 
-map<wstring,Kit>::iterator g_iterHomePL_begin = NULL;
-map<wstring,Kit>::iterator g_iterAwayPL_begin = NULL;
-map<wstring,Kit>::iterator g_iterHomeGK_begin = NULL;
-map<wstring,Kit>::iterator g_iterAwayGK_begin = NULL;
-map<wstring,Kit>::iterator g_iterHomePL_end = NULL;
-map<wstring,Kit>::iterator g_iterAwayPL_end = NULL;
-map<wstring,Kit>::iterator g_iterHomeGK_end = NULL;
-map<wstring,Kit>::iterator g_iterAwayGK_end = NULL;
+map<wstring,Kit>::iterator g_iterHomePL_begin;
+map<wstring,Kit>::iterator g_iterAwayPL_begin;
+map<wstring,Kit>::iterator g_iterHomeGK_begin;
+map<wstring,Kit>::iterator g_iterAwayGK_begin;
+map<wstring,Kit>::iterator g_iterHomePL_end;
+map<wstring,Kit>::iterator g_iterAwayPL_end;
+map<wstring,Kit>::iterator g_iterHomeGK_end;
+map<wstring,Kit>::iterator g_iterAwayGK_end;
 
 HHOOK g_hKeyboardHook = NULL;
 hash_map<WORD,TEAM_KIT_INFO> g_savedAttributes;
@@ -857,10 +857,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             // First, operate on bins from AFS
             {
                 // set iterators
-                map<wstring,Kit>::iterator iterPL = NULL;
-                map<wstring,Kit>::iterator iterGK = NULL;
-                map<wstring,Kit>::iterator iterPL_end = NULL;
-                map<wstring,Kit>::iterator iterGK_end = NULL;
+                map<wstring,Kit>::iterator iterPL;
+                map<wstring,Kit>::iterator iterGK;
+                map<wstring,Kit>::iterator iterPL_end;
+                map<wstring,Kit>::iterator iterGK_end;
                 NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
                 if (pNM && pNM->home && pNM->away)
                 {
@@ -960,10 +960,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             // First, operate with bins from AFS
             {
                 // set iterators
-                map<wstring,Kit>::iterator iterPL = NULL;
-                map<wstring,Kit>::iterator iterGK = NULL;
-                map<wstring,Kit>::iterator iterPL_end = NULL;
-                map<wstring,Kit>::iterator iterGK_end = NULL;
+                map<wstring,Kit>::iterator iterPL;
+                map<wstring,Kit>::iterator iterGK;
+                map<wstring,Kit>::iterator iterPL_end;
+                map<wstring,Kit>::iterator iterGK_end;
                 NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
                 if (pNM && pNM->home && pNM->away)
                 {
@@ -1072,10 +1072,10 @@ DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             if (wkit != gdb->uni.end())
             {
                 // set iterators
-                map<wstring,Kit>::iterator iterPL = NULL;
-                map<wstring,Kit>::iterator iterGK = NULL;
-                map<wstring,Kit>::iterator iterPL_end = NULL;
-                map<wstring,Kit>::iterator iterGK_end = NULL;
+                map<wstring,Kit>::iterator iterPL;
+                map<wstring,Kit>::iterator iterGK;
+                map<wstring,Kit>::iterator iterPL_end;
+                map<wstring,Kit>::iterator iterGK_end;
                 NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
                 if (pNM && pNM->home && pNM->away)
                 {
@@ -1305,7 +1305,7 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
 
 void DumpData(void* data, size_t size)
 {
-    static count = 0;
+    static int count = 0;
     char filename[256] = {0};
     sprintf(filename, "kitserver/dump%03d.bin", count);
     FILE* f = fopen(filename,"wb");

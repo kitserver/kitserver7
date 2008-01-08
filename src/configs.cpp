@@ -187,7 +187,7 @@ void _getConfig(char* section, char* name, BYTE dataType, DWORD a, PROCESSCONFIG
 		// the highest bit of a is an indicator whether to return all values for this setting or not
 		if (((a & C_ALL) == 0)  && (i != 1)) continue;
 		
-		const wchar_t* value = g_knownConfigsIt->second.c_str();
+		wchar_t* value = (wchar_t*)g_knownConfigsIt->second.c_str();
 	
 		switch (dataType) {
 			case DT_STRING:

@@ -3,11 +3,12 @@
 #include <windows.h>
 #include <string.h>
 #include <stdio.h>
+#include <string>
+#include <hash_map>
+
 #include "utf8.h"
 #include "lang.h"
 
-#include <string>
-#include <hash_map>
 
 hash_map<string, wstring> g_transl;
 hash_map<string, wstring>::iterator g_translIt;
@@ -47,7 +48,7 @@ void readLangFile(wchar_t* langFile, HMODULE hMod) {
 	
 	if (!f) {
 		// load the translation from the resource to a temporary file
-		HRSRC rsrc = 	FindResource(hMod, &L"#1001", &L"BINARY");
+		HRSRC rsrc = 	FindResource(hMod, L"#1001", L"BINARY");
 		BYTE* res = (BYTE*)LoadResource(hMod, rsrc);
 		BYTE* endRes = res;
 		while (*endRes != 0) endRes++;

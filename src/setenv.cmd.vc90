@@ -1,0 +1,5 @@
+@echo off
+echo Setting kitserver compile environment
+@call "g:\vs90\vc\vcvarsall.bat"
+echo Environment set
+

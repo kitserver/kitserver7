@@ -7,6 +7,9 @@
 #include <string>
 
 using namespace std;
+#if _CPPLIB_VER >= 503
+using namespace stdext;
+#endif
 
 // attribute definition flags (bits)
 #define SHIRT_NUMBER  0x01 
