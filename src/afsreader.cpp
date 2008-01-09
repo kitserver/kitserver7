@@ -119,6 +119,18 @@ DWORD ReadItemInfoById(FILE* f, DWORD index, AFSITEMINFO* itemInfo, DWORD base)
 	return AFS_OK;
 }
 
+// Reads information about location of a file in AFS,
+// given its id.
+DWORD ReadItemInfoById(HANDLE hfile, DWORD index, AFSITEMINFO* itemInfo, DWORD base)
+{
+    DWORD bytesRead;
+
+	// fill-in the itemInfo
+	SetFilePointer(hfile, base + sizeof(AFSDIRHEADER) + sizeof(AFSITEMINFO) * index, NULL, FILE_BEGIN);
+	ReadFile(hfile, itemInfo, sizeof(AFSITEMINFO), &bytesRead, 0);
+	return AFS_OK;
+}
+
 // Returns information about where the corresponding AFSITEMINFO structure
 // is located in the afs file. The answer consists of two parts: base, index.
 // base   - is an offset to the beginning of AFS-folder that contains that AFSITEMINFO,

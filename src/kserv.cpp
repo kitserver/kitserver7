@@ -63,6 +63,7 @@ bool allQualities = true;
 #define FIRST_NUMS_BIN 3425
 
 // GLOBALS
+HANDLE g_hfile_cv_0 = INVALID_HANDLE_VALUE;
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoById;
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoByOffset;
 DWORD g_currentBin = 0xffffffff;
@@ -192,6 +193,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
         #ifndef MYDLL_RELEASE_BUILD
         unhookFunction(hk_RenderPlayer, kservRenderPlayer);
         #endif
+
+        CloseHandle(g_hfile_cv_0);
 	}
 	
 	return true;
@@ -617,8 +620,13 @@ void initKserv() {
     wstring cv_0(getPesInfo()->pesDir);
     cv_0 += L"img\\cv_0.img";
     LOG1S(L"cv_0 = {%s}",cv_0.c_str());
-    FILE* f = _wfopen(cv_0.c_str(),L"rb");
-    if (f)
+    //FILE* f = _wfopen(cv_0.c_str(),L"rb");
+    //if (f)
+    if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
+        g_hfile_cv_0 = CreateFile(cv_0.c_str(),
+                GENERIC_READ,FILE_SHARE_READ,NULL,
+                OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,NULL);
+    if (g_hfile_cv_0 != INVALID_HANDLE_VALUE)
     {
         for (int i=0; i<NUM_SLOTS; i++)
         {
@@ -627,7 +635,7 @@ void initKserv() {
             {
                 BIN_INFO binInfo;
                 binInfo.id = FIRST_KIT_BIN + i*2 + k;
-                ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
+                ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
 
                 g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
                 g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
@@ -636,7 +644,7 @@ void initKserv() {
             {
                 BIN_INFO binInfo;
                 binInfo.id = FIRST_FONT_BIN + i*4 + k;
-                ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
+                ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
 
                 g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
                 g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
@@ -645,19 +653,21 @@ void initKserv() {
             {
                 BIN_INFO binInfo;
                 binInfo.id = FIRST_NUMS_BIN + i*4 + k;
-                ReadItemInfoById(f, binInfo.id, &binInfo.itemInfo, 0);
+                ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
 
                 g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
                 g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
             }
         }
-        fclose(f);
+        //fclose(f);
         LOG(L"AFS itemInfo structures initialized.");
     }
     else
     {
         LOG(L"ERROR: Unable to initialize AFS itemInfo structures.");
-        LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", cv_0.c_str(), errno);
+        //LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", cv_0.c_str(), errno);
+        LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", 
+                cv_0.c_str(), GetLastError());
     }
 
     // Load GDB
@@ -1282,24 +1292,37 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
     PACKED_BIN* result = NULL;
     wstring cv_0(getPesInfo()->pesDir);
     cv_0 += L"img\\cv_0.img";
-    FILE* f = _wfopen(cv_0.c_str(),L"rb");
-    if (f)
+    //FILE* f = _wfopen(cv_0.c_str(),L"rb");
+    //if (f)
+    //{
+    if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
+        g_hfile_cv_0 = CreateFile(cv_0.c_str(),
+                GENERIC_READ,FILE_SHARE_READ,NULL,
+                OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,NULL);
+    if (g_hfile_cv_0 != INVALID_HANDLE_VALUE)
     {
         AFSITEMINFO itemInfo;
-        ReadItemInfoById(f, id, &itemInfo, 0);
+        //ReadItemInfoById(f, id, &itemInfo, 0);
+        ReadItemInfoById(g_hfile_cv_0, id, &itemInfo, 0);
 
         // allocate memory
         result = (PACKED_BIN*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, itemInfo.dwSize);
 
         // read into memory
-        fseek(f, itemInfo.dwOffset, SEEK_SET);
-        fread(result, itemInfo.dwSize, 1, f);
-        fclose(f);
+        //fseek(f, itemInfo.dwOffset, SEEK_SET);
+        //fread(result, itemInfo.dwSize, 1, f);
+        //fclose(f);
+        DWORD bytesRead = 0;
+        SetFilePointer(g_hfile_cv_0, itemInfo.dwOffset, NULL, FILE_BEGIN);
+        ReadFile(g_hfile_cv_0, result, itemInfo.dwSize, &bytesRead, 0);
+        //CloseHandle(g_hfile_cv_0);
     }
     else 
     {
         LOG1N(L"ERROR: Unable to load BIN #%d", id);
-        LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", cv_0.c_str(), errno);
+        //LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", cv_0.c_str(), errno);
+        LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", 
+                cv_0.c_str(), GetLastError());
     }
     return result;
 }

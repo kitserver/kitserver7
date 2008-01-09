@@ -32,6 +32,7 @@ DWORD GetUniSig(char* afsFileName, char* uniFileName);
 DWORD GetItemInfo(char* afsFileName, char* uniFileName, AFSITEMINFO* itemInfo, DWORD* base);
 DWORD GetItemInfoById(char* afsFileName, int id, AFSITEMINFO* itemInfo, DWORD* base);
 DWORD ReadItemInfoById(FILE* f, DWORD id, AFSITEMINFO* itemInfo, DWORD base);
+DWORD ReadItemInfoById(HANDLE hfile, DWORD id, AFSITEMINFO* itemInfo, DWORD base);
 
 typedef struct _PACKED_BIN_HEADER
 {
