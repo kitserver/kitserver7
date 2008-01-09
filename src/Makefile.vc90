@@ -111,7 +111,7 @@ lodcfg.exe: lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj
 	$(LINK) $(LFLAGS) /out:lodcfg.exe lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj $(LIBS)
 
 .cpp.obj:
-	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) $<
+	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) /wd4731 $<
 
 clean:
 	del /Q /F *.exp *.lib *.obj *.res *.dll *.exe
