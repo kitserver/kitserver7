@@ -1,10 +1,14 @@
 #define UNICODE
+#define THISMOD &k_kserv
 
 #include <stdio.h>
 #include <string>
 #include "gdb.h"
 #include "configs.h"
 #include "utf8.h"
+#include "log.h"
+
+extern KMOD k_kserv;
 
 #ifdef MYDLL_RELEASE_BUILD
 #define GDB_DEBUG(f,x)
@@ -69,7 +73,7 @@ static bool equals(const void* a, const void* b)
     return sa == sb;
 }
 
-void string_strip(wstring& s)
+static void string_strip(wstring& s)
 {
     static const wchar_t* empties = L" \t\n\r";
     int e = s.find_last_not_of(empties);
@@ -92,7 +96,6 @@ void GDB::load()
     if (!readMap((this->dir + L"GDB\\uni\\map.txt").c_str(), mapFile))
     {
         GDB_DEBUG(wlog,(slog,L"Unable to find uni-map: %s\n",mapFile));
-        return;
     }
 
     for (hash_map<WORD,wstring>::iterator it = mapFile.begin(); it != mapFile.end(); it++)
@@ -117,15 +120,18 @@ void GDB::load()
     }
 
     // create two dummy kit collections: for use with AFS kits
-    this->dummyHome.players.insert(pair<wstring,Kit>(L"pa",Kit()));
-    this->dummyHome.players.insert(pair<wstring,Kit>(L"pb",Kit()));
-    this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"ga",Kit()));
-    this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"gb",Kit()));
+    Kit dummyKit;
+    dummyKit.configLoaded = true;
 
-    this->dummyAway.players.insert(pair<wstring,Kit>(L"pa",Kit()));
-    this->dummyAway.players.insert(pair<wstring,Kit>(L"pb",Kit()));
-    this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"ga",Kit()));
-    this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"gb",Kit()));
+    this->dummyHome.players.insert(pair<wstring,Kit>(L"pa",dummyKit));
+    this->dummyHome.players.insert(pair<wstring,Kit>(L"pb",dummyKit));
+    this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"ga",dummyKit));
+    this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"gb",dummyKit));
+
+    this->dummyAway.players.insert(pair<wstring,Kit>(L"pa",dummyKit));
+    this->dummyAway.players.insert(pair<wstring,Kit>(L"pb",dummyKit));
+    this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"ga",dummyKit));
+    this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"gb",dummyKit));
 
 	GDB_DEBUG(wlog,(slog,L"Loading GDB complete.\n"));
     GDB_DEBUG_CLOSE(wlog);
@@ -166,7 +172,8 @@ void GDB::fillKitCollection(KitCollection& col, int kitType)
 			kit.attDefined = 0;
 
             wstring key(fData.cFileName);
-            this->loadConfig(key, kit);
+            if (this->readConfigs)
+                this->loadConfig(key, kit);
 
             // insert kit object into KitCollection map
             if (kitType == PLAYERS)
@@ -203,9 +210,13 @@ void GDB::findKitsForTeam(WORD teamId)
 /**
  * Read and parse the config.txt for the given kit.
  */
-void GDB::loadConfig(wstring& mykey, Kit& kit)
+void GDB::loadConfig(const wstring& mykey, Kit& kit)
 {
-    if (readConfig((this->dir + L"\\" + kit.foldername + L"\\config.txt").c_str()))
+    if (kit.configLoaded) return;
+
+    //LOG1S(L"Loading config.txt for {%s}...",mykey.c_str());
+    //LOG1S(L"path: {%s}",(this->dir + kit.foldername + L"\\config.txt").c_str());
+    if (readConfig((this->dir + kit.foldername + L"\\config.txt").c_str()))
     {
         _getConfig("", "model", DT_DWORD, (DWORD)&kattr_data(kit,ATT_MODEL), kitConfig);
         _getConfig("", "collar", DT_STRING, (DWORD)&kattr_data(kit,ATT_COLLAR), kitConfig);
@@ -218,11 +229,17 @@ void GDB::loadConfig(wstring& mykey, Kit& kit)
         _getConfig("", "radar.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_MAIN_COLOR), kitConfig); // for backward compatibility
         _getConfig("", "shorts.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHORTS_COLOR), kitConfig);
         _getConfig("", "description", DT_STRING, (DWORD)&kattr_data(kit,ATT_DESCRIPTION), kitConfig);
+
+        //LOG1S(L"config.txt loaded for {%s}",mykey.c_str());
     }
     else
     {
         GDB_DEBUG(wlog, (slog, L"Unable to find config.txt for %s\n", kit.foldername.c_str()));
+        LOG1S1N(L"ERROR: unable to read config.txt for {%s}. Error code = %d",mykey.c_str(), errno);
+        //LOG1N(L"ERROR: GetLastError() = %d",GetLastError());
     }
+
+    kit.configLoaded = true;
 }
 
 /**

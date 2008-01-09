@@ -68,6 +68,9 @@ public:
     //wstring socksFolder;
     //wstring overlayFile;
     DWORD attDefined;
+    bool configLoaded;
+
+    Kit() : attDefined(0), configLoaded(false) {}
 };
 
 class KitCollection {
@@ -86,13 +89,20 @@ public:
     hash_map<WORD,KitCollection> uni;
     KitCollection dummyHome;
     KitCollection dummyAway;
+    bool readConfigs;
 
-    GDB(wstring gdir) : dir(gdir), dummyHome(L""), dummyAway(L"") { load(); }
+    GDB(wstring gdir, bool rc=true) : 
+        dir(gdir), 
+        dummyHome(L""), 
+        dummyAway(L""), 
+        readConfigs(rc)
+    { load(); }
+    void loadConfig(const wstring& mykey, Kit& kit);
+
 private:
     void load();
     void findKitsForTeam(WORD teamId);
     void fillKitCollection(KitCollection& col, int kitType);
-    void loadConfig(wstring& mykey, Kit& kit);
 };
 
 #endif

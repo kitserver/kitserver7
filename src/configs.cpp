@@ -16,6 +16,22 @@ multimap<string, wstring>::iterator g_knownConfigsIt;
 
 bool readConfig(const wchar_t* cfgFile)
 {
+    /*
+    {
+        HANDLE hfile=CreateFile(L"c:\\program files\\konami\\pro evolution soccer 2008\\kitserver\\test.txt",
+            GENERIC_READ | GENERIC_WRITE,0,NULL,
+            CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+        if(hfile!=INVALID_HANDLE_VALUE)
+        {
+            wchar_t buf[512];
+            DWORD written = 0;
+            swprintf(buf,L"test: {%s}\r\n",cfgFile);
+            WriteFile(hfile,buf,wcslen(buf)*sizeof(wchar_t),&written,0);
+            CloseHandle(hfile);
+        }
+    }
+    */
+
 	FILE* f = _wfopen(cfgFile, L"rb");
 	if (!f) return false;
 
@@ -105,6 +121,7 @@ bool readConfig(const wchar_t* cfgFile)
 		g_knownConfigs.insert(pair<string,wstring>(sKey,sVal));
 	}
 	
+    fclose(f);
 	return true;
 }
 
@@ -339,6 +356,7 @@ bool readMap(const wchar_t* cfgFile, T& m)
         }
 	}
 	
+    fclose(f);
 	return true;
 }
 

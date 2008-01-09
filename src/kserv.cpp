@@ -124,7 +124,7 @@ void FreePNGTexture(BITMAPINFO* bitmap);
 void ReplaceTexturesInBin(UNPACKED_BIN* bin, wstring files[], size_t n);
 WORD GetTeamIdBySrc(TEAM_KIT_INFO* src);
 TEAM_KIT_INFO* GetTeamKitInfoById(WORD id);
-void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
+KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* src, TEAM_KIT_INFO* dest);
 void kservReadTeamKitInfoCallPoint1();
 void kservReadTeamKitInfoCallPoint2();
 void kservReadTeamKitInfoCallPoint3();
@@ -133,7 +133,7 @@ int GetBinType(DWORD id);
 int GetKitSlot(DWORD id);
 WORD FindFreeKitSlot();
 void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki);
-void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki);
+KEXPORT void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki);
 void RGBAColor2KCOLOR(const RGBAColor& color, KCOLOR& kcolor);
 void KCOLOR2RGBAColor(const KCOLOR kcolor, RGBAColor& color);
 void HookKeyboard();
@@ -657,7 +657,7 @@ void initKserv() {
     else
     {
         LOG(L"ERROR: Unable to initialize AFS itemInfo structures.");
-        LOG1S(L"ERROR: Problem while openning {%s} for reading", cv_0.c_str());
+        LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", cv_0.c_str(), errno);
     }
 
     // Load GDB
@@ -665,6 +665,7 @@ void initKserv() {
     LOG1S(L"myDir : {%s}",getPesInfo()->myDir);
     LOG1S(L"gdbDir: {%sGDB}",getPesInfo()->gdbDir);
     gdb = new GDB(getPesInfo()->gdbDir);
+    LOG1N(L"Teams in GDB: %d", gdb->uni.size());
 
     // Initial iterators reset
     ResetIterators();
@@ -1298,7 +1299,7 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
     else 
     {
         LOG1N(L"ERROR: Unable to load BIN #%d", id);
-        LOG1S(L"ERROR: Problem while openning {%s} for reading", cv_0.c_str());
+        LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", cv_0.c_str(), errno);
     }
     return result;
 }
@@ -1317,7 +1318,7 @@ void DumpData(void* data, size_t size)
     }
     else
     {
-        LOG1N(L"ERROR: unable to dump file (count=%d)",count);
+        LOG2N(L"ERROR: unable to dump file (count=%d). Error code = %d",count, errno);
     }
     count++;
 }
@@ -1534,7 +1535,7 @@ TEAM_KIT_INFO* GetTeamKitInfoById(WORD id)
     return &teamKitInfoBase[id];
 }
 
-void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
+KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
 {
     //LOG3N(L"kservAfterReadTeamKitInfo: team = %d, dest = %08x, src = %08x", 
     //        GetTeamIdBySrc(src), (DWORD)dest, (DWORD)src);
@@ -1702,8 +1703,32 @@ void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki
         ApplyKitAttributes(kiter, ki);
 }
 
-void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki)
+KEXPORT void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki)
 {
+    /*
+    {
+        HANDLE hfile=CreateFile(L"c:\\program files\\konami\\pro evolution soccer 2008\\kitserver\\test-kserv.txt",
+            GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,
+            CREATE_ALWAYS,0,NULL);
+        if(hfile!=INVALID_HANDLE_VALUE)
+        {
+            wchar_t buf[512];
+            DWORD written = 0;
+            swprintf(buf,L"{test}\r\n");
+            WriteFile(hfile,buf,wcslen(buf)*sizeof(wchar_t),&written,0);
+            CloseHandle(hfile);
+        }
+        else
+        {
+            LOG1N(L"ERROR: test-kserv.txt: GetLastError() = %d",GetLastError());
+        }
+    }
+    */
+
+    // load kit attributes from config.txt, if needed
+    gdb->loadConfig(kiter->first, kiter->second);
+    
+    // apply attributes
     if (kiter->second.attDefined & MODEL)
         ki.model = kiter->second.model;
     if (kiter->second.attDefined & COLLAR)
@@ -1856,6 +1881,27 @@ LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
                 g_iterAwayPL = g_iterAwayPL_begin;
             else
                 g_iterAwayPL++;
+
+            /*
+            {
+                HANDLE hfile=CreateFile(L"c:\\program files\\konami\\pro evolution soccer 2008\\kitserver\\test-0x32.txt",
+                    GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,NULL,
+                    CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+                if(hfile!=INVALID_HANDLE_VALUE)
+                {
+                    wchar_t buf[512];
+                    DWORD written = 0;
+                    swprintf(buf,L"{test}\r\n");
+                    WriteFile(hfile,buf,wcslen(buf)*sizeof(wchar_t),&written,0);
+                    CloseHandle(hfile);
+                }
+                else
+                {
+                    LOG1N(L"ERROR: test-0x32.txt: GetLastError() = %d",GetLastError());
+                }
+            }
+            */
+
         }
         else if (wParam == 0x33) { // home GK
             if (g_iterHomeGK == g_iterHomeGK_end)
