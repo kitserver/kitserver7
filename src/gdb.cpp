@@ -310,6 +310,8 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
                 kd->kit.nameShape = 1;
             else if (equals(pValue, L"type3"))
                 kd->kit.nameShape = 2;
+            else if (equals(pValue, L"type4"))
+                kd->kit.nameShape = 3;
             kd->kit.attDefined |= NAME_SHAPE;
             GDB_DEBUG(wlog,(slog,L"nameShape = %d\n",kd->kit.nameShape));
             break;
