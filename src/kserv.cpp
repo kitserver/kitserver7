@@ -63,8 +63,10 @@ bool allQualities = true;
 #define FIRST_NUMS_BIN 3425
 
 // GLOBALS
+bool _filesWIN32 = true;
 HANDLE g_hfile_cv_0 = INVALID_HANDLE_VALUE;
 FILE *g_FILE_cv_0 = NULL;
+
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoById;
 hash_map<DWORD,BIN_INFO> g_kitsBinInfoByOffset;
 DWORD g_currentBin = 0xffffffff;
@@ -106,6 +108,7 @@ hash_map<WORD,TEAM_KIT_INFO> g_savedAttributes;
 // FUNCTIONS
 void initKserv();
 void setQualityChecks();
+void kservConfig(char* pName, const void* pValue, DWORD a);
 void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
 BOOL WINAPI kservSetFilePointerEx(
   __in       HANDLE hFile,
@@ -627,19 +630,26 @@ void initKserv() {
 	//unhookFunction(hk_D3D_Create, initKserv);
 	unhookFunction(hk_D3D_CreateDevice, initKserv);
 
+    getConfig("kserv", "files.win32", DT_DWORD, 1, kservConfig);
+    LOG1N(L"files.win32 = %d",_filesWIN32);
+
     // initialize kits iteminfo structure
     wstring cv_0(getPesInfo()->pesDir);
     cv_0 += L"img\\cv_0.img";
     LOG1S(L"cv_0 = {%s}",cv_0.c_str());
-    //FILE* f = _wfopen(cv_0.c_str(),L"rb");
-    //if (f)
-    if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
-        g_hfile_cv_0 = CreateFile(cv_0.c_str(),
-                GENERIC_READ,FILE_SHARE_READ,NULL,
-                OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
-    if (g_hfile_cv_0 != INVALID_HANDLE_VALUE)
-    //if (!g_FILE_cv_0) g_FILE_cv_0 = _wfopen(cv_0.c_str(),L"rb");
-    //if (g_FILE_cv_0)
+    if (_filesWIN32)
+    {
+        if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
+            g_hfile_cv_0 = CreateFile(cv_0.c_str(),
+                    GENERIC_READ,FILE_SHARE_READ,NULL,
+                    OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    }
+    else
+    {
+        if (!g_FILE_cv_0) g_FILE_cv_0 = _wfopen(cv_0.c_str(),L"rb");
+    }
+
+    if (_filesWIN32 && g_hfile_cv_0 != INVALID_HANDLE_VALUE || !_filesWIN32 && g_FILE_cv_0)
     {
         for (int i=0; i<NUM_SLOTS; i++)
         {
@@ -648,8 +658,10 @@ void initKserv() {
             {
                 BIN_INFO binInfo;
                 binInfo.id = FIRST_KIT_BIN + i*2 + k;
-                ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
-                //ReadItemInfoById(g_FILE_cv_0, binInfo.id, &binInfo.itemInfo, 0);
+                if (_filesWIN32)
+                    ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
+                else
+                    ReadItemInfoById(g_FILE_cv_0, binInfo.id, &binInfo.itemInfo, 0);
 
                 g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
                 g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
@@ -658,8 +670,10 @@ void initKserv() {
             {
                 BIN_INFO binInfo;
                 binInfo.id = FIRST_FONT_BIN + i*4 + k;
-                ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
-                //ReadItemInfoById(g_FILE_cv_0, binInfo.id, &binInfo.itemInfo, 0);
+                if (_filesWIN32)
+                    ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
+                else
+                    ReadItemInfoById(g_FILE_cv_0, binInfo.id, &binInfo.itemInfo, 0);
 
                 g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
                 g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
@@ -668,23 +682,22 @@ void initKserv() {
             {
                 BIN_INFO binInfo;
                 binInfo.id = FIRST_NUMS_BIN + i*4 + k;
-                ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
-                //ReadItemInfoById(g_FILE_cv_0, binInfo.id, &binInfo.itemInfo, 0);
+                if (_filesWIN32)
+                    ReadItemInfoById(g_hfile_cv_0, binInfo.id, &binInfo.itemInfo, 0);
+                else
+                    ReadItemInfoById(g_FILE_cv_0, binInfo.id, &binInfo.itemInfo, 0);
 
                 g_kitsBinInfoById.insert(pair<DWORD,BIN_INFO>(binInfo.id, binInfo));
                 g_kitsBinInfoByOffset.insert(pair<DWORD,BIN_INFO>(binInfo.itemInfo.dwOffset, binInfo));
             }
         }
-        //fclose(f);
         LOG(L"AFS itemInfo structures initialized.");
     }
     else
     {
         LOG(L"ERROR: Unable to initialize AFS itemInfo structures.");
         LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", 
-                cv_0.c_str(), errno);
-        //LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", 
-        //        cv_0.c_str(), GetLastError());
+                cv_0.c_str(), (_filesWIN32) ? GetLastError() : errno);
     }
 
     // Load GDB
@@ -692,7 +705,7 @@ void initKserv() {
     LOG1S(L"myDir : {%s}",getPesInfo()->myDir);
     LOG1S(L"gdbDir: {%sGDB}",getPesInfo()->gdbDir);
     gdb = new GDB(getPesInfo()->gdbDir);
-    LOG1N(L"Teams in GDB: %d", gdb->uni.size());
+    LOG1N(L"Teams in GDB map: %d", gdb->uni.size());
 
     // Initial iterators reset
     ResetIterators();
@@ -723,6 +736,15 @@ void initKserv() {
     HookCallPoint(code[C_ON_ENTER_CUPS], kservOnEnterCupsCallPoint, 6, 1);
     HookCallPoint(code[C_ON_LEAVE_CUPS], kservOnLeaveCupsCallPoint, 6, 1);
     HookCallPoint(code[C_ON_LEAVE_CUPS_2], kservOnLeaveCupsCallPoint2, 6, 0);
+}
+
+void kservConfig(char* pName, const void* pValue, DWORD a)
+{
+	switch (a) {
+		case 1:	// files.win32
+			_filesWIN32 = *(DWORD*)pValue == 1;
+			break;
+	}
 }
 
 void HookSetFilePointerEx()
@@ -1309,43 +1331,47 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
     PACKED_BIN* result = NULL;
     wstring cv_0(getPesInfo()->pesDir);
     cv_0 += L"img\\cv_0.img";
-    //FILE* f = _wfopen(cv_0.c_str(),L"rb");
-    //if (f)
-    //{
-    if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
-        g_hfile_cv_0 = CreateFile(cv_0.c_str(),
-                GENERIC_READ,FILE_SHARE_READ,NULL,
-                OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
-    if (g_hfile_cv_0 != INVALID_HANDLE_VALUE)
-    //if (!g_FILE_cv_0) g_FILE_cv_0 = _wfopen(cv_0.c_str(),L"rb");
-    //if (g_FILE_cv_0)
+    if (_filesWIN32)
+    {
+        if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
+            g_hfile_cv_0 = CreateFile(cv_0.c_str(),
+                    GENERIC_READ,FILE_SHARE_READ,NULL,
+                    OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    }
+    else
+    {
+        if (!g_FILE_cv_0) g_FILE_cv_0 = _wfopen(cv_0.c_str(),L"rb");
+    }
+
+    if (_filesWIN32 && g_hfile_cv_0 != INVALID_HANDLE_VALUE || !_filesWIN32 && g_FILE_cv_0)
     {
         AFSITEMINFO itemInfo;
-        //ReadItemInfoById(f, id, &itemInfo, 0);
-        ReadItemInfoById(g_hfile_cv_0, id, &itemInfo, 0);
-        //ReadItemInfoById(g_FILE_cv_0, id, &itemInfo, 0);
+        if (_filesWIN32)
+            ReadItemInfoById(g_hfile_cv_0, id, &itemInfo, 0);
+        else
+            ReadItemInfoById(g_FILE_cv_0, id, &itemInfo, 0);
 
         // allocate memory
         result = (PACKED_BIN*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, itemInfo.dwSize);
 
         // read into memory
-        //fseek(f, itemInfo.dwOffset, SEEK_SET);
-        //fread(result, itemInfo.dwSize, 1, f);
-        //fclose(f);
-        DWORD bytesRead = 0;
-        SetFilePointer(g_hfile_cv_0, itemInfo.dwOffset, NULL, FILE_BEGIN);
-        ReadFile(g_hfile_cv_0, result, itemInfo.dwSize, &bytesRead, 0);
-        //fseek(g_FILE_cv_0, itemInfo.dwOffset, SEEK_SET);
-        //fread(result, itemInfo.dwSize, 1, g_FILE_cv_0);
-        //CloseHandle(g_hfile_cv_0);
+        if (_filesWIN32)
+        {
+            DWORD bytesRead = 0;
+            SetFilePointer(g_hfile_cv_0, itemInfo.dwOffset, NULL, FILE_BEGIN);
+            ReadFile(g_hfile_cv_0, result, itemInfo.dwSize, &bytesRead, 0);
+        }
+        else
+        {
+            fseek(g_FILE_cv_0, itemInfo.dwOffset, SEEK_SET);
+            fread(result, itemInfo.dwSize, 1, g_FILE_cv_0);
+        }
     }
     else 
     {
         LOG1N(L"ERROR: Unable to load BIN #%d", id);
-        //LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", 
-        //        cv_0.c_str(), errno);
         LOG1S1N(L"ERROR: Problem while openning {%s} for reading. Error code = %d", 
-                cv_0.c_str(), GetLastError());
+                cv_0.c_str(), (_filesWIN32) ? GetLastError() : errno);
     }
     return result;
 }
