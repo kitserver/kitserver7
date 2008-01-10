@@ -277,11 +277,11 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
     */
 	}
 	
-	CALLCHAIN(hk_D3D_CreateDevice, it) {
+	CALLCHAIN_BEGIN(hk_D3D_CreateDevice, it) {
 		PFNCREATEDEVICEPROC NextCall = (PFNCREATEDEVICEPROC)*it;
 		NextCall(self, Adapter, DeviceType, hFocusWindow,
            	BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
-	}
+	} CALLCHAIN_END
 
 	return result;
 }

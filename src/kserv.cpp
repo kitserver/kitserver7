@@ -106,7 +106,10 @@ HHOOK g_hKeyboardHook = NULL;
 hash_map<WORD,TEAM_KIT_INFO> g_savedAttributes;
 
 // FUNCTIONS
-void initKserv();
+HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
+    D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
+    D3DPRESENT_PARAMETERS *pPresentationParameters, 
+    IDirect3DDevice9** ppReturnedDeviceInterface);
 void setQualityChecks();
 void kservConfig(char* pName, const void* pValue, DWORD a);
 void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
@@ -619,7 +622,10 @@ void setQualityChecks()
 	}
 }
 
-void initKserv() {
+HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
+    D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
+    D3DPRESENT_PARAMETERS *pPresentationParameters, 
+    IDirect3DDevice9** ppReturnedDeviceInterface) {
 	TRACE(L"Going to hook some functions now.");
 	
 	#ifndef MYDLL_RELEASE_BUILD
@@ -736,6 +742,8 @@ void initKserv() {
     HookCallPoint(code[C_ON_ENTER_CUPS], kservOnEnterCupsCallPoint, 6, 1);
     HookCallPoint(code[C_ON_LEAVE_CUPS], kservOnLeaveCupsCallPoint, 6, 1);
     HookCallPoint(code[C_ON_LEAVE_CUPS_2], kservOnLeaveCupsCallPoint2, 6, 0);
+    
+    return D3D_OK;
 }
 
 void kservConfig(char* pName, const void* pValue, DWORD a)
