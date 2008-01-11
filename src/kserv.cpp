@@ -56,7 +56,7 @@ HINSTANCE hInst = NULL;
 KMOD k_kserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 bool allQualities = true;
 
-#define NUM_TEAMS 299
+#define NUM_REGULAR_TEAMS 219
 #define NUM_SLOTS 256
 #define FIRST_KIT_BIN  7523
 #define FIRST_FONT_BIN 2401
@@ -226,7 +226,7 @@ void InitSlotMap()
     }
 
     TEAM_KIT_INFO* teamKitInfo = (TEAM_KIT_INFO*)g_teamKitInfoBase;
-    for (WORD i=0; i<NUM_TEAMS; i++)
+    for (WORD i=0; i<NUM_REGULAR_TEAMS; i++)
     {
         if (teamKitInfo[i].pa.kitLink < NUM_SLOTS) // teams with kit slots in AFS 
         {
