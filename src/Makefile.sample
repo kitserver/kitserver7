@@ -2,7 +2,8 @@ CC=cl
 LINK=link
 RC=rc
 
-CFLAGS=/nologo /EHsc $(EXTRA_CFLAGS)
+# 4731: warning about ebp modification
+CFLAGS=/nologo /EHsc /wd4731 $(EXTRA_CFLAGS)
 LFLAGS=/NOLOGO /NODEFAULTLIB:libcmt.lib
 LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
 LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
