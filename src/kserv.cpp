@@ -648,7 +648,7 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
         if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
             g_hfile_cv_0 = CreateFile(cv_0.c_str(),
                     GENERIC_READ,FILE_SHARE_READ,NULL,
-                    OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,NULL);
+                    OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
     }
     else
     {
@@ -1344,7 +1344,7 @@ PACKED_BIN* LoadBinFromAFS(DWORD id)
         if (g_hfile_cv_0 == INVALID_HANDLE_VALUE)
             g_hfile_cv_0 = CreateFile(cv_0.c_str(),
                     GENERIC_READ,FILE_SHARE_READ,NULL,
-                    OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,NULL);
+                    OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
     }
     else
     {
