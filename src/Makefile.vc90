@@ -2,7 +2,8 @@ CC=cl
 LINK=link
 RC=rc
 
-CFLAGS=/nologo /EHsc $(EXTRA_CFLAGS)
+# 4731: warning about ebp modification
+CFLAGS=/nologo /EHsc /wd4731 $(EXTRA_CFLAGS)
 LFLAGS=/NOLOGO
 LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
 LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
@@ -52,7 +53,7 @@ dlls: kload.dll kserv.dll lodmixer.dll kset.dll
 apps: setup.exe lodcfg.exe
 
 release:
-	$(MAKE) EXTRA_CFLAGS="/DMYDLL_RELEASE_BUILD=1"
+	$(MAKE) EXTRA_CFLAGS="/DMYDLL_RELEASE_BUILD" MYDLL_RELEASE_BUILD=1
 
 setup: setup.exe
 kset: kset.dll
@@ -111,7 +112,7 @@ lodcfg.exe: lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj
 	$(LINK) $(LFLAGS) /out:lodcfg.exe lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj $(LIBS)
 
 .cpp.obj:
-	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) /wd4731 $<
+	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) $<
 
 clean:
 	del /Q /F *.exp *.lib *.obj *.res *.dll *.exe
