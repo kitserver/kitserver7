@@ -192,7 +192,7 @@ void setPesInfo()
 
 KEXPORT void RegisterKModule(KMOD *k)
 {
-	TRACE2S(L"Registering module %s (\"%s\")", k->nameShort, k->nameLong);
+	LOG2S(L"Registering module %s (\"%s\")", k->nameShort, k->nameLong);
 	return;
 }
 
@@ -224,11 +224,11 @@ void kloadLoadDlls(char* pName, const wchar_t* pValue, DWORD a)
 			wcscpy(dllName, temp);
 		}
 	
-	TRACE1S(L"Loading module \"%s\" ...", dllName);
+	LOG1S(L"Loading module \"%s\" ...", dllName);
 	if (LoadLibrary(dllName) == NULL)
-		TRACE(L"... was NOT successful!");
+		LOG(L"... was NOT successful!");
 	else
-		TRACE(L"... was successful!");
+		LOG(L"... was successful!");
 	 
 	return;
 }

@@ -35,7 +35,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 {
 	if (dwReason == DLL_PROCESS_ATTACH)
 	{
-		TRACE(L"Attaching dll...");
+		LOG(L"Attaching dll...");
 		hInst=hInstance;
 		RegisterKModule(&k_lodmixer);
 
@@ -44,7 +44,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	}
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-		TRACE(L"Detaching dll...");
+		LOG(L"Detaching dll...");
 	}
 	return true;
 }
@@ -68,7 +68,7 @@ void modifySettings()
 void initLodMixer()
 {
     // skip the settings-check call
-    TRACE(L"Initializing LOD mixer...");
+    LOG(L"Initializing LOD mixer...");
 
     getConfig("lodmixer", "screen.width", DT_DWORD, 1, lodmixerConfig);
     getConfig("lodmixer", "screen.height", DT_DWORD, 2, lodmixerConfig);
@@ -77,7 +77,7 @@ void initLodMixer()
     getConfig("lodmixer", "lod.switch2", DT_FLOAT, 5, lodmixerConfig);
     getConfig("lodmixer", "aspect-ratio.correction.enabled", DT_DWORD, 6, lodmixerConfig);
     getConfig("lodmixer", "controller.check.enabled", DT_DWORD, 7, lodmixerConfig);
-    TRACE2N(L"Screen resolution to force: %dx%d", 
+    LOG2N(L"Screen resolution to force: %dx%d", 
             _lmconfig.screen.width, _lmconfig.screen.height);
 
     BYTE* bptr = (BYTE*)code[C_SETTINGS_CHECK];
@@ -90,7 +90,7 @@ void initLodMixer()
         ptr[0] = (DWORD)modifySettings - (DWORD)(code[C_SETTINGS_CHECK] + 5);
         /* NOP */ 
         bptr[5] = 0x90;
-        TRACE(L"Settings check disabled. Settings overwrite enabled.");
+        LOG(L"Settings check disabled. Settings overwrite enabled.");
     } 
 
     if (_lmconfig.controllerCheckEnabled)
@@ -114,13 +114,13 @@ void initLodMixer()
                         0xeb,0x34,  // jmp short "BACK_TO_AFTER_JMP"
                     };
                     memcpy(codeInsert, patch2, sizeof(patch2));
-                    TRACE(L"Mode check disabled for controller selection.");
+                    LOG(L"Mode check disabled for controller selection.");
                 }
             } 
         }
     }
 
-    TRACE(L"Initialization complete.");
+    LOG(L"Initialization complete.");
     unhookFunction(hk_D3D_Create, initLodMixer);
 }
 

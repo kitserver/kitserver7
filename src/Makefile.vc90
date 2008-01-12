@@ -52,7 +52,7 @@ dlls: kload.dll kserv.dll lodmixer.dll kset.dll
 apps: setup.exe lodcfg.exe
 
 release:
-	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD MYDLL_RELEASE_BUILD=1
+	$(MAKE) EXTRA_CFLAGS="/DMYDLL_RELEASE_BUILD=1"
 
 setup: setup.exe
 kset: kset.dll

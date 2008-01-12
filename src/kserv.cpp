@@ -183,7 +183,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		RegisterKModule(THISMOD);
 		
 		if (!checkGameVersion()) {
-			TRACE(L"Sorry, your game version isn't supported!");
+			LOG(L"Sorry, your game version isn't supported!");
 			return false;
 		}
 
@@ -196,7 +196,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-		TRACE(L"Shutting down this module...");
+		LOG(L"Shutting down this module...");
         delete gdb;
 		unhookFunction(hk_D3D_Present, kservPresent);
 
