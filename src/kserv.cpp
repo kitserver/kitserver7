@@ -171,7 +171,7 @@ BOOL WINAPI kservReadFile(
 );
 void kservBeforeLoadBinCallPoint();
 void kservBeforeLoadBinCallPoint_120();
-void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2);
+KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2);
 KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 DWORD kservGetBinSize(DWORD afsId, DWORD binId);
 DWORD GetTargetAddress(DWORD addr);
@@ -876,7 +876,8 @@ void kservBeforeLoadBinCallPoint()
         push esi
         push edi
         mov ecx,esi
-        mov edx,[esi+0x2c]
+        sub ecx,4
+        mov edx,[esi+0x28]
         push ecx
         push edx
         call kservBeforeLoadBin
@@ -929,7 +930,7 @@ void kservBeforeLoadBinCallPoint_120()
     }
 }
 
-void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
+KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
 {
     TRACE2N(L"Loading BIN #%d, afsId=%d",s1->binId,s1->afsId);
 
@@ -1049,8 +1050,6 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     }
     LeaveCriticalSection(&g_csRead);
 
-    TRACE2N(L"kservUnpackBin:: afsId=%d, binId=%d",afsId,currBin);
-
     // save the pointer, because the unpacking call will change it.
     UNPACKED_BIN* bin = (UNPACKED_BIN*)pUnpackInfo->destBuffer;
 
@@ -1059,7 +1058,8 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
 
     if (IsKitBin(afsId,currBin))
     {
-        TRACE1N(L"kit-bin: num entries = %d", bin->header.numEntries);
+        TRACE2N(L"kservUnpackBin:: afsId=%d, binId=%d",afsId,currBin);
+        TRACE1N(L"kservUnpackBin:: num entries = %d", bin->header.numEntries);
         //DumpData((BYTE*)bin, pUnpackInfo->destSize);
 
         // determine type of bin
