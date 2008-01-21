@@ -97,6 +97,19 @@ KEXPORT void _LogWithThreeNumbers(KMOD *caller, const wchar_t *msg, DWORD a, DWO
 	}
 }
 
+// Simple debugging logger
+KEXPORT void _LogWithFourNumbers(KMOD *caller, const wchar_t *msg, DWORD a, DWORD b, DWORD c, DWORD d)
+{
+	wchar_t buf[BUFLEN];
+	DWORD wbytes;
+	if (mylog != INVALID_HANDLE_VALUE) 
+	{
+		ZeroMemory(buf, WBUFLEN);
+		swprintf(buf, msg, a, b, c, d);
+		_Log(caller, buf);
+	}
+}
+
 // Simple logger 4
 KEXPORT void _LogWithString(KMOD *caller, const wchar_t *msg, const wchar_t* str)
 {

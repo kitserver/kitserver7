@@ -97,7 +97,7 @@ public:
         dummyAway(L""), 
         readConfigs(rc)
     { load(); }
-    void loadConfig(const wstring& mykey, Kit& kit);
+    void loadConfig(Kit& kit);
 
 private:
     void load();

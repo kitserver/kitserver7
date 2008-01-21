@@ -173,7 +173,7 @@ void GDB::fillKitCollection(KitCollection& col, int kitType)
 
             wstring key(fData.cFileName);
             if (this->readConfigs)
-                this->loadConfig(key, kit);
+                this->loadConfig(kit);
 
             // insert kit object into KitCollection map
             if (kitType == PLAYERS)
@@ -210,11 +210,10 @@ void GDB::findKitsForTeam(WORD teamId)
 /**
  * Read and parse the config.txt for the given kit.
  */
-void GDB::loadConfig(const wstring& mykey, Kit& kit)
+void GDB::loadConfig(Kit& kit)
 {
     if (kit.configLoaded) return;
 
-    //LOG1S(L"Loading config.txt for {%s}...",mykey.c_str());
     //LOG1S(L"path: {%s}",(this->dir + kit.foldername + L"\\config.txt").c_str());
     if (readConfig((this->dir + kit.foldername + L"\\config.txt").c_str()))
     {
@@ -230,13 +229,12 @@ void GDB::loadConfig(const wstring& mykey, Kit& kit)
         _getConfig("", "shorts.color", DT_STRING, (DWORD)&kattr_data(kit,ATT_SHORTS_COLOR), kitConfig);
         _getConfig("", "description", DT_STRING, (DWORD)&kattr_data(kit,ATT_DESCRIPTION), kitConfig);
 
-        //LOG1S(L"config.txt loaded for {%s}",mykey.c_str());
+        LOG1S(L"config.txt loaded for {%s}",kit.foldername.c_str());
     }
     else
     {
         GDB_DEBUG(wlog, (slog, L"Unable to find config.txt for %s\n", kit.foldername.c_str()));
-        LOG1S1N(L"ERROR: unable to read config.txt for {%s}. Error code = %d",mykey.c_str(), errno);
-        //LOG1N(L"ERROR: GetLastError() = %d",GetLastError());
+        LOG1S1N(L"ERROR: unable to read config.txt for {%s}. Error code = %d",kit.foldername.c_str(), errno);
     }
 
     kit.configLoaded = true;

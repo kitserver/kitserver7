@@ -13,6 +13,7 @@
 #define LogWithNumber(x,a) _LogWithNumber(THISMOD,x,a)
 #define LogWithTwoNumbers(x,a,b) _LogWithTwoNumbers(THISMOD,x,a,b)
 #define LogWithThreeNumbers(x,a,b,c) _LogWithThreeNumbers(THISMOD,x,a,b,c)
+#define LogWithFourNumbers(x,a,b,c,d) _LogWithFourNumbers(THISMOD,x,a,b,c,d)
 #define LogWithString(x,a) _LogWithString(THISMOD,x,a)
 #define LogWithTwoStrings(x,a,b) _LogWithTwoStrings(THISMOD,x,a,b)
 #define LogWithNumberAndString(x,a,b) _LogWithNumberAndString(THISMOD,x,a,b)
@@ -25,6 +26,7 @@
 #define LOG1N(x,a) _LogWithNumber(THISMOD,x,a)
 #define LOG2N(x,a,b) _LogWithTwoNumbers(THISMOD,x,a,b)
 #define LOG3N(x,a,b,c) _LogWithThreeNumbers(THISMOD,x,a,b,c)
+#define LOG4N(x,a,b,c,d) _LogWithFourNumbers(THISMOD,x,a,b,c,d)
 #define LOG1S(x,a) _LogWithString(THISMOD,x,a)
 #define LOG2S(x,a,b) _LogWithTwoStrings(THISMOD,x,a,b)
 #define LOG1N1S(x,a,b) _LogWithNumberAndString(THISMOD,x,a,b)
@@ -38,6 +40,7 @@
 #define TRACE1N(x,a) LogWithNumber(x,a)
 #define TRACE2N(x,a,b) LogWithTwoNumbers(x,a,b)
 #define TRACE3N(x,a,b,c) LogWithThreeNumbers(x,a,b,c)
+#define TRACE4N(x,a,b,c,d) LogWithFourNumbers(x,a,b,c,d)
 #define TRACE1S(x,a) LogWithString(x,a)
 #define TRACE2S(x,a,b) LogWithTwoStrings(x,a,b)
 #define TRACE1N1S(x,a,b) LogWithNumberAndString(x,a,b)
@@ -50,6 +53,7 @@
 #define TRACE1N(x,a)
 #define TRACE2N(x,a,b)
 #define TRACE3N(x,a,b,c)
+#define TRACE4N(x,a,b,c,d)
 #define TRACE1S(x,a)
 #define TRACE2S(x,a,b)
 #define TRACE1N1S(x,a,b)
@@ -66,6 +70,7 @@ KEXPORT void _Log(KMOD *caller, const wchar_t* msg);
 KEXPORT void _LogWithNumber(KMOD *caller, const wchar_t* msg, DWORD number);
 KEXPORT void _LogWithTwoNumbers(KMOD *caller, const wchar_t* msg, DWORD a, DWORD b);
 KEXPORT void _LogWithThreeNumbers(KMOD *caller, const wchar_t* msg, DWORD a, DWORD b, DWORD c);
+KEXPORT void _LogWithFourNumbers(KMOD *caller, const wchar_t* msg, DWORD a, DWORD b, DWORD c, DWORD d);
 KEXPORT void _LogWithString(KMOD *caller, const wchar_t* msg, const wchar_t* str);
 KEXPORT void _LogWithTwoStrings(KMOD *caller, const wchar_t* msg, const wchar_t* a, const wchar_t* b);
 KEXPORT void _LogWithNumberAndString(KMOD *caller, const wchar_t *msg, DWORD a, const wchar_t* b);
