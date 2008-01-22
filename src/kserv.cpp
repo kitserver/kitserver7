@@ -2106,6 +2106,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         KDrawText(wbuf, 202, 5, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 202, 7, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 200, 5, COLOR_CHOSEN, 30.0f);
+        gdb->loadConfig(g_iterHomePL->second);
         if (g_iterHomePL->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterHomePL->second.mainColor;
@@ -2143,6 +2144,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         KDrawText(wbuf, 202, 33, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 202, 35, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 200, 33, COLOR_CHOSEN, 30.0f);
+        gdb->loadConfig(g_iterHomeGK->second);
         if (g_iterHomeGK->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterHomeGK->second.mainColor;
@@ -2180,6 +2182,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         KDrawText(wbuf, 602, 5, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 602, 7, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 600, 5, COLOR_CHOSEN, 30.0f);
+        gdb->loadConfig(g_iterAwayPL->second);
         if (g_iterAwayPL->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterAwayPL->second.mainColor;
@@ -2217,6 +2220,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         KDrawText(wbuf, 602, 33, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 602, 35, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 600, 33, COLOR_CHOSEN, 30.0f);
+        gdb->loadConfig(g_iterAwayGK->second);
         if (g_iterAwayGK->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterAwayGK->second.mainColor;
