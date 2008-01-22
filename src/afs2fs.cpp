@@ -48,8 +48,9 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     IDirect3DDevice9** ppReturnedDeviceInterface);
 
 void afsBeforeProcessBinCallPoint();
+void afsAfterGetBinBufferSizeCallPoint();
 KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize);
-KEXPORT DWORD afsGetBinSize(DWORD afsId, DWORD binId);
+KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize);
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 
@@ -94,7 +95,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 	
 	unhookFunction(hk_D3D_CreateDevice, initModule);
 
-    MasterHookFunction(code[C_GET_BINSIZE], 2, afsGetBinSize);
+    HookCallPoint(code[C_AFTER_GET_BINBUFFERSIZE], afsAfterGetBinBufferSizeCallPoint, 6, 1);
     
     g_processBin = GetTargetAddress(code[C_PROCESS_BIN]);
     HookCallPoint(code[C_PROCESS_BIN], afsBeforeProcessBinCallPoint, 6, 0);
@@ -161,15 +162,48 @@ bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
     return false;
 }
 
-KEXPORT DWORD afsGetBinSize(DWORD afsId, DWORD binId)
+void afsAfterGetBinBufferSizeCallPoint()
 {
+    __asm {
+        // IMPORTANT: when saving flags, use pusfd/popfd, because Windows
+        // apparently checks for stack alignment and bad things happen, if it's not
+        // DWORD-aligned. (For example, all file operations fail!)
+        pushfd 
+        push ebp
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push eax // org-size
+        push ecx 
+        call afsAfterGetBinBufferSize
+        add esp,8     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop ebp
+        popfd
+        mov edi,eax // execute replaced code
+        mov ecx,edi
+        or ecx,edx
+        retn
+    }
+}
+
+KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
+{
+    DWORD result = orgSize;
+
     // check for a file
     wchar_t filename[1024] = {0};
-    if (afsId < 7)
+    if (gbss->afsId < 7)
         swprintf(filename,L"%s\\%s\\unnamed_%d.bin",
                 getPesInfo()->myDir,
-                g_afsDirs[afsId],
-                binId);
+                g_afsDirs[gbss->afsId],
+                gbss->binId);
 
     HANDLE hfile;
     DWORD fsize = 0;
@@ -177,16 +211,13 @@ KEXPORT DWORD afsGetBinSize(DWORD afsId, DWORD binId)
     {
         EnterCriticalSection(&g_csRead);
         DWORD threadId = GetCurrentThreadId();
-        BIN_SIZE_INFO* pBinSizeInfo = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
-        LOG4N(L"afsGetBinSize:: thread %d: afsId=%d, binId=%d, size=%08x",
-                threadId, afsId, binId, pBinSizeInfo->sizes[binId]);
         hash_map<DWORD,READ_BIN_STRUCT>::iterator it = g_read_bins.find(threadId);
         if (it == g_read_bins.end())
         {
             // insert new entry
             READ_BIN_STRUCT rbs;
-            rbs.afsId = afsId;
-            rbs.binId = binId;
+            rbs.afsId = gbss->afsId;
+            rbs.binId = gbss->binId;
             rbs.hfile = hfile;
             rbs.fsize = fsize;
             g_read_bins.insert(pair<DWORD,READ_BIN_STRUCT>(threadId,rbs));
@@ -194,32 +225,22 @@ KEXPORT DWORD afsGetBinSize(DWORD afsId, DWORD binId)
         else
         {
             // update entry (shouldn't happen, really)
-            it->second.afsId = afsId; 
-            it->second.binId = binId; 
+            it->second.afsId = gbss->afsId; 
+            it->second.binId = gbss->binId; 
 
             CloseHandle(it->second.hfile);
             it->second.hfile = hfile;
         }
         LeaveCriticalSection(&g_csRead);
 
-        // for BIN replacement:
-        // This is the time-point #1, where you'll need to modify the binSizes table
-        // IMPORTANT: NEVER DECREASE THE SIZE, ONLY INCREASE, if your bin is bigger,
-        // otherwise, leave unmodified.
-        // You will then be able to replace the content of unpacked bin, in afsBeforeProcessBin
-
-        BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
-        DWORD* bs = (DWORD*)&pBST->sizes;
-
+        // modify BIN buffer size
+        // IMPORTANT: don't decrease: only increase.
         DWORD bytesRead(0);
         PACKED_BIN_HEADER hdr;
         ReadFile(hfile, &hdr, sizeof(PACKED_BIN_HEADER), &bytesRead, 0);
-        if (hdr.sizePacked + sizeof(PACKED_BIN_HEADER) > bs[binId])
-            bs[binId] = hdr.sizePacked + sizeof(PACKED_BIN_HEADER);
+        DWORD newSize = hdr.sizePacked + sizeof(PACKED_BIN_HEADER) + (0x800 - hdr.sizePacked % 0x800);
+        result = max(orgSize, newSize);
     }
-
-    // call original
-    DWORD result = MasterCallNext(afsId, binId);
     return result;
 }
 
@@ -262,7 +283,7 @@ KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize)
     hash_map<DWORD,READ_BIN_STRUCT>::iterator bit = g_read_bins.find(threadId);
     if (bit != g_read_bins.end())
     {
-        LOG4N(L"afsBeforeProcessBin:: thread %d, afsId=%d, binId=%d, bin at %08x",
+        TRACE4N(L"afsBeforeProcessBin:: thread %d, afsId=%d, binId=%d, bin at %08x",
                 bit->first,
                 bit->second.afsId,
                 bit->second.binId,
@@ -271,20 +292,22 @@ KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize)
         // for BIN replacement:
         // Here's the time-point #2, where you can replace the 
         // the contents of the BIN, which is yet to be processed. So, if you
-        // modified the binSize in afsGetBinSize(), then you'll have enough
+        // modified the bin-size in afsAfterGetBinBufferSize(), then you'll have enough
         // memory to replace the packed BIN content with your content.
-
-        BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[bit->second.afsId];
-        DWORD* bs = (DWORD*)&pBST->sizes;
-
         DWORD bytesRead(0);
         SetFilePointer(bit->second.hfile, 0, NULL, FILE_BEGIN);
-        if (!ReadFile(bit->second.hfile, bin, bit->second.fsize, &bytesRead, 0))
-            LOG3N(L"afsBeforeProcessBin:: ERROR loading file for afsId=%d, binId=%d. Error=%d",
+        if (ReadFile(bit->second.hfile, bin, bit->second.fsize, &bytesRead, 0))
+        {
+            LOG2N(L"Loaded BIN for afsId=%d, binId=%d.", 
+                    bit->second.afsId, bit->second.binId);
+        }
+        else
+        {
+            LOG3N(L"ERROR loading file for afsId=%d, binId=%d. Error=%d",
                     bit->second.afsId,
                     bit->second.binId,
-                    GetLastError()
-                 );
+                    GetLastError());
+        }
         CloseHandle(bit->second.hfile);
         g_read_bins.erase(bit);
     }

@@ -8,7 +8,7 @@ BYTE allowedGames[] = {
 
 #define CODELEN 2
 enum {
-    C_GET_BINSIZE, C_PROCESS_BIN,
+    C_AFTER_GET_BINBUFFERSIZE, C_PROCESS_BIN,
 };
 
 #define NOCODEADDR {0,0},
@@ -33,7 +33,7 @@ DWORD codeArray[][CODELEN] = {
     NOCODEADDR
     // PES2008 1.20
     {
-        0xa5ffeb, 0xa8a7ba,
+        0xa8a5a0, 0xa8a7ba,
     },
 };
 

@@ -3,7 +3,7 @@
 #include "afsreader.h"
 
 #define MODID 100
-#define NAMELONG L"AFS2FS Module 7.1.0.0"
+#define NAMELONG L"AFS2FS Module 7.1.0.1"
 #define NAMESHORT L"AFS2FS"
 #define DEFAULT_DEBUG 0
 
@@ -25,3 +25,9 @@ typedef struct _BIN_SIZE_INFO
     DWORD sizes[1];
 } BIN_SIZE_INFO;
 
+typedef struct _GET_BIN_SIZE_STRUCT
+{
+    BYTE unknown1[0x0c];
+    DWORD afsId;
+    DWORD binId;
+} GET_BIN_SIZE_STRUCT;
