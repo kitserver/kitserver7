@@ -4,9 +4,11 @@
 
 #include <windows.h>
 #include <windef.h>
-#include <string.h>
 #include <stdio.h>
 #include "utf8.h"
+
+#include <map>
+#include <string>
 
 #define DLL_NAME "kload\0"
 #define DLL_NAME_SET "kset\0"
@@ -41,6 +43,10 @@ DWORD LoadLibraryAddr[] = {
 	0x7c5768fb,   // Win2K 
 };
 
+bool InstallKserv();
+bool InstallKserv(wstring& gfile, wstring& sfile, wstring& outs, const bool quiet=true);
+bool RemoveKserv();
+bool RemoveKserv(wstring& gfile, wstring& sfile, wstring& outs, const bool quiet=true);
 void MyMessageBox(wchar_t* fmt, DWORD value);
 void MyMessageBox2(wchar_t* fmt, wchar_t* value);
 void UpdateInfo(void);
@@ -78,8 +84,34 @@ void setupConfig(char* pName, const void* pValue, DWORD a) {
 /**
  * Installs the kitserver DLL.
  */
-void InstallKserv(void)
+bool InstallKserv()
 {
+    wchar_t fileName[2][BUFLEN];
+
+	for (int i=0; i<2; i++) {
+		HWND listControl = (i==0)?g_exeListControl:g_setListControl;
+
+		ZeroMemory(fileName[i], WBUFLEN);
+		wcscpy(fileName[i], L"..\\");
+		wchar_t* p = fileName[i] + lstrlen(fileName[i]);
+
+        // get currently selected item and its text
+		int idx = (int)SendMessage(listControl, CB_GETCURSEL, 0, 0);
+        if (idx==0) wcscpy(fileName[i],L"");
+        else SendMessage(listControl, CB_GETLBTEXT, idx, (LPARAM)p);
+    }
+	
+    wstring outs;
+    return InstallKserv(wstring(fileName[0]), wstring(fileName[1]), outs, false);
+}
+
+/**
+ * Installs the kitserver DLL.
+ */
+bool InstallKserv(wstring& gfile, wstring& sfile, wstring& outs, const bool quiet)
+{
+    bool result = true;
+
 	// disable buttons, 'cause it may take some time
 	EnableWindow(g_installButtonControl, FALSE);
 	EnableWindow(g_removeButtonControl, FALSE);
@@ -91,18 +123,11 @@ void InstallKserv(void)
 		HWND listControl = (i==0)?g_exeListControl:g_setListControl;
 		wcscat(outmsg, (i==0)?L">>> Game EXE:\n":L"\n\n>>> Settings EXE:\n");
 
-		wchar_t fileName[BUFLEN];
-		ZeroMemory(fileName, WBUFLEN);
-		wcscpy(fileName, L"..\\");
-		wchar_t* p = fileName + lstrlen(fileName);
-	
-		// get currently selected item and its text
-		int idx = (int)SendMessage(listControl, CB_GETCURSEL, 0, 0);
-		if (idx == 0) {
-			wcscat(outmsg, lang("NoActionRequired"));
-			continue;
-		}
-		SendMessage(listControl, CB_GETLBTEXT, idx, (LPARAM)p);
+		wchar_t* fileName = (wchar_t*)((i==0)?gfile.c_str():sfile.c_str());
+        if (wcslen(fileName)==0) {
+            wcscat(outmsg, lang("NoActionRequired"));
+            continue;
+        }
 	
 		// check if it's a recognizable EXE-file
 		if (GetRealGameVersion(fileName) == -1)
@@ -113,16 +138,20 @@ void InstallKserv(void)
 			swprintf(buf, lang("Err_UnknownExe"), fileName);
 	
 			wcscat(outmsg, buf);
+            result = false;
 			continue;
 		}
 		
 		if (isRealGame(GetRealGameVersion(fileName)) != (i==0)) {
 			wchar_t buf[BUFLEN];
 			ZeroMemory(buf, WBUFLEN);
-			swprintf(buf, lang("Err_WrongExeType"), fileName, (i==0)?lang("ParamSettings"):lang("ParamGame"),
-																														(i==0)?lang("ParamGame"):lang("ParamSettings"));
-			
+			swprintf(buf, lang("Err_WrongExeType"), 
+                    fileName, 
+                    (i==0)?lang("ParamSettings"):lang("ParamGame"),
+                    (i==0)?lang("ParamGame"):lang("ParamSettings")
+                    );
 			wcscat(outmsg, buf);
+            result = false;
 			continue;
 		}
 	
@@ -160,6 +189,7 @@ Couldn't find LoadLibraryA in\n\
 %s.", fileName);
 
 				wcscat(outmsg, buf);
+                result = false;
 				continue;
 			}
 			
@@ -205,8 +235,8 @@ Couldn't find LoadLibraryA in\n\
 				dataVA -= 0x20;
 			}
 	
-			MyMessageBox(L"dataOffset = %08x", dataOffset);
-			MyMessageBox(L"dataVA = %08x", dataVA);
+			if (!quiet) MyMessageBox(L"dataOffset = %08x", dataOffset);
+			if (!quiet) MyMessageBox(L"dataVA = %08x", dataVA);
 	
 			if (dataOffset != 0) {
 				// at the found empty place, write the LoadLibrary address, 
@@ -286,11 +316,12 @@ KitServer 7 is already installed (1) for\n\
 				codeOffset -= 0x20;
 				codeVA -= 0x20;
 			} else {
-	            MyMessageBox(L"section header for '.text' not found", 0);
+	            if (!quiet) MyMessageBox(L"section header for '.text' not found", 0);
+                result = false;
 	        }
 	
-			MyMessageBox(L"codeOffset = %08x", codeOffset);
-			MyMessageBox(L"codeVA = %08x", codeVA);
+			if (!quiet) MyMessageBox(L"codeOffset = %08x", codeOffset);
+			if (!quiet) MyMessageBox(L"codeVA = %08x", codeVA);
 	
 			if (codeOffset != 0) {
 				// at the found place, write the new entry point logic
@@ -375,6 +406,7 @@ Verify that the executable is not\n\
 READ-ONLY, and try again.", fileName);
 	
 			wcscat(outmsg, buf);
+            result = false;
 			continue;
 		}
 		
@@ -382,14 +414,42 @@ READ-ONLY, and try again.", fileName);
 	
 	UpdateInfo();
 	
-	MessageBox(hWnd, outmsg, lang("MsgTitle"), 0);	
+	if (!quiet) MessageBox(hWnd, outmsg, lang("MsgTitle"), 0);	
+    outs += outmsg;
+    return result;
 }
 
 /**
  * Uninstalls the kitserver DLL.
  */
-void RemoveKserv(void)
+bool RemoveKserv()
 {
+    wchar_t fileName[2][BUFLEN];
+
+	for (int i=0; i<2; i++) {
+		HWND listControl = (i==0)?g_exeListControl:g_setListControl;
+
+		ZeroMemory(fileName[i], WBUFLEN);
+		wcscpy(fileName[i], L"..\\");
+		wchar_t* p = fileName[i] + lstrlen(fileName[i]);
+	
+		// get currently selected item and its text
+		int idx = (int)SendMessage(listControl, CB_GETCURSEL, 0, 0);
+        if (idx==0) wcscpy(fileName[i],L"");
+        else SendMessage(listControl, CB_GETLBTEXT, idx, (LPARAM)p);
+    }
+
+    wstring outs;
+    return RemoveKserv(wstring(fileName[0]), wstring(fileName[1]), outs, false);
+}
+
+/**
+ * Uninstalls the kitserver DLL.
+ */
+bool RemoveKserv(wstring& gfile, wstring& sfile, wstring& outs, const bool quiet)
+{
+    bool result = true;
+
 	// disable buttons, 'cause it may take some time
 	EnableWindow(g_installButtonControl, FALSE);
 	EnableWindow(g_removeButtonControl, FALSE);
@@ -401,19 +461,12 @@ void RemoveKserv(void)
 		HWND listControl = (i==0)?g_exeListControl:g_setListControl;
 		wcscat(outmsg, (i==0)?L">>> Game EXE:\n":L"\n\n>>> Settings EXE:\n");
 
-		wchar_t fileName[BUFLEN];
-		ZeroMemory(fileName, WBUFLEN);
-		wcscpy(fileName, L"..\\");
-		wchar_t* p = fileName + lstrlen(fileName);
-	
-		// get currently selected item and its text
-		int idx = (int)SendMessage(listControl, CB_GETCURSEL, 0, 0);
-		if (idx == 0) {
-			wcscat(outmsg, lang("NoActionRequired"));
-			continue;
-		}
-		SendMessage(listControl, CB_GETLBTEXT, idx, (LPARAM)p);
-	
+		wchar_t* fileName = (wchar_t*)((i==0)?gfile.c_str():sfile.c_str());
+        if (wcslen(fileName)==0) {
+            wcscat(outmsg, lang("NoActionRequired"));
+            continue;
+        }
+
 		DWORD ep, ib;
 		DWORD dataOffset, dataVA;
 		DWORD codeOffset, codeVA;
@@ -452,8 +505,8 @@ void RemoveKserv(void)
 				dataVA -= 0x20;
 			}
 	
-			MyMessageBox(L"dataOffset = %08x", dataOffset);
-			MyMessageBox(L"dataVA = %08x", dataVA);
+			if (!quiet) MyMessageBox(L"dataOffset = %08x", dataOffset);
+			if (!quiet) MyMessageBox(L"dataVA = %08x", dataVA);
 	
 			if (dataOffset != 0) {
 				// if already installed, this location should contain
@@ -509,8 +562,8 @@ KitServer 7 is not installed for\n\
 				codeVA -= 0x20;
 			}
 	
-			MyMessageBox(L"codeOffset = %08x", codeOffset);
-			MyMessageBox(L"codeVA = %08x", codeVA);
+			if (!quiet) MyMessageBox(L"codeOffset = %08x", codeOffset);
+			if (!quiet) MyMessageBox(L"codeVA = %08x", codeVA);
 	
 			if (codeOffset != 0) {
 				// if installed, this should have the new entry point logic
@@ -576,13 +629,16 @@ Verify that the executable is not\n\
 READ-ONLY, and try again.", fileName);
 	
 			wcscat(outmsg, buf);
+            result = false;
 			continue;
 		}
 	}
 	
 	UpdateInfo();
 	
-	MessageBox(hWnd, outmsg, lang("MsgTitle"), 0);	
+	if (!quiet) MessageBox(hWnd, outmsg, lang("MsgTitle"), 0);	
+    outs += outmsg;
+    return result;
 }
 
 /**
@@ -994,6 +1050,24 @@ void ReadPatchInfo()
 	return;
 }
 
+/**
+ * parse cmd-line into a map of name/value pairs
+ */
+void parseCmdLine(map<wstring,wstring>& params, int first=1)
+{
+    int argc = 0;
+    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    for (int i=first; i<argc; i++)
+    {
+        wstring arg(argv[i]);
+        int sep = arg.find('=');
+        if (sep != string::npos) 
+            params.insert(pair<wstring,wstring>(arg.substr(0,sep),arg.substr(sep+1)));
+        else
+            params.insert(pair<wstring,wstring>(arg,L""));
+    }
+}
+
 int APIENTRY WinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
                      LPSTR     lpCmdLine,
@@ -1030,6 +1104,52 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	
 	//Look for information of a patch
 	ReadPatchInfo();
+
+    // cmd-line interface
+    if (strcmp(lpCmdLine,"")!=0)
+    {
+        FILE* f = fopen("setup.log","wt");
+        if (f) {
+            map<wstring,wstring> params;
+            parseCmdLine(params);
+
+            if (params.find(L"--install") != params.end())
+            {
+                // install
+                wstring gfile, sfile;
+                map<wstring,wstring>::iterator mit;
+                mit = params.find(L"--gfile");
+                if (mit != params.end()) gfile = mit->second;
+                mit = params.find(L"--sfile");
+                if (mit != params.end()) sfile = mit->second;
+
+                wstring outs;
+                bool result = InstallKserv(gfile,sfile,outs);
+                fwprintf(f,L"%s\n",outs.c_str());
+                fclose(f);
+
+                exit(result?0:1);
+            }
+            else if (params.find(L"--remove") != params.end())
+            {
+                // remove
+                wstring gfile, sfile;
+                map<wstring,wstring>::iterator mit;
+                mit = params.find(L"--gfile");
+                if (mit != params.end()) gfile = mit->second;
+                mit = params.find(L"--sfile");
+                if (mit != params.end()) sfile = mit->second;
+
+                wstring outs;
+                bool result = RemoveKserv(gfile,sfile,outs);
+                fwprintf(f,L"%s\n",outs.c_str());
+                fclose(f);
+
+                exit(result?0:1);
+            }
+        }
+        return 1;
+    }
 
 	hWnd = BuildWindow(nCmdShow);
 	if(hWnd == NULL)
