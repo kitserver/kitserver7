@@ -13,14 +13,9 @@ typedef struct _READ_BIN_STRUCT
 {
     DWORD afsId;
     DWORD binId;
+    HANDLE hfile;
+    DWORD fsize;
 } READ_BIN_STRUCT;
-
-typedef struct _LOAD_BIN_STRUCT
-{
-    BYTE unknown1[0x0c];
-    DWORD afsId;
-    DWORD binId;
-} LOAD_BIN_STRUCT;
 
 typedef struct _BIN_SIZE_INFO
 {
