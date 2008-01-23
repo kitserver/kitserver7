@@ -91,20 +91,20 @@ void InitializeFileNameCache()
 {
     LOG(L"Initializing filename cache...");
 
-    g_maxItems.insert(pair<wstring,int>(L"img\\cs.img",   CS_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\cv_0.img", CV_0_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\cv_1.img", CV_1_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rs_e.img", RS_E_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rs_f.img", RS_F_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rs_g.img", RS_G_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rs_i.img", RS_I_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rs_s.img", RS_S_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rv_e.img", RV_E_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rv_f.img", RV_F_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rv_g.img", RV_G_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rv_i.img", RV_I_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rv_q.img", RV_Q_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L"img\\rv_s.img", RV_S_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\cs.img",   CS_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\cv_0.img", CV_0_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\cv_1.img", CV_1_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_e.img", RS_E_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_f.img", RS_F_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_g.img", RS_G_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_i.img", RS_I_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_s.img", RS_S_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_e.img", RV_E_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_f.img", RV_F_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_g.img", RV_G_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_i.img", RV_I_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_q.img", RV_Q_NUM_ITEMS));
+    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_s.img", RV_S_NUM_ITEMS));
 
 	WIN32_FIND_DATA fData;
     wstring pattern(getPesInfo()->myDir);
