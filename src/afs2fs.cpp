@@ -124,7 +124,7 @@ void InitializeFileNameCache()
             wstring folder(L".\\img\\");
             folder += fData.cFileName;
             wstring folderpattern(getPesInfo()->myDir);
-            folderpattern += folder + L"\\*.bin";
+            folderpattern += folder + L"\\*";
 
             char* key_c = Utf8::unicodeToAnsi(folder.c_str());
             string key(key_c);
