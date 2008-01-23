@@ -20,7 +20,10 @@ BEGIN
 			VALUE "FileDescription", "AFS2FS Module\0"
 			VALUE "FileVersion", "7.1.0.6\0"
 			VALUE "LegalCopyright", "Copyright © 2005-2008 Juce, Robbie\0"
-			VALUE "Comments", "AFS2FS Module. \0"
+			VALUE "Comments", "AFS2FS Module.\r\n\
+This module allows to organize BIN-files into a simple directory \
+structure, instead of inserting them directly into AFS (*.img) files. \
+So you don't need to worry about managing space or rebuilding AFS.\0"
 		END
 	END
 	BLOCK "VarFileInfo"
