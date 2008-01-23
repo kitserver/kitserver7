@@ -3,7 +3,7 @@
 #include "afsreader.h"
 
 #define MODID 100
-#define NAMELONG L"AFS2FS Module 7.1.0.4"
+#define NAMELONG L"AFS2FS Module 7.1.0.6"
 #define NAMESHORT L"AFS2FS"
 #define DEFAULT_DEBUG 0
 

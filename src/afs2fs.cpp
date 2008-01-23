@@ -70,7 +70,7 @@ void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 
 wchar_t* GetBinFileName(DWORD afsId, DWORD binId)
 {
-    if (afsId < 0 || 4 < afsId) return false;
+    if (afsId < 0 || 7 < afsId) return false;
     BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
     hash_map<string,wchar_t*>::iterator it = info_cache.find(pBST->relativePathName);
     if (it != info_cache.end())
@@ -119,7 +119,8 @@ void InitializeFileNameCache()
 	while(true)
 	{
         // check if this is a directory
-        if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
             WIN32_FIND_DATA fData1;
             wstring folder(L".\\img\\");
             folder += fData.cFileName;
@@ -368,11 +369,10 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
         LeaveCriticalSection(&g_csRead);
 
         // modify BIN buffer size
-        // IMPORTANT: don't decrease: only increase.
-        DWORD bytesRead(0);
-        PACKED_BIN_HEADER hdr;
-        ReadFile(hfile, &hdr, sizeof(PACKED_BIN_HEADER), &bytesRead, 0);
-        DWORD newSize = hdr.sizePacked + sizeof(PACKED_BIN_HEADER) + (0x800 - hdr.sizePacked % 0x800);
+        // IMPORTANT: don't decrease: only increase, because the game
+        // will still load a BIN from AFS, which we will then replace later.
+        DWORD newSize = fsize + 0x800 - fsize % 0x800;
+        TRACE3N(L"binId=%08x, orgSize=%0x, newSize=%0x", gbss->binId, orgSize, newSize);
         result = max(orgSize, newSize);
     }
     return result;
@@ -428,18 +428,28 @@ KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize)
         // the contents of the BIN, which is yet to be processed. So, if you
         // modified the bin-size in afsAfterGetBinBufferSize(), then you'll have enough
         // memory to replace the packed BIN content with your content.
-        DWORD bytesRead(0);
-        SetFilePointer(bit->second.hfile, 0, NULL, FILE_BEGIN);
-        if (ReadFile(bit->second.hfile, bin, bit->second.fsize, &bytesRead, 0))
-        {
-            LOG2N(L"Loaded BIN for afsId=%d, binId=%d.", 
-                    bit->second.afsId, bit->second.binId);
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_READWRITE;
+	    if (VirtualProtect(bin, bit->second.fsize, newProtection, &protection)) {
+            DWORD bytesRead(0);
+            if (ReadFile(bit->second.hfile, bin, bit->second.fsize, &bytesRead, 0))
+            {
+                LOG2N(L"Loaded BIN for afsId=%d, binId=%d.", 
+                        bit->second.afsId, bit->second.binId);
+            }
+            else
+            {
+                LOG3N(L"ERROR loading file for afsId=%d, binId=%d. Error=%d",
+                        bit->second.afsId,
+                        bit->second.binId,
+                        GetLastError());
+            }
         }
         else
         {
-            LOG3N(L"ERROR loading file for afsId=%d, binId=%d. Error=%d",
-                    bit->second.afsId,
-                    bit->second.binId,
+            LOG3N(L"ERROR: VirtualProtect failed for addr=%08x, size=%08x. Error=%d",
+                    (DWORD)bin,
+                    bit->second.fsize,
                     GetLastError());
         }
         CloseHandle(bit->second.hfile);
