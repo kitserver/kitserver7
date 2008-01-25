@@ -50,7 +50,7 @@ pngdib:
 	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
 dlls: kload.dll kserv.dll lodmixer.dll kset.dll afs2fs.dll
-apps: setup.exe lodcfg.exe
+apps: setup.exe lodcfg.exe zlibtool.exe
 
 release:
 	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD MYDLL_RELEASE_BUILD=1
@@ -114,6 +114,10 @@ lodcfg.obj: lodcfg.cpp lodcfg.h lodcfgui.h
 lodcfgui.obj: lodcfgui.cpp lodcfgui.h
 lodcfg.exe: lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj
 	$(LINK) $(LFLAGS) /out:lodcfg.exe lodcfg.obj detect.obj lodcfgui.obj imageutil.obj configs.obj $(LIBS)
+
+zlibtool.obj: zlibtool.cpp
+zlibtool.exe: zlibtool.obj 
+	$(LINK) $(LFLAGS) /out:zlibtool.exe zlibtool.obj /LIBPATH:$(LPZLIB) $(LIBS) zdll.lib
 
 .cpp.obj:
 	$(CC) $(CFLAGS) -c $(INC) /I $(INCPNGDIB) $<
