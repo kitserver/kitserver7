@@ -4,6 +4,7 @@
 
 #include <windows.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include "kload_exp.h"
 #include "afs2fs.h"
 #include "afs2fs_addr.h"
@@ -30,6 +31,7 @@ KMOD k_kafs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 CRITICAL_SECTION g_csRead;
 hash_map<DWORD,READ_BIN_STRUCT> g_read_bins;
 DWORD g_processBin = 0;
+bool _filesWIN32 = true;
 
 // cache
 #define CS_NUM_ITEMS 591
@@ -62,9 +64,10 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 void afsBeforeProcessBinCallPoint();
 void afsAfterGetBinBufferSizeCallPoint();
 KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize);
-KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize);
+KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize, BYTE* pStaticAlloc);
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
+void afsConfig(char* pName, const void* pValue, DWORD a);
 
 // FUNCTION POINTERS
 
@@ -206,12 +209,10 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	{
         // destroy critical sections
         DeleteCriticalSection(&g_csRead);
-
-        HANDLE heap = GetProcessHeap();
         for (hash_map<string,wchar_t*>::iterator it = info_cache.begin(); 
                 it != info_cache.end();
                 it++)
-            if (it->second) HeapFree(it->second, 0, heap);
+            if (it->second) HeapFree(it->second, 0, GetProcessHeap());
 	}
 	
 	return true;
@@ -231,8 +232,20 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     g_processBin = GetTargetAddress(code[C_PROCESS_BIN]);
     HookCallPoint(code[C_PROCESS_BIN], afsBeforeProcessBinCallPoint, 6, 0);
 
+    getConfig("afs2fs", "files.win32", DT_DWORD, 1, afsConfig);
+    LOG1N(L"files.win32 = %d",_filesWIN32);
+
 	TRACE(L"Hooking done.");
     return D3D_OK;
+}
+
+void afsConfig(char* pName, const void* pValue, DWORD a)
+{
+	switch (a) {
+		case 1:	// files.win32
+			_filesWIN32 = *(DWORD*)pValue == 1;
+			break;
+	}
 }
 
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
@@ -277,18 +290,33 @@ DWORD GetTargetAddress(DWORD addr)
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
 {
     TRACE1S(L"FileExists:: Checking file: %s", filename);
-    handle = CreateFile(filename,           // file to open
-                       GENERIC_READ,          // open for reading
-                       FILE_SHARE_READ,       // share for reading
-                       NULL,                  // default security
-                       OPEN_EXISTING,         // existing file only
-                       FILE_ATTRIBUTE_NORMAL, // normal file
-                       NULL);                 // no attr. template
-
-    if (handle != INVALID_HANDLE_VALUE)
+    if (_filesWIN32)
     {
-        size = GetFileSize(handle,NULL);
-        return true;
+        handle = CreateFile(filename,           // file to open
+                           GENERIC_READ,          // open for reading
+                           FILE_SHARE_READ,       // share for reading
+                           NULL,                  // default security
+                           OPEN_EXISTING,         // existing file only
+                           FILE_ATTRIBUTE_NORMAL, // normal file
+                           NULL);                 // no attr. template
+
+        if (handle != INVALID_HANDLE_VALUE)
+        {
+            size = GetFileSize(handle,NULL);
+            return true;
+        }
+    }
+    else
+    {
+        FILE* f = _wfopen(filename,L"rb");
+        if (f)
+        {
+            struct stat st;
+            fstat(fileno(f), &st);
+            handle = (HANDLE)f;
+            size = st.st_size;
+            return true;
+        }
     }
     return false;
 }
@@ -306,10 +334,11 @@ void afsAfterGetBinBufferSizeCallPoint()
         push edx
         push esi
         push edi
+        push esi // pointer to some structure, which contains static/dynamic alloc flags
         push eax // org-size
         push ecx 
         call afsAfterGetBinBufferSize
-        add esp,8     // pop parameters
+        add esp,0x0c     // pop parameters
         pop edi
         pop esi
         pop edx
@@ -324,7 +353,7 @@ void afsAfterGetBinBufferSizeCallPoint()
     }
 }
 
-KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
+KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize, BYTE* pStaticAlloc)
 {
     DWORD result = orgSize;
 
@@ -355,6 +384,9 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
             rbs.binId = gbss->binId;
             rbs.hfile = hfile;
             rbs.fsize = fsize;
+            //rbs.esi = (DWORD)pStaticAlloc;
+            //rbs.orgA1 = pStaticAlloc[0xa1];
+            //rbs.orgA4 = pStaticAlloc[0xa4];
             g_read_bins.insert(pair<DWORD,READ_BIN_STRUCT>(threadId,rbs));
         }
         else
@@ -365,6 +397,7 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
 
             CloseHandle(it->second.hfile);
             it->second.hfile = hfile;
+            it->second.fsize = fsize;
         }
         LeaveCriticalSection(&g_csRead);
 
@@ -374,6 +407,11 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
         DWORD newSize = fsize + 0x800 - fsize % 0x800;
         TRACE3N(L"binId=%08x, orgSize=%0x, newSize=%0x", gbss->binId, orgSize, newSize);
         result = max(orgSize, newSize);
+
+        // reset static allocation indicator
+        //pStaticAlloc[0xa1] = 0;
+        //pStaticAlloc[0xa4] = 0;
+        //*(DWORD*)(pStaticAlloc+0x18) = 0;
     }
     return result;
 }
@@ -423,14 +461,19 @@ KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize)
                 bit->second.binId,
                 (DWORD)bin
              );
+        // restore alloc flags
+        //BYTE* pStaticAlloc = (BYTE*)bit->second.esi;
+        //*(DWORD*)(pStaticAlloc+0x18) = (DWORD)bin;
+        //pStaticAlloc[0xa1] = bit->second.orgA1;
+        //pStaticAlloc[0xa4] = bit->second.orgA4;
+
         // for BIN replacement:
         // Here's the time-point #2, where you can replace the 
         // the contents of the BIN, which is yet to be processed. So, if you
         // modified the bin-size in afsAfterGetBinBufferSize(), then you'll have enough
         // memory to replace the packed BIN content with your content.
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_READWRITE;
-	    if (VirtualProtect(bin, bit->second.fsize, newProtection, &protection)) {
+        if (_filesWIN32)
+        {
             DWORD bytesRead(0);
             if (ReadFile(bit->second.hfile, bin, bit->second.fsize, &bytesRead, 0))
             {
@@ -439,20 +482,37 @@ KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize)
             }
             else
             {
-                LOG3N(L"ERROR loading file for afsId=%d, binId=%d. Error=%d",
-                        bit->second.afsId,
-                        bit->second.binId,
+                LOG3N(L"ERROR: ReadFile failed for addr=%08x, size=%08d. Error=%d",
+                        (DWORD)bin,
+                        bit->second.fsize,
                         GetLastError());
+                LOG2N(L"FAILED to load bin for afsId=%d, binId=%d.",
+                        bit->second.afsId,
+                        bit->second.binId);
             }
+            CloseHandle(bit->second.hfile);
         }
         else
         {
-            LOG3N(L"ERROR: VirtualProtect failed for addr=%08x, size=%08x. Error=%d",
-                    (DWORD)bin,
-                    bit->second.fsize,
-                    GetLastError());
+            FILE* f = (FILE*)bit->second.hfile;
+            fread(bin, bit->second.fsize, 1, f);
+            if (ferror(f)==0)
+            {
+                LOG2N(L"Loaded BIN for afsId=%d, binId=%d.", 
+                        bit->second.afsId, bit->second.binId);
+            }
+            else
+            {
+                LOG3N(L"ERROR: fread failed for addr=%08x, size=%08d. Error=%d",
+                        (DWORD)bin,
+                        bit->second.fsize,
+                        errno);
+                LOG2N(L"FAILED to load bin for afsId=%d, binId=%d.",
+                        bit->second.afsId,
+                        bit->second.binId);
+            }
+            fclose(f);
         }
-        CloseHandle(bit->second.hfile);
         g_read_bins.erase(bit);
     }
     LeaveCriticalSection(&g_csRead);
