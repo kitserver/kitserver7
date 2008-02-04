@@ -34,21 +34,6 @@ DWORD g_processBin = 0;
 bool _filesWIN32 = true;
 
 // cache
-#define CS_NUM_ITEMS 591
-#define CV_0_NUM_ITEMS 8094
-#define CV_1_NUM_ITEMS 726
-#define RS_E_NUM_ITEMS 10609
-#define RS_F_NUM_ITEMS 9881
-#define RS_G_NUM_ITEMS 9908
-#define RS_I_NUM_ITEMS 9923
-#define RS_S_NUM_ITEMS 9881
-#define RV_E_NUM_ITEMS 111
-#define RV_F_NUM_ITEMS 111
-#define RV_G_NUM_ITEMS 111
-#define RV_I_NUM_ITEMS 111
-#define RV_Q_NUM_ITEMS 111
-#define RV_S_NUM_ITEMS 111
-
 #define FILENAMELEN 64
 #define MAX_ITEMS 10609
 
@@ -94,26 +79,57 @@ void InitializeFileNameCache()
 {
     LOG(L"Initializing filename cache...");
 
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\cs.img",   CS_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\cv_0.img", CV_0_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\cv_1.img", CV_1_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_e.img", RS_E_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_f.img", RS_F_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_g.img", RS_G_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_i.img", RS_I_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rs_s.img", RS_S_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_e.img", RV_E_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_f.img", RV_F_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_g.img", RV_G_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_i.img", RV_I_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_q.img", RV_Q_NUM_ITEMS));
-    g_maxItems.insert(pair<wstring,int>(L".\\img\\rv_s.img", RV_S_NUM_ITEMS));
-
 	WIN32_FIND_DATA fData;
-    wstring pattern(getPesInfo()->myDir);
+    wstring pattern(getPesInfo()->pesDir);
     pattern += L"img\\*.img";
 
 	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
+	if (hff == INVALID_HANDLE_VALUE) 
+	{
+		// none found.
+		return;
+	}
+	while(true)
+	{
+        // check if this is a normal file
+        if (!(fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            wstring key(L".\\img\\");
+            key += fData.cFileName;
+
+            // get number of files inside the AFS file
+            wstring afsFile(getPesInfo()->pesDir);
+            FILE* f = _wfopen((afsFile + key).c_str(),L"rb");
+            if (f) {
+                AFSDIRHEADER afsDirHdr;
+                ZeroMemory(&afsDirHdr,sizeof(AFSDIRHEADER));
+                fread(&afsDirHdr,sizeof(AFSDIRHEADER),1,f);
+                if (afsDirHdr.dwSig == AFSSIG)
+                    g_maxItems.insert(pair<wstring,int>(key, afsDirHdr.dwNumFiles));
+                else
+                    g_maxItems.insert(pair<wstring,int>(key, MAX_ITEMS));
+                fclose(f);
+            }
+            else
+            {
+                // can't open for reading, then just reserve a big enough cache
+                g_maxItems.insert(pair<wstring,int>(key, MAX_ITEMS));
+            }
+		}
+
+		// proceed to next file
+		if (!FindNextFile(hff, &fData)) break;
+	}
+	FindClose(hff);
+
+    // print cache
+    for (hash_map<wstring,int>::iterator it = g_maxItems.begin(); it != g_maxItems.end(); it++)
+        LOG1S1N(L"filename cache: {%s} : %d files", it->first.c_str(), it->second);
+
+    pattern = getPesInfo()->myDir;
+    pattern += L"img\\*.img";
+
+	hff = FindFirstFile(pattern.c_str(), &fData);
 	if (hff == INVALID_HANDLE_VALUE) 
 	{
 		// none found.
