@@ -337,13 +337,13 @@ static void kitConfig(char* pName, const void* pValue, DWORD a)
             break;
 
         case ATT_SHORTS_COLOR:
-            if (ParseColor((wchar_t*)pValue, &kd->kit.shortsMainColor))
+            if (ParseColor((wchar_t*)pValue, &kd->kit.shortsFirstColor))
                 kd->kit.attDefined |= SHORTS_MAIN_COLOR;
-            GDB_DEBUG(wlog,(slog,L"shortsMainColor = %02x%02x%02x%02x\n",
-                        kd->kit.shortsMainColor.r,
-                        kd->kit.shortsMainColor.g,
-                        kd->kit.shortsMainColor.b,
-                        kd->kit.shortsMainColor.a
+            GDB_DEBUG(wlog,(slog,L"shortsFirstColor = %02x%02x%02x%02x\n",
+                        kd->kit.shortsFirstColor.r,
+                        kd->kit.shortsFirstColor.g,
+                        kd->kit.shortsFirstColor.b,
+                        kd->kit.shortsFirstColor.a
                         ));
             break;
 

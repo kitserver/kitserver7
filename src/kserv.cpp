@@ -103,7 +103,6 @@ bool allQualities = true;
 // GLOBALS
 CRITICAL_SECTION g_csRead;
 
-bool _filesWIN32 = true;
 HANDLE g_hfile_cv_0 = INVALID_HANDLE_VALUE;
 FILE *g_FILE_cv_0 = NULL;
 
@@ -154,7 +153,6 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
     IDirect3DDevice9** ppReturnedDeviceInterface);
 void setQualityChecks();
-void kservConfig(char* pName, const void* pValue, DWORD a);
 void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
 BOOL WINAPI kservSetFilePointerEx(
   __in       HANDLE hFile,
@@ -700,9 +698,6 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
 	unhookFunction(hk_D3D_CreateDevice, initKserv);
 	unhookFunction(hk_D3D_Create, setQualityChecks);
 
-    getConfig("kserv", "files.win32", DT_DWORD, 1, kservConfig);
-    LOG1N(L"files.win32 = %d",_filesWIN32);
-
     // Load GDB
     LOG1S(L"pesDir: {%s}",getPesInfo()->pesDir);
     LOG1S(L"myDir : {%s}",getPesInfo()->myDir);
@@ -748,15 +743,6 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     }
     
     return D3D_OK;
-}
-
-void kservConfig(char* pName, const void* pValue, DWORD a)
-{
-	switch (a) {
-		case 1:	// files.win32
-			_filesWIN32 = *(DWORD*)pValue == 1;
-			break;
-	}
 }
 
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
@@ -1097,9 +1083,9 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
                 else { keysPL[0] = iterPL->first; keysPL[1] = iterPL->first; }
 
                 // copy textures in place
-                if (bin->header.numEntries == 2 && 
+                if (bin->header.numEntries == 2)/* && 
                         bin->entryInfo[0].size == 0x40410 &&
-                        bin->entryInfo[1].size == 0x40410)
+                        bin->entryInfo[1].size == 0x40410)*/
                 {
                     switch (type)
                     {
@@ -1210,9 +1196,9 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
 
                 // found this team in GDB.
                 // replace textures
-                if (bin->header.numEntries == 2 && 
+                if (bin->header.numEntries == 2)/* && 
                         bin->entryInfo[0].size == 0x40410 &&
-                        bin->entryInfo[1].size == 0x40410)
+                        bin->entryInfo[1].size == 0x40410)*/
                 {
                     wchar_t filename[BUFLEN] = {L'\0'};
                     switch (type)
@@ -1819,7 +1805,7 @@ KEXPORT void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO
     }
     // shorts main color
     if (kiter->second.attDefined & SHORTS_MAIN_COLOR)
-        RGBAColor2KCOLOR(kiter->second.shortsMainColor, ki.shortsFirstColor);
+        RGBAColor2KCOLOR(kiter->second.shortsFirstColor, ki.shortsFirstColor);
 }
 
 void RGBAColor2KCOLOR(const RGBAColor& color, KCOLOR& kcolor)
@@ -2110,8 +2096,8 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         if (g_iterHomePL->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterHomePL->second.mainColor;
-            KDrawText(L"\x2588", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
         else if (g_iterHomePL->second.foldername == L"")
         {
@@ -2124,8 +2110,28 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.mainColor : tki->pb.mainColor;
             RGBAColor c;
             KCOLOR2RGBAColor(kc, c);
-            KDrawText(L"\x2588", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        if (g_iterHomePL->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterHomePL->second.shortsFirstColor;
+            KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomePL->second.foldername == L"")
+        {
+            // non-GDB kit => get shorts color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
+            if (pNM->home->teamIdSpecial != pNM->home->teamId)
+                tki = &pNM->home->tki;
+
+            KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.shortsFirstColor : tki->pb.shortsFirstColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
     }
     // Home GK
@@ -2148,8 +2154,8 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         if (g_iterHomeGK->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterHomeGK->second.mainColor;
-            KDrawText(L"\x2588", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
         else if (g_iterHomeGK->second.foldername == L"")
         {
@@ -2162,8 +2168,28 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KCOLOR kc = (g_iterHomeGK->first == L"ga") ? tki->ga.mainColor : tki->gb.mainColor;
             RGBAColor c;
             KCOLOR2RGBAColor(kc, c);
-            KDrawText(L"\x2588", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        if (g_iterHomeGK->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterHomeGK->second.shortsFirstColor;
+            KDrawText(L"\x2584", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomeGK->second.foldername == L"")
+        {
+            // non-GDB kit => get shorts color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
+            if (pNM->home->teamIdSpecial != pNM->home->teamId)
+                tki = &pNM->home->tki;
+
+            KCOLOR kc = (g_iterHomeGK->first == L"ga") ? tki->ga.shortsFirstColor : tki->gb.shortsFirstColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2584", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
     }
     // Away PL
@@ -2186,8 +2212,8 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         if (g_iterAwayPL->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterAwayPL->second.mainColor;
-            KDrawText(L"\x2588", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
         else if (g_iterAwayPL->second.foldername == L"")
         {
@@ -2200,9 +2226,30 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KCOLOR kc = (g_iterAwayPL->first == L"pa") ? tki->pa.mainColor : tki->pb.mainColor;
             RGBAColor c;
             KCOLOR2RGBAColor(kc, c);
-            KDrawText(L"\x2588", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
+        if (g_iterAwayPL->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterAwayPL->second.shortsFirstColor;
+            KDrawText(L"\x2584", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomeGK->second.foldername == L"")
+        {
+            // non-GDB kit => get shorts color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->away->teamId);
+            if (pNM->away->teamIdSpecial != pNM->away->teamId)
+                tki = &pNM->away->tki;
+
+            KCOLOR kc = (g_iterAwayPL->first == L"pa") ? tki->pa.shortsFirstColor : tki->pb.shortsFirstColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2584", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+
     }
     // Away GK
     if (g_iterAwayGK == g_iterAwayGK_end)
@@ -2224,8 +2271,8 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         if (g_iterAwayGK->second.attDefined & MAIN_COLOR)
         {
             RGBAColor& c = g_iterAwayGK->second.mainColor;
-            KDrawText(L"\x2588", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
         else if (g_iterAwayGK->second.foldername == L"")
         {
@@ -2238,8 +2285,28 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KCOLOR kc = (g_iterAwayGK->first == L"ga") ? tki->ga.mainColor : tki->gb.mainColor;
             RGBAColor c;
             KCOLOR2RGBAColor(kc, c);
-            KDrawText(L"\x2588", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2588", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        if (g_iterAwayGK->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterAwayGK->second.shortsFirstColor;
+            KDrawText(L"\x2584", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterAwayGK->second.foldername == L"")
+        {
+            // non-GDB kit => get shorts color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->away->teamId);
+            if (pNM->away->teamIdSpecial != pNM->away->teamId)
+                tki = &pNM->away->tki;
+
+            KCOLOR kc = (g_iterAwayGK->first == L"ga") ? tki->ga.shortsFirstColor : tki->gb.shortsFirstColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2584", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
     }
 }

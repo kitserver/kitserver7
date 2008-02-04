@@ -61,7 +61,7 @@ public:
     BYTE nameShape;
     BYTE logoLocation;
     RGBAColor mainColor;
-    RGBAColor shortsMainColor;
+    RGBAColor shortsFirstColor;
     //wstring maskFile;
     //wstring shirtFolder;
     //wstring shortsFolder;
