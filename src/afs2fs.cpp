@@ -70,8 +70,31 @@ int GetNumItems(wstring& folder)
 {
     int result = MAX_ITEMS;
     hash_map<wstring,int>::iterator it = g_maxItems.find(folder);
-    if (it != g_maxItems.end())
+    if (it == g_maxItems.end())
+    {
+        // get number of files inside the corresponding AFS file
+        wstring afsFile(getPesInfo()->pesDir);
+        FILE* f = _wfopen((afsFile + folder).c_str(),L"rb");
+        if (f) {
+            AFSDIRHEADER afsDirHdr;
+            ZeroMemory(&afsDirHdr,sizeof(AFSDIRHEADER));
+            fread(&afsDirHdr,sizeof(AFSDIRHEADER),1,f);
+            if (afsDirHdr.dwSig == AFSSIG)
+            {
+                g_maxItems.insert(pair<wstring,int>(folder, afsDirHdr.dwNumFiles));
+                result = afsDirHdr.dwNumFiles;
+            }
+            fclose(f);
+        }
+        else
+        {
+            // can't open for reading, then just reserve a big enough cache
+            g_maxItems.insert(pair<wstring,int>(folder, MAX_ITEMS));
+        }
+    }
+    else
         result = it->second;
+
     return result;
 }
 
@@ -80,56 +103,10 @@ void InitializeFileNameCache()
     LOG(L"Initializing filename cache...");
 
 	WIN32_FIND_DATA fData;
-    wstring pattern(getPesInfo()->pesDir);
+    wstring pattern(getPesInfo()->myDir);
     pattern += L"img\\*.img";
 
 	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
-	if (hff == INVALID_HANDLE_VALUE) 
-	{
-		// none found.
-		return;
-	}
-	while(true)
-	{
-        // check if this is a normal file
-        if (!(fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-        {
-            wstring key(L".\\img\\");
-            key += fData.cFileName;
-
-            // get number of files inside the AFS file
-            wstring afsFile(getPesInfo()->pesDir);
-            FILE* f = _wfopen((afsFile + key).c_str(),L"rb");
-            if (f) {
-                AFSDIRHEADER afsDirHdr;
-                ZeroMemory(&afsDirHdr,sizeof(AFSDIRHEADER));
-                fread(&afsDirHdr,sizeof(AFSDIRHEADER),1,f);
-                if (afsDirHdr.dwSig == AFSSIG)
-                    g_maxItems.insert(pair<wstring,int>(key, afsDirHdr.dwNumFiles));
-                else
-                    g_maxItems.insert(pair<wstring,int>(key, MAX_ITEMS));
-                fclose(f);
-            }
-            else
-            {
-                // can't open for reading, then just reserve a big enough cache
-                g_maxItems.insert(pair<wstring,int>(key, MAX_ITEMS));
-            }
-		}
-
-		// proceed to next file
-		if (!FindNextFile(hff, &fData)) break;
-	}
-	FindClose(hff);
-
-    // print cache
-    for (hash_map<wstring,int>::iterator it = g_maxItems.begin(); it != g_maxItems.end(); it++)
-        LOG1S1N(L"filename cache: {%s} : %d files", it->first.c_str(), it->second);
-
-    pattern = getPesInfo()->myDir;
-    pattern += L"img\\*.img";
-
-	hff = FindFirstFile(pattern.c_str(), &fData);
 	if (hff == INVALID_HANDLE_VALUE) 
 	{
 		// none found.
@@ -195,6 +172,11 @@ void InitializeFileNameCache()
 		if (!FindNextFile(hff, &fData)) break;
 	}
 	FindClose(hff);
+
+    // print cache
+    for (hash_map<wstring,int>::iterator it = g_maxItems.begin(); it != g_maxItems.end(); it++)
+        LOG1S1N(L"filename cache: {%s} : %d slots", it->first.c_str(), it->second);
+
     LOG(L"DONE initializing filename cache.");
 }
 
@@ -374,7 +356,7 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize,
     DWORD result = orgSize;
 
     wchar_t* file = GetBinFileName(gbss->afsId, gbss->binId);
-    if (!file)
+    if (!file || file[0]=='\0')
         return result; // quick check
     
     BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[gbss->afsId];
@@ -400,9 +382,6 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize,
             rbs.binId = gbss->binId;
             rbs.hfile = hfile;
             rbs.fsize = fsize;
-            //rbs.esi = (DWORD)pStaticAlloc;
-            //rbs.orgA1 = pStaticAlloc[0xa1];
-            //rbs.orgA4 = pStaticAlloc[0xa4];
             g_read_bins.insert(pair<DWORD,READ_BIN_STRUCT>(threadId,rbs));
         }
         else
@@ -423,11 +402,6 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize,
         DWORD newSize = fsize + 0x800 - fsize % 0x800;
         TRACE3N(L"binId=%08x, orgSize=%0x, newSize=%0x", gbss->binId, orgSize, newSize);
         result = max(orgSize, newSize);
-
-        // reset static allocation indicator
-        //pStaticAlloc[0xa1] = 0;
-        //pStaticAlloc[0xa4] = 0;
-        //*(DWORD*)(pStaticAlloc+0x18) = 0;
     }
     return result;
 }
@@ -477,11 +451,6 @@ KEXPORT void afsBeforeProcessBin(PACKED_BIN* bin, DWORD bufferSize)
                 bit->second.binId,
                 (DWORD)bin
              );
-        // restore alloc flags
-        //BYTE* pStaticAlloc = (BYTE*)bit->second.esi;
-        //*(DWORD*)(pStaticAlloc+0x18) = (DWORD)bin;
-        //pStaticAlloc[0xa1] = bit->second.orgA1;
-        //pStaticAlloc[0xa4] = bit->second.orgA4;
 
         // for BIN replacement:
         // Here's the time-point #2, where you can replace the 
