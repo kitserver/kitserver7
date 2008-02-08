@@ -360,7 +360,6 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
             FILE_STRUCT fs;
             fs.hfile = hfile;
             fs.fsize = fsize;
-            fs.orgSize = orgSize;
             fs.offset = 0;
             fs.binKey = binKey;
 
@@ -372,17 +371,13 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
             CloseHandle(it->second.hfile);
             it->second.hfile = hfile;
             it->second.fsize = fsize;
-            it->second.orgSize = orgSize;
             it->second.offset = 0;
             it->second.binKey = binKey;
         }
 
-        // modify BIN buffer size
-        // IMPORTANT: don't decrease: only increase, because the game
-        // will still load a BIN from AFS, which we will then replace later.
-        DWORD newSize = (fsize + 0x7ff) & 0xfffff800;
+        // modify buffer size
+        result = (fsize + 0x7ff) & 0xfffff800;
         //LOG4N(L"afsId=%d, binId=%d, orgSize=%0x, newSize=%0x", gbss->afsId, gbss->binId, orgSize, newSize);
-        result = max(orgSize, newSize);
     }
     return result;
 }
@@ -433,6 +428,43 @@ KEXPORT void afsAtGetSize(DWORD afsId, DWORD binId, DWORD* pSizeBytes, DWORD* pS
         // modify size
         *pSizeBytes = it->second.fsize;
         *pSizePages = (it->second.fsize + 0x7ff) / 0x800;
+    }
+    else
+    {
+        // This might be a case, where the buffer-size wasn't checked in advance,
+        // but we may still have the file to replace. So check for the existence here.
+        
+        wchar_t* file = GetBinFileName(afsId, binId);
+        if (!file || file[0]=='\0')  // quick check
+            return;
+        
+        BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
+        wchar_t* afsDir = Utf8::ansiToUnicode(pBST->relativePathName);
+
+        // check for a file
+        wchar_t filename[1024] = {0};
+        swprintf(filename,L"%s%s\\%s", getPesInfo()->myDir, afsDir, file);
+        Utf8::free(afsDir);
+
+        HANDLE hfile;
+        DWORD fsize = 0;
+        if (OpenFileIfExists(filename, hfile, fsize))
+        {
+            DWORD binKey = (afsId << 16) + binId;
+
+            // make new entry
+            FILE_STRUCT fs;
+            fs.hfile = hfile;
+            fs.fsize = fsize;
+            fs.offset = 0;
+            fs.binKey = binKey;
+
+            g_file_map.insert(pair<DWORD,FILE_STRUCT>(binKey,fs));
+
+            // modify size
+            *pSizeBytes = fsize;
+            *pSizePages = (fsize + 0x7ff) / 0x800;
+        }
     }
 }
 

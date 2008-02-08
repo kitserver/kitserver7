@@ -3,7 +3,7 @@
 #include "afsreader.h"
 
 #define MODID 100
-#define NAMELONG L"AFS2FS Module 7.1.1.0"
+#define NAMELONG L"AFS2FS Module 7.1.1.1"
 #define NAMESHORT L"AFS2FS"
 #define DEFAULT_DEBUG 0
 
@@ -63,7 +63,6 @@ typedef struct _FILE_STRUCT
     HANDLE hfile;
     DWORD fsize;
     DWORD offset;
-    DWORD orgSize;
     DWORD binKey;
 } FILE_STRUCT;
 
