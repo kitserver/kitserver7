@@ -631,7 +631,7 @@ void afsAtGetImgSizeCallPoint()
         push esi
         push edi
         mov eax,[edx+8]    // execute replaced code
-        add eax,0x10000000 // add extra space
+        add eax,0x200000   // add extra space
         mov [edx+8],eax    // ...
         mov dword ptr ds:[edi],eax // ...
         pop edi
