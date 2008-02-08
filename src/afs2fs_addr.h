@@ -1,8 +1,8 @@
 // ADDRESSES for afs2fs.cpp
 BYTE allowedGames[] = {
     //gvPES2008demo,
-    //gvPES2008,
-    //gvPES2008v110,
+    gvPES2008,
+    gvPES2008v110,
     gvPES2008v120,
 };
 
@@ -25,18 +25,18 @@ DWORD codeArray[][CODELEN] = {
     NOCODEADDR
     // PES2008
     {
-        0, 0, 
-        0, 0, 0, 0,
-        0,
+        0xa5ea01, 0x4a0e4b, 
+        0x496df0, 0x497010, 0x495159, 0x4950e1,
+        0x496e68,
     },
     // [Settings] PES2008 PC
     NOCODEADDR
     NOCODEADDR
     // PES2008 1.10
     {
-        0, 0, 
-        0, 0, 0, 0,
-        0,
+        0xa5ed51, 0x4a17ab, 
+        0x497740, 0x497960, 0x495aa9, 0x495a31,
+        0x4977b8,
     },
     NOCODEADDR
     // PES2008 1.20

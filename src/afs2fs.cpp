@@ -586,7 +586,7 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
 {
     // The task here is to link the eventId with afsId/binId 
     // of the file that is going to be read later.
-    //LOG1N(L"afsAfterCreateEvent:: eventId=%08x",eventId);
+    //TRACE1N(L"afsAfterCreateEvent:: eventId=%08x",eventId);
 
     DWORD afsId = GetAfsIdByPathName(pathName);
     DWORD binKey = (res->offsetPages << 0x0b) + afsId;
@@ -603,15 +603,6 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
         hash_map<DWORD,FILE_STRUCT>::iterator fit = g_file_map.find(binKey1);
         if (fit != g_file_map.end())
         {
-            /*
-            // modify size
-            if (afsId == 1)
-            {
-                res->sizeBytes = (fit->second.fsize + 0x7ff) & 0xfffff800;
-                res->sizePages = res->sizeBytes >> 0x0b;
-            }
-            */
-
             // remember offset for later usage
             fit->second.offset = res->offsetPages << 0x0b;
 
@@ -621,7 +612,7 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
             g_event_map.insert(pair<DWORD,FILE_STRUCT>(eventId,fit->second));
             LeaveCriticalSection(&g_csEventMap);
 
-            //LOG3N(L"afsAfterCreateEvent:: eventId=%08x (afsId=%d, binId=%d)",eventId, afsId, binId);
+            TRACE3N(L"afsAfterCreateEvent:: eventId=%08x (afsId=%d, binId=%d)",eventId, afsId, binId);
         }
         LeaveCriticalSection(&g_csFileMap);
     }
@@ -639,7 +630,8 @@ void afsAtGetImgSizeCallPoint()
         push edx
         push esi
         push edi
-        mov eax,0x7fffffff // execute altered code (original: mov eax,dword ptr ds:[edx+8])
+        mov eax,[edx+8]    // execute replaced code
+        add eax,0x10000000 // add extra space
         mov [edx+8],eax    // ...
         mov dword ptr ds:[edi],eax // ...
         pop edi
@@ -694,14 +686,14 @@ KEXPORT void afsBeforeRead(READ_STRUCT* rs)
     hash_map<DWORD,FILE_STRUCT>::iterator it = g_event_map.find(rs->pfrs->eventId);
     if (it != g_event_map.end())
     {
-        //LOG3N(L"afsBeforeRead::(%08x) WAS: hfile=%08x, offset=%08x", 
-        //        (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
+        TRACE3N(L"afsBeforeRead::(%08x) WAS: hfile=%08x, offset=%08x", 
+                (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
         FILE_STRUCT& fs = it->second;
         rs->pfrs->hfile = fs.hfile;
         rs->pfrs->offset -= fs.offset;
         rs->pfrs->offset_again -= fs.offset;
-        //LOG3N(L"afsBeforeRead::(%08x) NOW: hfile=%08x, offset=%08x", 
-        //        (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
+        TRACE3N(L"afsBeforeRead::(%08x) NOW: hfile=%08x, offset=%08x", 
+                (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
     }
     LeaveCriticalSection(&g_csEventMap);
 }
@@ -747,7 +739,7 @@ KEXPORT void afsAtCloseHandle(DWORD eventId)
     // reading event is complete. Handle is being closed
     // Do necessary house-keeping tasks, such as removing the eventId
     // from the event map
-    //LOG1N(L"afsAtCloseHandle:: eventId=%08x",eventId);
+    //TRACE1N(L"afsAtCloseHandle:: eventId=%08x",eventId);
 
     EnterCriticalSection(&g_csEventMap);
     hash_map<DWORD,FILE_STRUCT>::iterator it = g_event_map.find(eventId);

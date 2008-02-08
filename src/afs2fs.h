@@ -9,17 +9,6 @@
 
 #pragma pack(4)
 
-typedef struct _READ_BIN_STRUCT
-{
-    DWORD afsId;
-    DWORD binId;
-    HANDLE hfile;
-    DWORD fsize;
-    DWORD orgSize;
-    DWORD offset;
-    HANDLE orgHfile;
-} READ_BIN_STRUCT;
-
 typedef struct _BIN_SIZE_INFO
 {
     BYTE unknown1[0x10];
@@ -35,7 +24,7 @@ typedef struct _GET_BIN_SIZE_STRUCT
     DWORD binId;
 } GET_BIN_SIZE_STRUCT;
 
-typedef struct FILE_READ_STRUCT
+typedef struct _FILE_READ_STRUCT
 {
     HANDLE hfile;
     DWORD unknown1[2];
@@ -56,8 +45,6 @@ typedef struct _READ_STRUCT
     FILE_READ_STRUCT* pfrs;
     DWORD count;
 } READ_STRUCT; 
-
-/////////////////////////////////////////
 
 typedef struct _READ_EVENT_STRUCT
 {
