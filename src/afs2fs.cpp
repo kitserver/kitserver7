@@ -2,8 +2,6 @@
 #define UNICODE
 #define THISMOD &k_kafs
 
-// 0x1c69ab4: jmp: 1c69b6b
-
 #include <windows.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -25,20 +23,12 @@
     ((dw<<24 & 0xff000000) | (dw<<8  & 0x00ff0000) | \
     (dw>>8  & 0x0000ff00) | (dw>>24 & 0x000000ff))
 
-#define EnterCriticalSection(x)
-#define LeaveCriticalSection(x)
 
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kafs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
 // GLOBALS
-bool _filesWIN32 = true;
-
-CRITICAL_SECTION g_csFileMap;
-CRITICAL_SECTION g_csOffsetMap;
-CRITICAL_SECTION g_csEventMap;
-
 hash_map<DWORD,FILE_STRUCT> g_file_map;
 hash_map<DWORD,DWORD> g_offset_map;
 hash_map<DWORD,FILE_STRUCT> g_event_map;
@@ -73,7 +63,6 @@ KEXPORT void afsAtCloseHandle(DWORD eventId);
 
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
-void afsConfig(char* pName, const void* pValue, DWORD a);
 
 // FUNCTION POINTERS
 
@@ -217,22 +206,12 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			return false;
 		}
 
-        // initialize critical sections
-        InitializeCriticalSection(&g_csFileMap);
-        InitializeCriticalSection(&g_csOffsetMap);
-        InitializeCriticalSection(&g_csEventMap);
-
 		copyAdresses();
 		hookFunction(hk_D3D_CreateDevice, initModule);
 	}
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-        // destroy critical sections
-        DeleteCriticalSection(&g_csFileMap);
-        DeleteCriticalSection(&g_csOffsetMap);
-        DeleteCriticalSection(&g_csEventMap);
-
         for (hash_map<string,wchar_t*>::iterator it = info_cache.begin(); 
                 it != info_cache.end();
                 it++)
@@ -259,21 +238,9 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_AFTER_GET_OFFSET_PAGES], afsAfterGetOffsetPagesCallPoint, 6, 1);
     HookCallPoint(code[C_BEFORE_READ], afsBeforeReadCallPoint, 6, 1);
 
-    getConfig("afs2fs", "files.win32", DT_DWORD, 1, afsConfig);
-    LOG1N(L"files.win32 = %d",_filesWIN32);
-
 	TRACE(L"Hooking done.");
-    //__asm { int 3 }
+    //__asm { int 3 }          // uncomment this for debugging as needed
     return D3D_OK;
-}
-
-void afsConfig(char* pName, const void* pValue, DWORD a)
-{
-	switch (a) {
-		case 1:	// files.win32
-			_filesWIN32 = *(DWORD*)pValue == 1;
-			break;
-	}
 }
 
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
@@ -318,33 +285,18 @@ DWORD GetTargetAddress(DWORD addr)
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
 {
     TRACE1S(L"FileExists:: Checking file: %s", filename);
-    if (_filesWIN32)
-    {
-        handle = CreateFile(filename,           // file to open
-                           GENERIC_READ,          // open for reading
-                           FILE_SHARE_READ,       // share for reading
-                           NULL,                  // default security
-                           OPEN_EXISTING,         // existing file only
-                           FILE_ATTRIBUTE_NORMAL, // normal file
-                           NULL);                 // no attr. template
+    handle = CreateFile(filename,           // file to open
+                       GENERIC_READ,          // open for reading
+                       FILE_SHARE_READ,       // share for reading
+                       NULL,                  // default security
+                       OPEN_EXISTING,         // existing file only
+                       FILE_ATTRIBUTE_NORMAL, // normal file
+                       NULL);                 // no attr. template
 
-        if (handle != INVALID_HANDLE_VALUE)
-        {
-            size = GetFileSize(handle,NULL);
-            return true;
-        }
-    }
-    else
+    if (handle != INVALID_HANDLE_VALUE)
     {
-        FILE* f = _wfopen(filename,L"rb");
-        if (f)
-        {
-            struct stat st;
-            fstat(fileno(f), &st);
-            handle = (HANDLE)f;
-            size = st.st_size;
-            return true;
-        }
+        size = GetFileSize(handle,NULL);
+        return true;
     }
     return false;
 }
@@ -401,7 +353,6 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
     if (OpenFileIfExists(filename, hfile, fsize))
     {
         DWORD binKey = (gbss->afsId << 16) + gbss->binId;
-        EnterCriticalSection(&g_csFileMap);
         hash_map<DWORD,FILE_STRUCT>::iterator it = g_file_map.find(binKey);
         if (it == g_file_map.end())
         {
@@ -425,7 +376,6 @@ KEXPORT DWORD afsAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSize)
             it->second.offset = 0;
             it->second.binKey = binKey;
         }
-        LeaveCriticalSection(&g_csFileMap);
 
         // modify BIN buffer size
         // IMPORTANT: don't decrease: only increase, because the game
@@ -536,7 +486,6 @@ KEXPORT void afsAfterGetOffsetPages(DWORD offsetPages, DWORD afsId, DWORD binId)
     //LOG3N(L"afsAfterGetOffsetPages:: offsetPages=%08x, afsId=%d, binId=%d",
     //        offsetPages, afsId, binId);
 
-    EnterCriticalSection(&g_csOffsetMap);
     DWORD binKey = (offsetPages << 0x0b) + afsId;
     hash_map<DWORD,DWORD>::iterator it = g_offset_map.find(binKey);
     if (it == g_offset_map.end())
@@ -544,7 +493,6 @@ KEXPORT void afsAfterGetOffsetPages(DWORD offsetPages, DWORD afsId, DWORD binId)
         // insert new entry for future usage
         g_offset_map.insert(pair<DWORD,DWORD>(binKey,binId));
     }
-    LeaveCriticalSection(&g_csOffsetMap);
 }
 
 void afsAfterCreateEventCallPoint()
@@ -591,7 +539,6 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
     DWORD afsId = GetAfsIdByPathName(pathName);
     DWORD binKey = (res->offsetPages << 0x0b) + afsId;
 
-    EnterCriticalSection(&g_csOffsetMap);
     hash_map<DWORD,DWORD>::iterator it = g_offset_map.find(binKey);
     if (it != g_offset_map.end())
     {
@@ -599,7 +546,6 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
 
         // lookup FILE_STRUCT
         DWORD binKey1 = (afsId << 16) + binId;
-        EnterCriticalSection(&g_csFileMap);
         hash_map<DWORD,FILE_STRUCT>::iterator fit = g_file_map.find(binKey1);
         if (fit != g_file_map.end())
         {
@@ -608,15 +554,11 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
 
             // Found: so we have a replacement file handle
             // Now associate the eventId with that struct
-            EnterCriticalSection(&g_csEventMap);
             g_event_map.insert(pair<DWORD,FILE_STRUCT>(eventId,fit->second));
-            LeaveCriticalSection(&g_csEventMap);
 
             TRACE3N(L"afsAfterCreateEvent:: eventId=%08x (afsId=%d, binId=%d)",eventId, afsId, binId);
         }
-        LeaveCriticalSection(&g_csFileMap);
     }
-    LeaveCriticalSection(&g_csOffsetMap);
 }
 
 void afsAtGetImgSizeCallPoint()
@@ -682,7 +624,6 @@ void afsBeforeReadCallPoint()
 
 KEXPORT void afsBeforeRead(READ_STRUCT* rs)
 {
-    EnterCriticalSection(&g_csEventMap);
     hash_map<DWORD,FILE_STRUCT>::iterator it = g_event_map.find(rs->pfrs->eventId);
     if (it != g_event_map.end())
     {
@@ -695,7 +636,6 @@ KEXPORT void afsBeforeRead(READ_STRUCT* rs)
         TRACE3N(L"afsBeforeRead::(%08x) NOW: hfile=%08x, offset=%08x", 
                 (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
     }
-    LeaveCriticalSection(&g_csEventMap);
 }
 
 void afsAtCloseHandleCallPoint()
@@ -741,7 +681,6 @@ KEXPORT void afsAtCloseHandle(DWORD eventId)
     // from the event map
     //TRACE1N(L"afsAtCloseHandle:: eventId=%08x",eventId);
 
-    EnterCriticalSection(&g_csEventMap);
     hash_map<DWORD,FILE_STRUCT>::iterator it = g_event_map.find(eventId);
     if (it != g_event_map.end())
     {
@@ -762,7 +701,6 @@ KEXPORT void afsAtCloseHandle(DWORD eventId)
         g_event_map.erase(it);
 
     }
-    LeaveCriticalSection(&g_csEventMap);
 }
 
 
