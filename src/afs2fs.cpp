@@ -1,6 +1,6 @@
 /* AFS2FS module */
 #define UNICODE
-#define THISMOD &k_kafs
+#define THISMOD &k_afs
 
 #include <windows.h>
 #include <stdio.h>
@@ -26,7 +26,7 @@
 
 // VARIABLES
 HINSTANCE hInst = NULL;
-KMOD k_kafs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
+KMOD k_afs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
 // GLOBALS
 hash_map<DWORD,FILE_STRUCT> g_file_map;
@@ -34,11 +34,12 @@ hash_map<DWORD,DWORD> g_offset_map;
 hash_map<DWORD,FILE_STRUCT> g_event_map;
 
 // cache
-#define FILENAMELEN 64
+#define DEFAULT_FILENAMELEN 64
 #define MAX_ITEMS 10609
 
 hash_map<wstring,int> g_maxItems;
 hash_map<string,wchar_t*> info_cache;
+int _fileNameLen = DEFAULT_FILENAMELEN;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -63,6 +64,7 @@ KEXPORT void afsAtCloseHandle(DWORD eventId);
 
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
+void afsConfig(char* pName, const void* pValue, DWORD a);
 
 // FUNCTION POINTERS
 
@@ -72,7 +74,7 @@ wchar_t* GetBinFileName(DWORD afsId, DWORD binId)
     BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
     hash_map<string,wchar_t*>::iterator it = info_cache.find(pBST->relativePathName);
     if (it != info_cache.end())
-        return it->second + FILENAMELEN*binId;
+        return it->second + _fileNameLen*binId;
     return NULL;
 }
 
@@ -160,13 +162,22 @@ void InitializeFileNameCache()
                                     names = (wchar_t*)HeapAlloc(
                                             GetProcessHeap(),
                                             HEAP_ZERO_MEMORY, 
-                                            sizeof(wchar_t)*FILENAMELEN*GetNumItems(folder)
+                                            sizeof(wchar_t)*_fileNameLen*GetNumItems(folder)
                                             );
                                     info_cache.insert(pair<string,wchar_t*>(key,names));
                                 }
 
                                 // put filename into cache
-                                wcsncpy(names + FILENAMELEN*binId, fData1.cFileName, FILENAMELEN-1);
+                                wcsncpy(names + _fileNameLen*binId, fData1.cFileName, _fileNameLen-1);
+
+                                // print message, if filename is too long
+                                if (wcslen(fData1.cFileName) >= _fileNameLen)
+                                {
+                                    LOG2S(L"ERROR: filename too long: \"%s\" (in folder: %s)", 
+                                            fData1.cFileName, folder.c_str());
+                                    LOG2N(L"ERROR: length = %d chars. Maximum allowed length: %d chars.", 
+                                            wcslen(fData1.cFileName), _fileNameLen);
+                                }
                             }
                         }
                     }
@@ -221,10 +232,26 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	return true;
 }
 
+void afsConfig(char* pName, const void* pValue, DWORD a)
+{
+	switch (a) {
+		case 1: // debug
+			k_afs.debug = *(DWORD*)pValue;
+			break;
+		case 2: // filename.length
+			_fileNameLen = *(DWORD*)pValue;
+			break;
+	}
+	return;
+}
+
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
     IDirect3DDevice9** ppReturnedDeviceInterface) {
+
+    getConfig("afs2fs", "debug", DT_DWORD, 1, afsConfig);
+    getConfig("afs2fs", "filename.length", DT_DWORD, 2, afsConfig);
 
 	unhookFunction(hk_D3D_CreateDevice, initModule);
 
@@ -723,8 +750,9 @@ KEXPORT void afsAtCloseHandle(DWORD eventId)
         hash_map<DWORD,FILE_STRUCT>::iterator fit = g_file_map.find(fs.binKey);
         if (fit != g_file_map.end())
         {
-            LOG2N(L"Finished read-event for afsId=%d, binId=%d",
-                    (fs.binKey >> 16)&0xffff, fs.binKey&0xffff);
+            if (k_afs.debug)
+                LOG2N(L"Finished read-event for afsId=%d, binId=%d",
+                        (fs.binKey >> 16)&0xffff, fs.binKey&0xffff);
             g_file_map.erase(fit);
         }
 
