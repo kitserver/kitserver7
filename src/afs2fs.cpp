@@ -166,8 +166,7 @@ void InitializeFileNameCache()
                                 }
 
                                 // put filename into cache
-                                wcsncpy(names + FILENAMELEN*binId, fData1.cFileName,
-                                        max(wcslen(fData1.cFileName),FILENAMELEN));
+                                wcsncpy(names + FILENAMELEN*binId, fData1.cFileName, FILENAMELEN-1);
                             }
                         }
                     }
