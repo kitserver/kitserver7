@@ -176,7 +176,7 @@ void InitializeFileNameCache()
                                     LOG2S(L"ERROR: filename too long: \"%s\" (in folder: %s)", 
                                             fData1.cFileName, folder.c_str());
                                     LOG2N(L"ERROR: length = %d chars. Maximum allowed length: %d chars.", 
-                                            wcslen(fData1.cFileName), _fileNameLen);
+                                            wcslen(fData1.cFileName), _fileNameLen-1);
                                 }
                             }
                         }
