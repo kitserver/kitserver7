@@ -12,6 +12,7 @@
 #include "gdb.h"
 #include "pngdib.h"
 #include "utf8.h"
+#include "songs.h"
 
 #define lang(s) getTransl("afs2fs",s)
 
@@ -40,6 +41,7 @@ hash_map<DWORD,FILE_STRUCT> g_event_map;
 hash_map<wstring,int> g_maxItems;
 hash_map<string,wchar_t*> info_cache;
 int _fileNameLen = DEFAULT_FILENAMELEN;
+song_map_t* _songs = NULL;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -65,6 +67,7 @@ KEXPORT void afsAtCloseHandle(DWORD eventId);
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 void afsConfig(char* pName, const void* pValue, DWORD a);
+void afsReadSongsMap();
 
 // FUNCTION POINTERS
 
@@ -227,6 +230,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
                 it != info_cache.end();
                 it++)
             if (it->second) HeapFree(it->second, 0, GetProcessHeap());
+
+        delete _songs;
 	}
 	
 	return true;
@@ -266,6 +271,31 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_BEFORE_READ], afsBeforeReadCallPoint, 6, 1);
 
 	TRACE(L"Hooking done.");
+
+    wstring songMapFile(getPesInfo()->myDir);
+    songMapFile += L"songs.txt";
+    _songs = new song_map_t(songMapFile);
+
+    LOG1N(L"Songs-map read (size=%d)",_songs->_songMap.size());
+
+    // apply songs info
+    BYTE* bptr = (BYTE*)data[SONGS_INFO_TABLE];
+    DWORD protection = 0;
+    DWORD newProtection = PAGE_READWRITE;
+    if (VirtualProtect(bptr, 59*sizeof(SONG_STRUCT), newProtection, &protection)) {
+        for (int i=0; i<59; i++)
+        {
+            SONG_STRUCT* ss = (SONG_STRUCT*)data[SONGS_INFO_TABLE];
+            hash_map<WORD,SONG_STRUCT>::iterator it = _songs->_songMap.find(ss[i].binId);
+            if (it != _songs->_songMap.end())
+            {
+                ss[i].title = it->second.title;
+                ss[i].author = it->second.author;
+                LOG1N(L"Set title/author info for song with binId=%d",ss[i].binId);
+            }
+        }
+    }
+
     //__asm { int 3 }          // uncomment this for debugging as needed
     return D3D_OK;
 }

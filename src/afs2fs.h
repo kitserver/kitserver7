@@ -66,3 +66,4 @@ typedef struct _FILE_STRUCT
     DWORD binKey;
 } FILE_STRUCT;
 
+

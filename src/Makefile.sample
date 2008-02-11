@@ -69,10 +69,11 @@ log.obj: log.cpp log.h
 crc32.obj: crc32.cpp crc32.h
 hook.obj: hook.cpp hook.h
 
-afs2fs.lib: afs2fs.obj
+afs2fs.lib: afs2fs.obj songs.obj configs.obj
 afs2fs.dll: afs2fs.lib afs2fs.res
-	$(LINK) $(LFLAGS) /out:afs2fs.dll /DLL afs2fs.obj afs2fs.res $(LIBS) $(D3DX9) kload.lib
+	$(LINK) $(LFLAGS) /out:afs2fs.dll /DLL afs2fs.obj songs.obj configs.obj afs2fs.res $(LIBS) $(D3DX9) kload.lib
 afs2fs.obj: afs2fs.cpp afs2fs.h afs2fs_addr.h afs2fs.rc
+songs.obj: songs.cpp songs.h
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
 kload.dll: kload.lib kload.res
