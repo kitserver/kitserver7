@@ -12,7 +12,7 @@
 #include "gdb.h"
 #include "pngdib.h"
 #include "utf8.h"
-#include "songs.h"
+#include "names.h"
 
 #define lang(s) getTransl("afs2fs",s)
 
@@ -33,6 +33,7 @@ KMOD k_afs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 hash_map<DWORD,FILE_STRUCT> g_file_map;
 hash_map<DWORD,DWORD> g_offset_map;
 hash_map<DWORD,FILE_STRUCT> g_event_map;
+hash_map<string,DWORD> g_names_map;
 
 // cache
 #define DEFAULT_FILENAMELEN 64
@@ -42,6 +43,7 @@ hash_map<wstring,int> g_maxItems;
 hash_map<string,wchar_t*> info_cache;
 int _fileNameLen = DEFAULT_FILENAMELEN;
 song_map_t* _songs = NULL;
+ball_map_t* _balls = NULL;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -273,8 +275,16 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 	TRACE(L"Hooking done.");
 
     wstring songMapFile(getPesInfo()->myDir);
-    songMapFile += L"songs.txt";
+    songMapFile += L"\\names\\songs.txt";
     _songs = new song_map_t(songMapFile);
+    // support older location too:
+    if (_songs->_songMap.size()==0)
+    {
+        delete _songs;
+        songMapFile = getPesInfo()->myDir;
+        songMapFile += L"\\songs.txt";
+        _songs = new song_map_t(songMapFile);
+    }
 
     LOG1N(L"Songs-map read (size=%d)",_songs->_songMap.size());
 
@@ -282,16 +292,41 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     BYTE* bptr = (BYTE*)data[SONGS_INFO_TABLE];
     DWORD protection = 0;
     DWORD newProtection = PAGE_READWRITE;
-    if (VirtualProtect(bptr, 59*sizeof(SONG_STRUCT), newProtection, &protection)) {
+    if (VirtualProtect(bptr, 59*sizeof(SONG_STRUCT), newProtection, &protection)) 
+    {
+        SONG_STRUCT* ss = (SONG_STRUCT*)data[SONGS_INFO_TABLE];
         for (int i=0; i<59; i++)
         {
-            SONG_STRUCT* ss = (SONG_STRUCT*)data[SONGS_INFO_TABLE];
             hash_map<WORD,SONG_STRUCT>::iterator it = _songs->_songMap.find(ss[i].binId);
             if (it != _songs->_songMap.end())
             {
                 ss[i].title = it->second.title;
                 ss[i].author = it->second.author;
                 LOG1N(L"Set title/author info for song with binId=%d",ss[i].binId);
+            }
+        }
+    }
+
+    wstring ballMapFile(getPesInfo()->myDir);
+    ballMapFile += L"\\names\\balls.txt";
+    _balls = new ball_map_t(ballMapFile);
+
+    LOG1N(L"Balls-map read (size=%d)",_balls->_ballMap.size());
+
+    // apply balls info
+    bptr = (BYTE*)data[BALLS_INFO_TABLE];
+    protection = 0;
+    newProtection = PAGE_READWRITE;
+    if (VirtualProtect(bptr, 12*sizeof(char**), newProtection, &protection)) 
+    {
+        char** names = (char**)data[BALLS_INFO_TABLE];
+        for (int i=1; i<=12; i++)
+        {
+            hash_map<WORD,BALL_STRUCT>::iterator it = _balls->_ballMap.find(i);
+            if (it != _balls->_ballMap.end())
+            {
+                names[i-1] = it->second.name;
+                LOG1N(L"Set name for ball #%d",i);
             }
         }
     }
@@ -525,6 +560,34 @@ KEXPORT void afsAtGetSize(DWORD afsId, DWORD binId, DWORD* pSizeBytes, DWORD* pS
     }
 }
 
+/*
+DWORD GetAfsIdByPathName(char* pathName)
+{
+    DWORD result = 0xffffffff;
+    string key(pathName);
+    hash_map<string,DWORD>::iterator it = g_names_map.find(key);
+    if (it != g_names_map.end())
+    {
+        result = it->second;
+    }
+    else
+    {
+        BIN_SIZE_INFO** ppBST = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
+        for (DWORD afsId=0; afsId<8; afsId++)
+        {
+            if (ppBST[afsId]==0) continue;
+            if (strncmp(ppBST[afsId]->relativePathName,pathName,strlen(pathName))==0)
+            {
+                g_names_map.insert(pair<string,DWORD>(key,afsId));
+                result = afsId;
+                break;
+            }
+        }
+    }
+    return result;
+}
+*/
+
 DWORD GetAfsIdByPathName(char* pathName)
 {
     BIN_SIZE_INFO** ppBST = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
@@ -582,6 +645,12 @@ KEXPORT void afsAfterGetOffsetPages(DWORD offsetPages, DWORD afsId, DWORD binId)
         // insert new entry for future usage
         g_offset_map.insert(pair<DWORD,DWORD>(binKey,binId));
     }
+    else
+    {
+        // update the entry: possible for some AFS-es, with so-called
+        // "container"-bins
+        it->second = binId;
+    }
 }
 
 void afsAfterCreateEventCallPoint()
@@ -623,10 +692,14 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
 {
     // The task here is to link the eventId with afsId/binId 
     // of the file that is going to be read later.
-    //TRACE1N(L"afsAfterCreateEvent:: eventId=%08x",eventId);
+    //
+    //wchar_t* path = Utf8::ansiToUnicode(pathName);
+    //LOG1N1S(L"afsAfterCreateEvent:: eventId=%08x, pathName=%s",eventId,path);
+    //Utf8::free(path);
 
     DWORD afsId = GetAfsIdByPathName(pathName);
     DWORD binKey = (res->offsetPages << 0x0b) + afsId;
+    //LOG1N(L"afsAfterCreateEvent:: binKey=%08x",binKey);
 
     hash_map<DWORD,DWORD>::iterator it = g_offset_map.find(binKey);
     if (it != g_offset_map.end())
@@ -635,6 +708,8 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
 
         // lookup FILE_STRUCT
         DWORD binKey1 = (afsId << 16) + binId;
+        //LOG3N(L"afsAfterCreateEvent:: looking for binKey1=%08x (afsId=%d, binId=%d)",
+        //        binKey1, afsId, binId);
         hash_map<DWORD,FILE_STRUCT>::iterator fit = g_file_map.find(binKey1);
         if (fit != g_file_map.end())
         {
@@ -645,7 +720,7 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
             // Now associate the eventId with that struct
             g_event_map.insert(pair<DWORD,FILE_STRUCT>(eventId,fit->second));
 
-            TRACE3N(L"afsAfterCreateEvent:: eventId=%08x (afsId=%d, binId=%d)",eventId, afsId, binId);
+            //LOG3N(L"afsAfterCreateEvent:: eventId=%08x (afsId=%d, binId=%d)",eventId, afsId, binId);
         }
     }
 }
@@ -713,17 +788,18 @@ void afsBeforeReadCallPoint()
 
 KEXPORT void afsBeforeRead(READ_STRUCT* rs)
 {
+    //LOG1N(L"afsBeforeRead::(%08x) ...", (DWORD)rs->pfrs->eventId); 
     hash_map<DWORD,FILE_STRUCT>::iterator it = g_event_map.find(rs->pfrs->eventId);
     if (it != g_event_map.end())
     {
-        TRACE3N(L"afsBeforeRead::(%08x) WAS: hfile=%08x, offset=%08x", 
-                (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
+        //LOG3N(L"afsBeforeRead::(%08x) WAS: hfile=%08x, offset=%08x", 
+        //        (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
         FILE_STRUCT& fs = it->second;
         rs->pfrs->hfile = fs.hfile;
         rs->pfrs->offset -= fs.offset;
         rs->pfrs->offset_again -= fs.offset;
-        TRACE3N(L"afsBeforeRead::(%08x) NOW: hfile=%08x, offset=%08x", 
-                (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
+        //LOG3N(L"afsBeforeRead::(%08x) NOW: hfile=%08x, offset=%08x", 
+        //        (DWORD)rs->pfrs->eventId, (DWORD)rs->pfrs->hfile, rs->pfrs->offset); 
     }
 }
 
@@ -768,7 +844,7 @@ KEXPORT void afsAtCloseHandle(DWORD eventId)
     // reading event is complete. Handle is being closed
     // Do necessary house-keeping tasks, such as removing the eventId
     // from the event map
-    //TRACE1N(L"afsAtCloseHandle:: eventId=%08x",eventId);
+    //LOG1N(L"afsAtCloseHandle:: eventId=%08x",eventId);
 
     hash_map<DWORD,FILE_STRUCT>::iterator it = g_event_map.find(eventId);
     if (it != g_event_map.end())
