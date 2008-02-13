@@ -102,6 +102,9 @@ void GDB::load()
     {
         KitCollection kitCol(it->second);
 
+        // strip off leading and trailing spaces
+        string_strip(kitCol.foldername);
+
         // strip off quotes, if present
         if (kitCol.foldername[0]=='"' || kitCol.foldername[0]=='\'')
             kitCol.foldername.erase(0,1);
