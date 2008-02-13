@@ -1,5 +1,0 @@
-# Song names map
-# Format: <binId>, "<name>", "<author>" 
-# Note that double quotes are required.
-
-111, "I'm mad about you", "Sting"

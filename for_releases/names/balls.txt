@@ -1,0 +1,6 @@
+# Ball names map
+# Format: <ball-number>, "<ball-name>"
+# where ball number is an integer from 1 to 12.
+
+6, "Nike Arrow II Yellow"
+7, "Nike Arrow II EPL"
