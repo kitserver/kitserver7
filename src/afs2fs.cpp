@@ -33,11 +33,11 @@ KMOD k_afs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 hash_map<DWORD,FILE_STRUCT> g_file_map;
 hash_map<DWORD,DWORD> g_offset_map;
 hash_map<DWORD,FILE_STRUCT> g_event_map;
-hash_map<string,DWORD> g_names_map;
 
 // cache
 #define DEFAULT_FILENAMELEN 64
 #define MAX_ITEMS 10609
+#define MAX_RELPATH 30
 
 hash_map<wstring,int> g_maxItems;
 hash_map<string,wchar_t*> info_cache;
@@ -560,41 +560,13 @@ KEXPORT void afsAtGetSize(DWORD afsId, DWORD binId, DWORD* pSizeBytes, DWORD* pS
     }
 }
 
-/*
-DWORD GetAfsIdByPathName(char* pathName)
-{
-    DWORD result = 0xffffffff;
-    string key(pathName);
-    hash_map<string,DWORD>::iterator it = g_names_map.find(key);
-    if (it != g_names_map.end())
-    {
-        result = it->second;
-    }
-    else
-    {
-        BIN_SIZE_INFO** ppBST = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
-        for (DWORD afsId=0; afsId<8; afsId++)
-        {
-            if (ppBST[afsId]==0) continue;
-            if (strncmp(ppBST[afsId]->relativePathName,pathName,strlen(pathName))==0)
-            {
-                g_names_map.insert(pair<string,DWORD>(key,afsId));
-                result = afsId;
-                break;
-            }
-        }
-    }
-    return result;
-}
-*/
-
 DWORD GetAfsIdByPathName(char* pathName)
 {
     BIN_SIZE_INFO** ppBST = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
     for (DWORD afsId=0; afsId<8; afsId++)
     {
         if (ppBST[afsId]==0) continue;
-        if (strncmp(ppBST[afsId]->relativePathName,pathName,strlen(pathName))==0)
+        if (strncmp(ppBST[afsId]->relativePathName,pathName,MAX_RELPATH)==0)
             return afsId;
     }
     return 0xffffffff;
@@ -639,18 +611,7 @@ KEXPORT void afsAfterGetOffsetPages(DWORD offsetPages, DWORD afsId, DWORD binId)
     //        offsetPages, afsId, binId);
 
     DWORD binKey = (offsetPages << 0x0b) + afsId;
-    hash_map<DWORD,DWORD>::iterator it = g_offset_map.find(binKey);
-    if (it == g_offset_map.end())
-    {
-        // insert new entry for future usage
-        g_offset_map.insert(pair<DWORD,DWORD>(binKey,binId));
-    }
-    else
-    {
-        // update the entry: possible for some AFS-es, with so-called
-        // "container"-bins
-        it->second = binId;
-    }
+    g_offset_map[binKey] = binId;  // update existing entry, or insert new
 }
 
 void afsAfterCreateEventCallPoint()
@@ -722,6 +683,9 @@ KEXPORT void afsAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* pa
 
             //LOG3N(L"afsAfterCreateEvent:: eventId=%08x (afsId=%d, binId=%d)",eventId, afsId, binId);
         }
+
+        // keep offset map small
+        g_offset_map.erase(it);
     }
 }
 
