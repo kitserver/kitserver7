@@ -96,6 +96,7 @@ void GDB::load()
     if (!readMap((this->dir + L"GDB\\uni\\map.txt").c_str(), mapFile))
     {
         GDB_DEBUG(wlog,(slog,L"Unable to find uni-map: %s\n",mapFile));
+        LOG1S(L"Couldn't open uni-map for reading: {%s}",(this->dir + L"GDB\\uni\\map.txt").c_str());
     }
 
     for (hash_map<WORD,wstring>::iterator it = mapFile.begin(); it != mapFile.end(); it++)

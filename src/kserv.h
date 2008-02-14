@@ -3,7 +3,7 @@
 #include "afsreader.h"
 
 #define MODID 100
-#define NAMELONG L"Kitserver Module 7.1.0.18"
+#define NAMELONG L"Kitserver Module 7.1.0.20"
 #define NAMESHORT L"KSERV"
 #define DEFAULT_DEBUG 0
 
