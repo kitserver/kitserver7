@@ -38,9 +38,17 @@ hash_map<DWORD,FILE_STRUCT> g_event_map;
 #define DEFAULT_FILENAMELEN 64
 #define MAX_ITEMS 10609
 #define MAX_RELPATH 30
+#define MAX_FOLDERS 8
+
+typedef struct _FAST_INFO_CACHE_STRUCT
+{
+    bool initialized; 
+    wchar_t* names;
+} FAST_INFO_CACHE_STRUCT;
 
 hash_map<wstring,int> g_maxItems;
-hash_map<string,wchar_t*> info_cache;
+hash_map<string,wchar_t*> _info_cache;
+FAST_INFO_CACHE_STRUCT _fast_info_cache[MAX_FOLDERS];
 int _fileNameLen = DEFAULT_FILENAMELEN;
 song_map_t* _songs = NULL;
 ball_map_t* _balls = NULL;
@@ -75,12 +83,23 @@ void afsReadSongsMap();
 
 wchar_t* GetBinFileName(DWORD afsId, DWORD binId)
 {
-    if (afsId < 0 || 7 < afsId) return NULL;
-    BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
-    hash_map<string,wchar_t*>::iterator it = info_cache.find(pBST->relativePathName);
-    if (it != info_cache.end())
-        return it->second + _fileNameLen*binId;
-    return NULL;
+    if (afsId < 0 || MAX_FOLDERS-1 < afsId) return NULL; // safety check
+    if (!_fast_info_cache[afsId].initialized)
+    {
+        BIN_SIZE_INFO* pBST = ((BIN_SIZE_INFO**)data[BIN_SIZES_TABLE])[afsId];
+        if (pBST) 
+        {
+            hash_map<string,wchar_t*>::iterator it = _info_cache.find(pBST->relativePathName);
+            if (it != _info_cache.end())
+                _fast_info_cache[afsId].names = it->second;
+        }
+        if (k_afs.debug)
+            LOG1N(L"initialized _fast_info_cache entry for afsId=%d",afsId);
+        _fast_info_cache[afsId].initialized = true;
+    }
+
+    wchar_t* base = _fast_info_cache[afsId].names;
+    return (base) ? base + _fileNameLen*binId : NULL;
 }
 
 int GetNumItems(wstring& folder)
@@ -160,8 +179,8 @@ void InitializeFileNameCache()
                             if (binId >= 0)
                             {
                                 wchar_t* names = NULL;
-                                hash_map<string,wchar_t*>::iterator cit = info_cache.find(key);
-                                if (cit != info_cache.end()) names = cit->second;
+                                hash_map<string,wchar_t*>::iterator cit = _info_cache.find(key);
+                                if (cit != _info_cache.end()) names = cit->second;
                                 else 
                                 {
                                     names = (wchar_t*)HeapAlloc(
@@ -169,7 +188,7 @@ void InitializeFileNameCache()
                                             HEAP_ZERO_MEMORY, 
                                             sizeof(wchar_t)*_fileNameLen*GetNumItems(folder)
                                             );
-                                    info_cache.insert(pair<string,wchar_t*>(key,names));
+                                    _info_cache.insert(pair<string,wchar_t*>(key,names));
                                 }
 
                                 // put filename into cache
@@ -228,8 +247,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-        for (hash_map<string,wchar_t*>::iterator it = info_cache.begin(); 
-                it != info_cache.end();
+        for (hash_map<string,wchar_t*>::iterator it = _info_cache.begin(); 
+                it != _info_cache.end();
                 it++)
             if (it->second) HeapFree(it->second, 0, GetProcessHeap());
 
@@ -263,6 +282,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 	unhookFunction(hk_D3D_CreateDevice, initModule);
 
     InitializeFileNameCache();
+    ZeroMemory(_fast_info_cache,sizeof(FAST_INFO_CACHE_STRUCT)*MAX_FOLDERS);
 
     HookCallPoint(code[C_AT_GET_BINBUFFERSIZE], afsAtGetBinBufferSizeCallPoint, 6, 1);
     HookCallPoint(code[C_AT_GET_SIZE], afsAtGetSizeCallPoint, 6, 1);
