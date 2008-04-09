@@ -328,6 +328,7 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 		NextCall(self, src, dest, hWnd, unused);
 	}
 
+    /*
 	wchar_t* rp = Utf8::ansiToUnicode(renderedPlayers.c_str());
 	KDrawText(rp, 0, 0, D3DCOLOR_RGBA(255,0,0,192));
 	Utf8::free(rp);
@@ -345,6 +346,7 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 	g_replacedHeaders.clear();
 	
 	rpPrepared = false;
+    */
 
 	// CALL ORIGINAL FUNCTION ///////////////////
 	HRESULT res = g_orgPresent(self, src, dest, hWnd, unused);

@@ -24,6 +24,8 @@
     ((dw<<24 & 0xff000000) | (dw<<8  & 0x00ff0000) | \
     (dw>>8  & 0x0000ff00) | (dw>>24 & 0x000000ff))
 
+//#define CREATE_FLAGS FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING
+#define CREATE_FLAGS 0
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -396,13 +398,13 @@ DWORD GetTargetAddress(DWORD addr)
  */
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
 {
-    TRACE1S(L"FileExists:: Checking file: %s", filename);
+    LOG1S(L"OpenFileIfExists:: %s", filename);
     handle = CreateFile(filename,           // file to open
                        GENERIC_READ,          // open for reading
                        FILE_SHARE_READ,       // share for reading
                        NULL,                  // default security
                        OPEN_EXISTING,         // existing file only
-                       FILE_ATTRIBUTE_NORMAL, // normal file
+                       FILE_ATTRIBUTE_NORMAL | CREATE_FLAGS, // normal file
                        NULL);                 // no attr. template
 
     if (handle != INVALID_HANDLE_VALUE)

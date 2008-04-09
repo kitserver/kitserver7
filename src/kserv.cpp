@@ -1551,17 +1551,15 @@ void ApplyDIBTexture(TEXTURE_ENTRY* tex, BITMAPINFO* bitmap)
 	TRACE(L"Palette copied.");
 
 	int k, m, j, w;
-	int height, width;
-	int imageWidth;
-
-    width = imageWidth = tex->header.width; height = tex->header.height;
+    int width = min(tex->header.width, bih->biWidth); // be safe
+    int height = min(tex->header.height, bih->biHeight); // be safe
 
 	// copy pixel data
     if (bih->biBitCount == 8)
     {
         for (k=0, m=bih->biHeight-1; k<height, m>=bih->biHeight - height; k++, m--)
         {
-            memcpy(tex->data + k*width, srcTex + bitsOff + m*imageWidth, width);
+            memcpy(tex->data + k*tex->header.width, srcTex + bitsOff + m*width, width);
         }
     }
     else if (bih->biBitCount == 4)
