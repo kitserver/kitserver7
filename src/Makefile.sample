@@ -49,7 +49,7 @@ all_apps: apps
 pngdib:
 	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
-dlls: kload.dll kserv.dll lodmixer.dll kset.dll afs2fs.dll
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll
 apps: setup.exe lodcfg.exe zlibtool.exe
 
 release:
@@ -74,6 +74,11 @@ afs2fs.dll: afs2fs.lib afs2fs.res
 	$(LINK) $(LFLAGS) /out:afs2fs.dll /DLL afs2fs.obj names.obj configs.obj afs2fs.res $(LIBS) $(D3DX9) kload.lib
 afs2fs.obj: afs2fs.cpp afs2fs.h afs2fs_addr.h afs2fs.rc
 names.obj: names.cpp names.h
+
+afsio.lib: afsio.obj configs.obj
+afsio.dll: afsio.lib afsio.res
+	$(LINK) $(LFLAGS) /out:afsio.dll /DLL afsio.obj configs.obj afsio.res $(LIBS) $(D3DX9) kload.lib
+afsio.obj: afsio.cpp afsio.h afsio_addr.h afsio.rc
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
 kload.dll: kload.lib kload.res
