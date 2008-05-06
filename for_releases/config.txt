@@ -3,6 +3,8 @@ dll = zlib1.dll
 dll = libpng13.dll
 dll = kserv.dll
 dll = lodmixer.dll
+dll = afsio.dll
+dll = afs2fs.dll
 
 [lodmixer]
 aspect-ratio.correction.enabled = 1

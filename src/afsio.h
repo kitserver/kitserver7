@@ -1,11 +1,8 @@
 // afsio.h
+#ifndef _AFSIO_H
+#define _AFSIO_H
 
 #include "afsreader.h"
-
-#define MODID 123
-#define NAMELONG L"AFSIO Module 7.1.0.0"
-#define NAMESHORT L"AFSIO"
-#define DEFAULT_DEBUG 0
 
 #pragma pack(4)
 
@@ -80,4 +77,5 @@ typedef struct _FILE_STRUCT
     DWORD binKey;
 } FILE_STRUCT;
 
+#endif
 

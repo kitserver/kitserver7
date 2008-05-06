@@ -9,6 +9,11 @@
 #define UNICODE
 #define THISMOD &k_afsio
 
+#define MODID 123
+#define NAMELONG L"AFSIO Module 7.1.0.0"
+#define NAMESHORT L"AFSIO"
+#define DEFAULT_DEBUG 0
+
 #include <windows.h>
 #include <stdio.h>
 #include <sys/stat.h>
