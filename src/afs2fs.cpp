@@ -398,7 +398,7 @@ DWORD GetTargetAddress(DWORD addr)
  */
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
 {
-    LOG1S(L"OpenFileIfExists:: %s", filename);
+    TRACE1S(L"OpenFileIfExists:: %s", filename);
     handle = CreateFile(filename,           // file to open
                        GENERIC_READ,          // open for reading
                        FILE_SHARE_READ,       // share for reading
