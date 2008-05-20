@@ -49,7 +49,7 @@ all_apps: apps
 pngdib:
 	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
-dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll
 apps: setup.exe lodcfg.exe zlibtool.exe
 
 release:
@@ -98,6 +98,11 @@ lodmixer.lib: lodmixer.obj
 lodmixer.dll: lodmixer.lib lodmixer.res
 	$(LINK) $(LFLAGS) /out:lodmixer.dll /DLL lodmixer.obj lodmixer.res $(LIBS) $(D3DX9) kload.lib
 lodmixer.obj: lodmixer.cpp lodmixer.h lodmixer_addr.h
+
+sched.lib: sched.obj
+sched.dll: sched.lib sched.res
+	$(LINK) $(LFLAGS) /out:sched.dll /DLL sched.obj sched.res $(LIBS) $(D3DX9) kload.lib
+sched.obj: sched.cpp sched.h sched_addr.h
 
 kset.lib: kset.obj
 kset.dll: kset.lib detect.obj imageutil.obj configs.obj lang.obj kset.res
