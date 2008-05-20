@@ -3,12 +3,12 @@
 #pragma pack(4)
 
 #define MODID 131
-#define NAMELONG L"Scheduler 7.1.0"
+#define NAMELONG L"Scheduler 7.1.1"
 #define NAMESHORT L"SCHED"
 #define DEFAULT_DEBUG 0
 
-#define ROUND_MASK_2LEGS 0x0c
-#define ROUND_MASK_SINGLE 0xf8
+#define ROUND_MASK_2LEGS 0x04
+#define ROUND_MASK_SINGLE 0xfb
 
 typedef struct _PATCH_INFO
 {
