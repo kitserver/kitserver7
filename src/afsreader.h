@@ -57,7 +57,7 @@ typedef struct _ENTRY_INFO
 {
     DWORD offset;
     DWORD size;
-    DWORD unknown; // 0xffffffff
+    DWORD indexOffset; // (if index doesn't exist, then this can be 0 or 0xffffffff)
 } ENTRY_INFO; 
 
 typedef struct _UNPACKED_BIN
