@@ -3,7 +3,7 @@
 #pragma pack(4)
 
 #define MODID 131
-#define NAMELONG L"Scheduler 7.1.1"
+#define NAMELONG L"Scheduler 7.1.2"
 #define NAMESHORT L"SCHED"
 #define DEFAULT_DEBUG 0
 
@@ -22,14 +22,15 @@ typedef struct _PATCH_INFO
 typedef struct _TOURNAMENT_HEADER
 {
     BYTE unknown1[14];
-    WORD tournamentType;
+    BYTE tournamentType;
+    BYTE unknown2;
     WORD mainTeam;
     WORD numTeams;
-    BYTE unknown2;
     BYTE unknown3;
     BYTE unknown4;
+    BYTE unknown5;
     BYTE numTeams2;
-    BYTE unknown5[8];
+    BYTE unknown6[8];
     BYTE padding[0x5880];
 } TOURNAMENT_HEADER;
 

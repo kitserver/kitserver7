@@ -32,7 +32,7 @@ bool OkToChangePlayoffs(SCHEDULE_STRUCT* ss);
 
 void schedAtCheckNumGamesCallPoint();
 void schedAfterWrotePlayoffsCallPoint();
-KEXPORT DWORD schedAtCheckNumGames(SCHEDULE_STRUCT* ss);
+KEXPORT DWORD schedAtCheckNumGames(DWORD orgNumGames, SCHEDULE_STRUCT* ss);
 KEXPORT void schedAfterWrotePlayoffs(bool checkType=true);
 
 
@@ -181,7 +181,8 @@ void schedAtCheckNumGamesCallPoint()
         // IMPORTANT: when saving flags, use pusfd/popfd, because Windows
         // apparently checks for stack alignment and bad things happen, if it's not
         // DWORD-aligned. (For example, all file operations fail!)
-        mov byte ptr ds:[edx+eax*4],bl  // execute replaced code
+        mov byte ptr ds:[edx+eax*4],bl    // execute replaced code
+        mov al,byte ptr ss:[esp+0x14]     // ...
         pushfd 
         push ebp
         push ebx
@@ -189,9 +190,11 @@ void schedAtCheckNumGamesCallPoint()
         push edx
         push esi
         push edi
-        push edi // parameter: pointer to cup-struct
+        push edi // param: pointer to cup-struct
+        movzx eax,al 
+        push eax // param: original num-games
         call schedAtCheckNumGames
-        add esp,0x04     // pop parameters
+        add esp,0x08     // pop parameters
         pop edi
         pop esi
         pop edx
@@ -236,54 +239,21 @@ void schedAfterWrotePlayoffsCallPoint()
 /**
  * returns: number of group games to play.
  */
-KEXPORT DWORD schedAtCheckNumGames(SCHEDULE_STRUCT* ss)
+KEXPORT DWORD schedAtCheckNumGames(DWORD orgNumGames, SCHEDULE_STRUCT* ss)
 {
-    /*
-    LOG1N(L"Tournament type: %d",ss->header.tournamentType);
-    LOG1N(L"Home/Away: %d",ss->params.homeAway);
-    LOG1N(L"Groups: %d",ss->groupStage.numGroups);
-    for (int i=0; i<ss->groupStage.numGroups; i++)
+    if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
     {
-        LOG4N(L"Group %d: teams=%d, matches=%d, matchesTotal=%d", i,
-                ss->groupStage.groups.group[i].numTeams,
-                ss->groupStage.groups.group[i].numGames,
-                ss->groupStage.groups.group[i].numGamesTotal);
-    }
-    if (ss->playoffs.hasPlayoffs)
-    {
-        int i = 0;
-        BYTE *m = ss->playoffs.matches;
-        do
+        // read extended schedule info
+        memcpy(&g_ext, &ss->ext, sizeof(EXTENSION));
+
+        // check of schedule extension is enabled
+        if (ss->ext.enabled)
         {
-            LOG1N(L"Playoff match #d: %d", m[i]);
-        } while (m[i++]!=0);
-    }
-    if (ss->playoffs.params.numMatchups > 0)
-    {
-        LOG2N(L"Playoffs: matchups=%d, matchesTotal=%d",
-                ss->playoffs.params.numMatchups,
-                ss->playoffs.params.numGamesTotal);
-        for (int i=0; i<ss->playoffs.params.numMatchups; i++)
-        {
-            LOG2N(L"Matchup: %d vs. %d", 
-                    ss->playoffs.teamPairs[i].home,
-                    ss->playoffs.teamPairs[i].away);
+            // return extended number of games 
+            return ss->ext.numGamesInG;
         }
     }
-    */
-
-    // read extended schedule info
-    memcpy(&g_ext, &ss->ext, sizeof(EXTENSION));
-
-    // check of schedule extension is enabled
-    if (ss->ext.enabled)
-    {
-        // return extended number of games 
-        return ss->ext.numGamesInG;
-    }
-
-    // default behaviour
-    return max(ss->groupStage.groups.group[0].numTeams-1, 3);
+    return orgNumGames; // return unmodified value
 }
 
 KEXPORT void schedAfterWrotePlayoffs(bool checkType)
