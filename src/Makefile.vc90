@@ -1,12 +1,9 @@
+# For release builds, use "debug=1" in command line. For instance,
+# to build DLLs in release mode: nmake dlls debug=1
+
 CC=cl
 LINK=link
 RC=rc
-
-# 4731: warning about ebp modification
-CFLAGS=/nologo /EHsc /wd4731 $(EXTRA_CFLAGS)
-LFLAGS=/NOLOGO
-LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
-LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
 
 INCPNGDIB=soft\pngdib
 LPPNGDIB=soft\pngdib 
@@ -15,11 +12,19 @@ LPZLIB=soft\zlib123-dll\lib
 LIBPNGDLL=soft\libpng-1.2.8-bin\libpng13.dll 
 ZLIBDLL=soft\zlib123-dll\zlib1.dll
 
-!ifdef MYDLL_RELEASE_BUILD
-D3DX9=d3dx9.lib
-!else
+!if "$(debug)"=="1"
 D3DX9=d3dx9d.lib
+!else
+EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD
+D3DX9=d3dx9.lib
 !endif
+
+# 4731: warning about ebp modification
+CFLAGS=/nologo /EHsc /wd4731 $(EXTRA_CFLAGS)
+LFLAGS=/NOLOGO
+LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
+LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
+
 
 all: dlls apps
 	if exist output (rd /S /Q output)
@@ -52,9 +57,6 @@ pngdib:
 dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll
 apps: setup.exe lodcfg.exe zlibtool.exe
 
-release:
-	$(MAKE) EXTRA_CFLAGS="/DMYDLL_RELEASE_BUILD" MYDLL_RELEASE_BUILD=1
-
 setup: setup.exe
 kset: kset.dll
 kload: kload.dll
@@ -70,8 +72,8 @@ crc32.obj: crc32.cpp crc32.h
 hook.obj: hook.cpp hook.h
 
 afs2fs.lib: afs2fs.obj names.obj configs.obj
-afs2fs.dll: afs2fs.lib afs2fs.res
-	$(LINK) $(LFLAGS) /out:afs2fs.dll /DLL afs2fs.obj names.obj configs.obj afs2fs.res $(LIBS) $(D3DX9) kload.lib
+afs2fs.dll: afs2fs.lib afsio.lib afs2fs.res
+	$(LINK) $(LFLAGS) /out:afs2fs.dll /DLL afs2fs.obj names.obj configs.obj afs2fs.res $(LIBS) $(D3DX9) kload.lib afsio.lib
 afs2fs.obj: afs2fs.cpp afs2fs.h afs2fs_addr.h afs2fs.rc
 names.obj: names.cpp names.h
 
