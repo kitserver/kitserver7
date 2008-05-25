@@ -1921,7 +1921,7 @@ void ForceSetAttributes()
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
 {
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
-		if (wParam == 0x31) { // home PL
+        if (wParam == 0x31) { // home PL
             if (g_iterHomePL == g_iterHomePL_end)
                 g_iterHomePL = g_iterHomePL_begin;
             else
@@ -2111,7 +2111,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
             KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
-        if (g_iterHomePL->second.attDefined & MAIN_COLOR)
+        if (g_iterHomePL->second.attDefined & SHORTS_MAIN_COLOR)
         {
             RGBAColor& c = g_iterHomePL->second.shortsFirstColor;
             KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
@@ -2169,7 +2169,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KDrawText(L"\x2580", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
             KDrawText(L"\x2580", 178, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
-        if (g_iterHomeGK->second.attDefined & MAIN_COLOR)
+        if (g_iterHomeGK->second.attDefined & SHORTS_MAIN_COLOR)
         {
             RGBAColor& c = g_iterHomeGK->second.shortsFirstColor;
             KDrawText(L"\x2584", 180, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
@@ -2227,13 +2227,13 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KDrawText(L"\x2580", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
             KDrawText(L"\x2580", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
-        if (g_iterAwayPL->second.attDefined & MAIN_COLOR)
+        if (g_iterAwayPL->second.attDefined & SHORTS_MAIN_COLOR)
         {
             RGBAColor& c = g_iterAwayPL->second.shortsFirstColor;
             KDrawText(L"\x2584", 580, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
             KDrawText(L"\x2584", 578, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
-        else if (g_iterHomeGK->second.foldername == L"")
+        else if (g_iterAwayPL->second.foldername == L"")
         {
             // non-GDB kit => get shorts color from attribute structures
             NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
@@ -2286,7 +2286,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KDrawText(L"\x2580", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);
             KDrawText(L"\x2580", 578, 33, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
         }
-        if (g_iterAwayGK->second.attDefined & MAIN_COLOR)
+        if (g_iterAwayGK->second.attDefined & SHORTS_MAIN_COLOR)
         {
             RGBAColor& c = g_iterAwayGK->second.shortsFirstColor;
             KDrawText(L"\x2584", 580, 35, COLOR_BLACK, 26.0f, KDT_BOLD);

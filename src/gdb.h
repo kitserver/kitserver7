@@ -80,7 +80,7 @@ public:
     map<wstring,Kit> goalkeepers;
     BOOL loaded;
 
-    KitCollection(wstring fname) : foldername(fname), loaded(false) {}
+    KitCollection(const wstring& fname) : foldername(fname), loaded(false) {}
 };
 
 class GDB {
@@ -91,7 +91,7 @@ public:
     KitCollection dummyAway;
     bool readConfigs;
 
-    GDB(wstring gdir, bool rc=true) : 
+    GDB(const wstring& gdir, bool rc=true) : 
         dir(gdir), 
         dummyHome(L""), 
         dummyAway(L""), 

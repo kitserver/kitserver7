@@ -131,11 +131,13 @@ void GDB::load()
     this->dummyHome.players.insert(pair<wstring,Kit>(L"pb",dummyKit));
     this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"ga",dummyKit));
     this->dummyHome.goalkeepers.insert(pair<wstring,Kit>(L"gb",dummyKit));
+    this->dummyHome.loaded = true;
 
     this->dummyAway.players.insert(pair<wstring,Kit>(L"pa",dummyKit));
     this->dummyAway.players.insert(pair<wstring,Kit>(L"pb",dummyKit));
     this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"ga",dummyKit));
     this->dummyAway.goalkeepers.insert(pair<wstring,Kit>(L"gb",dummyKit));
+    this->dummyAway.loaded = true;
 
 	GDB_DEBUG(wlog,(slog,L"Loading GDB complete.\n"));
     GDB_DEBUG_CLOSE(wlog);
@@ -207,7 +209,7 @@ void GDB::findKitsForTeam(WORD teamId)
         // goalkeepers
         this->fillKitCollection(it->second, GOALKEEPERS);
         // mark kit collection as loaded
-        it->second.loaded = TRUE;
+        it->second.loaded = true;
     }
 }
 
