@@ -43,6 +43,10 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		LOG(L"Attaching dll...");
 		hInst=hInstance;
 		RegisterKModule(&k_sched);
+		if (!checkGameVersion()) {
+			LOG(L"Sorry, your game version isn't supported!");
+			return false;
+		}
 
 		copyAdresses();
 		hookFunction(hk_D3D_Create, initSched);

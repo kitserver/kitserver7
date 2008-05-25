@@ -3,7 +3,7 @@
 #pragma pack(4)
 
 #define MODID 131
-#define NAMELONG L"Scheduler 7.1.2"
+#define NAMELONG L"Scheduler 7.1.3"
 #define NAMESHORT L"SCHED"
 #define DEFAULT_DEBUG 0
 
