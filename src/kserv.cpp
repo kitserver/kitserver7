@@ -12,6 +12,14 @@
 #include "pngdib.h"
 #include "utf8.h"
 
+#if _CPPLIB_VER < 503
+#define  __in
+#define  __out 
+#define  __in
+#define  __out_opt
+#define  __inout_opt
+#endif
+
 #define lang(s) getTransl("kserv",s)
 
 #include <map>
@@ -36,6 +44,9 @@ typedef struct _UNPACK_INFO
     DWORD destSizeExpected;
     DWORD destSize;
 } UNPACK_INFO;
+
+typedef DWORD (*PROC_UNPACK_BIN)(UNPACK_INFO* pUnpackInfo, DWORD p2);
+PROC_UNPACK_BIN _orgUnpackBin;
 
 typedef struct _SWAP_BIN_STRUCT
 {
@@ -102,6 +113,8 @@ bool allQualities = true;
 
 // GLOBALS
 CRITICAL_SECTION g_csRead;
+CRITICAL_SECTION _cs_savedTki;
+CRITICAL_SECTION _cs_slots;
 
 HANDLE g_hfile_cv_0 = INVALID_HANDLE_VALUE;
 FILE *g_FILE_cv_0 = NULL;
@@ -145,7 +158,6 @@ map<wstring,Kit>::iterator g_iterHomeGK_end;
 map<wstring,Kit>::iterator g_iterAwayGK_end;
 
 HHOOK g_hKeyboardHook = NULL;
-hash_map<WORD,TEAM_KIT_INFO> g_savedAttributes;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
@@ -170,6 +182,7 @@ BOOL WINAPI kservReadFile(
 void kservBeforeLoadBinCallPoint();
 void kservBeforeLoadBinCallPoint_120();
 KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2);
+void kservUnpackBinCallPoint();
 KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 DWORD kservGetBinSize(DWORD afsId, DWORD binId);
 DWORD GetTargetAddress(DWORD addr);
@@ -208,8 +221,6 @@ void kservTriggerKitSelection(int delta);
 void kservAddMenuModeCallPoint();
 void kservSubMenuModeCallPoint();
 void ResetIterators();
-void ForceSetAttributes();
-void RestoreOriginalAttributes();
 void kservStartReadKitInfoCallPoint();
 void kservStartReadKitInfoCallPoint2();
 void kservStartReadKitInfoCallPoint3();
@@ -223,7 +234,6 @@ void kservOnLeaveCupsCallPoint();
 void kservOnLeaveCupsCallPoint2();
 void kservOnEnterCups();
 void kservOnLeaveCups();
-bool IsKitBin(DWORD binId);
 bool IsKitBin(DWORD afsId, DWORD binId);
 
 // FUNCTION POINTERS
@@ -246,6 +256,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
         // initialize critical sections
         InitializeCriticalSection(&g_csRead);
+        InitializeCriticalSection(&_cs_savedTki);
+        InitializeCriticalSection(&_cs_slots);
 
 		copyAdresses();
 		//hookFunction(hk_D3D_Create, initKserv);
@@ -270,6 +282,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
         // destroy critical sections
         DeleteCriticalSection(&g_csRead);
+        DeleteCriticalSection(&_cs_savedTki);
+        DeleteCriticalSection(&_cs_slots);
 	}
 	
 	return true;
@@ -709,7 +723,9 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     ResetIterators();
 
     // hook UnpackBin
-    MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
+    //MasterHookFunction(code[C_UNPACK_BIN], 2, kservUnpackBin);
+    _orgUnpackBin = (PROC_UNPACK_BIN)GetTargetAddress(code[C_UNPACK_BIN]);
+    HookCallPoint(code[C_UNPACK_BIN], kservUnpackBinCallPoint, 6, 0);
     
     // hook reading of team kit info
     HookCallPoint(code[C_AFTER_READTEAMKITINFO_1], kservReadTeamKitInfoCallPoint1, 6, data[NUMNOPS_1]);
@@ -833,11 +849,6 @@ void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexId
 	return;
 }
 
-bool IsKitBin(DWORD binId)
-{
-    return IsKitBin(0, binId);
-}
-
 bool IsKitBin(DWORD afsId, DWORD binId)
 {
     if (afsId != 0) return false;
@@ -919,9 +930,17 @@ void kservBeforeLoadBinCallPoint_120()
 KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
 {
     TRACE2N(L"Loading BIN #%d, afsId=%d",s1->binId,s1->afsId);
+    if (s1->afsId!=s2->afsId || s1->binId!=s2->binId)
+    {
+        TRACE4N(L"Structures differ: (%d,%d) vs. (%d,%d)",
+                s1->afsId, s1->binId,
+                s2->afsId, s2->binId);
+        return;
+    }
 
     if (IsKitBin(s1->afsId,s1->binId))
     {
+        TRACE2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
         EnterCriticalSection(&g_csRead);
         DWORD threadId = GetCurrentThreadId();
         hash_map<DWORD,READ_BIN_STRUCT>::iterator it = g_read_bins.find(threadId);
@@ -938,6 +957,7 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
             // update entry (shouldn't happen, really)
             it->second.afsId = s1->afsId; 
             it->second.binId = s1->binId; 
+            TRACE2N(L"WARNING: updated entry for #%d, afsId=%d",s1->binId,s1->afsId);
         }
         LeaveCriticalSection(&g_csRead);
 
@@ -948,78 +968,108 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
 
         // determine team ID by kit slot
         WORD kitSlot = GetKitSlot(binId);
+        EnterCriticalSection(&_cs_slots);
         hash_map<WORD,WORD>::iterator ksit = g_teamIdByKitSlot.find(kitSlot);
         if (ksit != g_teamIdByKitSlot.end())
         {
             WORD teamId = ksit->second;
-            hash_map<WORD,KitCollection>::iterator wkit = gdb->uni.find(teamId);
-            // First, operate on bins from AFS
+
+            // set iterators
+            map<wstring,Kit>::iterator iterPL;
+            map<wstring,Kit>::iterator iterGK;
+            map<wstring,Kit>::iterator iterPL_end;
+            map<wstring,Kit>::iterator iterGK_end;
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            if (pNM && pNM->home && pNM->away)
             {
-                // set iterators
-                map<wstring,Kit>::iterator iterPL;
-                map<wstring,Kit>::iterator iterGK;
-                map<wstring,Kit>::iterator iterPL_end;
-                map<wstring,Kit>::iterator iterGK_end;
-                NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-                if (pNM && pNM->home && pNM->away)
-                {
-                    iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
-                    iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
-                    iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
-                    iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
-                } 
+                iterPL = (pNM->home->teamId == teamId) ? g_iterHomePL : g_iterAwayPL;
+                iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
+                iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
+                iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
+            } 
 
-                int shiftGK[] = {0,0};
-                if (iterGK != iterGK_end)
-                { 
-                    shiftGK[0] = (iterGK->first == L"ga") ? 0 : 1;
-                    shiftGK[1] = (iterGK->first == L"ga") ? -1 : 0;
-                }
-                int shiftPL[] = {0,0};
-                if (iterPL != iterPL_end)
-                { 
-                    shiftPL[0] = (iterPL->first == L"pa") ? 0 : 1;
-                    shiftPL[1] = (iterPL->first == L"pa") ? -1 : 0;
-                }
+            int shiftGK[] = {0,0};
+            if (iterGK != iterGK_end)
+            { 
+                shiftGK[0] = (iterGK->first == L"ga") ? 0 : 1;
+                shiftGK[1] = (iterGK->first == L"ga") ? -1 : 0;
+            }
+            int shiftPL[] = {0,0};
+            if (iterPL != iterPL_end)
+            { 
+                shiftPL[0] = (iterPL->first == L"pa") ? 0 : 1;
+                shiftPL[1] = (iterPL->first == L"pa") ? -1 : 0;
+            }
 
-                switch (type)
-                {
-                    case BIN_FONT_GA:
-                    case BIN_NUMS_GA:
-                        if (shiftGK[0] != 0)
-                        {
-                            s1->binId = binId + shiftGK[0];
-                            s2->binId = binId + shiftGK[0];
-                        }
-                        break;
-                    case BIN_FONT_GB:
-                    case BIN_NUMS_GB:
-                        if (shiftGK[1] != 0)
-                        {
-                            s1->binId = binId + shiftGK[1];
-                            s2->binId = binId + shiftGK[1];
-                        }
-                        break;
-                    case BIN_FONT_PA:
-                    case BIN_NUMS_PA:
-                        if (shiftPL[0] != 0)
-                        {
-                            s1->binId = binId + shiftPL[0];
-                            s2->binId = binId + shiftPL[0];
-                        }
-                        break;
-                    case BIN_FONT_PB:
-                    case BIN_NUMS_PB:
-                        if (shiftPL[1] != 0)
-                        {
-                            s1->binId = binId + shiftPL[1];
-                            s2->binId = binId + shiftPL[1];
-                        }
-                        break;
-                }
+            switch (type)
+            {
+                case BIN_FONT_GA:
+                case BIN_NUMS_GA:
+                    if (shiftGK[0] != 0)
+                    {
+                        s1->binId = binId + shiftGK[0];
+                        s2->binId = binId + shiftGK[0];
+                    }
+                    break;
+                case BIN_FONT_GB:
+                case BIN_NUMS_GB:
+                    if (shiftGK[1] != 0)
+                    {
+                        s1->binId = binId + shiftGK[1];
+                        s2->binId = binId + shiftGK[1];
+                    }
+                    break;
+                case BIN_FONT_PA:
+                case BIN_NUMS_PA:
+                    if (shiftPL[0] != 0)
+                    {
+                        s1->binId = binId + shiftPL[0];
+                        s2->binId = binId + shiftPL[0];
+                    }
+                    break;
+                case BIN_FONT_PB:
+                case BIN_NUMS_PB:
+                    if (shiftPL[1] != 0)
+                    {
+                        s1->binId = binId + shiftPL[1];
+                        s2->binId = binId + shiftPL[1];
+                    }
+                    break;
             }
         }
+        LeaveCriticalSection(&_cs_slots);
     } // end IsKitBin
+    TRACE2N(L"Loading BIN done for #%d, afsId=%d",s1->binId,s1->afsId);
+}
+
+void kservUnpackBinCallPoint()
+{
+    __asm {
+        // IMPORTANT: when saving flags, use pusfd/popfd, because Windows
+        // apparently checks for stack alignment and bad things happen, if it's not
+        // DWORD-aligned. (For example, all file operations fail!)
+        pushfd 
+        push ebp
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov esi,[esp+0x24]
+        mov edi,[esp+0x20]
+        push esi
+        push edi
+        call kservUnpackBin
+        add esp,8     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop ebp
+        popfd
+        retn
+    }
 }
 
 KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
@@ -1040,7 +1090,7 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
     UNPACKED_BIN* bin = (UNPACKED_BIN*)pUnpackInfo->destBuffer;
 
     // call original
-    DWORD result = MasterCallNext(pUnpackInfo, p2);
+    DWORD result = _orgUnpackBin(pUnpackInfo, p2);
 
     if (IsKitBin(afsId,currBin))
     {
@@ -1053,9 +1103,11 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
 
         // determine team ID by kit slot
         WORD kitSlot = GetKitSlot(currBin);
+        EnterCriticalSection(&_cs_slots);
         hash_map<WORD,WORD>::iterator ksit = g_teamIdByKitSlot.find(kitSlot);
         if (ksit != g_teamIdByKitSlot.end())
         {
+            LeaveCriticalSection(&_cs_slots);
             WORD teamId = ksit->second;
 
             // First, operate with bins from AFS
@@ -1357,6 +1409,10 @@ KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2)
             } // end if wkit
 
         } // end if ksit
+        else
+        {
+            LeaveCriticalSection(&_cs_slots);
+        }
     }
 
     return result;
@@ -1659,6 +1715,7 @@ KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
         if (tid == g_kitSlotByTeamId.end())
         {
             TRACE1N(L"Re-linking team %d...", teamId);
+            EnterCriticalSection(&_cs_slots);
             // this is a team in GDB, but without a kit slot in AFS
             // We need to temporarily re-link it to an available slot.
             WORD kitSlot = FindFreeKitSlot();
@@ -1682,6 +1739,7 @@ KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
             {
                 LOG1N(L"Unable to re-link team %d: no slots available.", teamId);
             }
+            LeaveCriticalSection(&_cs_slots);
         }
         else
         {
@@ -1862,7 +1920,10 @@ WORD FindFreeKitSlot()
     {
         hash_map<WORD,WORD>::iterator tid = g_teamIdByKitSlot.find(i);
         if (tid == g_teamIdByKitSlot.end())
+        {
+            //LeaveCriticalSection(&_cs_slots);
             return i;
+        }
         TRACE2N(L"FindFreeKitSlot: slot %04x is taken, by teamId = %d",tid->first,tid->second);
     }
     return -1;
@@ -1885,37 +1946,6 @@ void UnhookKeyboard()
 		TRACE(L"Keyboard hook uninstalled.");
 		g_hKeyboardHook = NULL;
 	}
-}
-
-TEAM_KIT_INFO* GetOriginalAttributes(WORD teamId)
-{
-    hash_map<WORD,TEAM_KIT_INFO>::iterator it = g_savedAttributes.find(teamId);
-    if (it == g_savedAttributes.end())
-    {
-        // not found: insert
-        TEAM_KIT_INFO tki;
-        g_savedAttributes.insert(pair<WORD,TEAM_KIT_INFO>(
-            teamId,
-            ((TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4))[teamId])
-        );
-
-        it = g_savedAttributes.find(teamId);
-    }
-    return &(it->second);
-}
-
-void ForceSetAttributes()
-{
-    TEAM_KIT_INFO *src, *dest;
-    NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-    src = GetOriginalAttributes(pNM->home->teamId);
-    dest = &((TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4))[pNM->home->teamId];
-    memcpy(dest,src,sizeof(TEAM_KIT_INFO));
-    kservAfterReadTeamKitInfo(dest, dest);
-    src = GetOriginalAttributes(pNM->away->teamId);
-    dest = &((TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4))[pNM->away->teamId];
-    memcpy(dest,src,sizeof(TEAM_KIT_INFO));
-    kservAfterReadTeamKitInfo(dest, dest);
 }
 
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
@@ -2341,24 +2371,12 @@ void kservTriggerKitSelection(int delta)
     }
 }
 
-void RestoreOriginalAttributes()
-{
-    for (hash_map<WORD,TEAM_KIT_INFO>::iterator it = g_savedAttributes.begin();
-            it != g_savedAttributes.end();
-            it++)
-    {
-        LOG1N(L"restoring original attributes for team %d",it->first);
-        TEAM_KIT_INFO* dest = &((TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4))[it->first];
-        memcpy(dest, &it->second, sizeof(TEAM_KIT_INFO));
-    }
-    g_savedAttributes.clear();
-}
-
 void SetAttributes(TEAM_KIT_INFO* src, WORD teamId)
 {
     // save orginals
     TEAM_KIT_INFO tki;
     memcpy(&tki, src, sizeof(TEAM_KIT_INFO));
+    EnterCriticalSection(&_cs_savedTki);
     hash_map<DWORD,TEAM_KIT_INFO>::iterator it = g_savedTki.find((DWORD)src);
     if (it == g_savedTki.end()) 
     {
@@ -2366,11 +2384,13 @@ void SetAttributes(TEAM_KIT_INFO* src, WORD teamId)
         g_savedTki.insert(pair<DWORD,TEAM_KIT_INFO>((DWORD)src,tki));
     }
     kservAfterReadTeamKitInfo(src, src);
+    LeaveCriticalSection(&_cs_savedTki);
 }
 
 void RestoreAttributes()
 {
     // restore originals
+    EnterCriticalSection(&_cs_savedTki);
     for (hash_map<DWORD,TEAM_KIT_INFO>::iterator it = g_savedTki.begin();
             it != g_savedTki.end();
             it++)
@@ -2379,6 +2399,7 @@ void RestoreAttributes()
         TRACE1N(L"Restored attributes for %08x", (DWORD)it->first);
     }
     g_savedTki.clear();
+    LeaveCriticalSection(&_cs_savedTki);
 }
 
 void kservStartReadKitInfo(TEAM_KIT_INFO* src)

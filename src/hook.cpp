@@ -360,7 +360,8 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 	
 	g_bGotFormat = false;
 	
-	for (int i = 0; i<400; i++) {
+    int i;
+	for (i = 0; i<400; i++) {
 		if (myFonts[i/100][i%100]) {
 			myFonts[i/100][i%100]->OnLostDevice();
 		}
@@ -374,7 +375,7 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 	HRESULT res = g_orgReset(self, params);
 	TRACE(L"newReset: Reset() is done. About to return.");
 	
-	for (int i = 0; i<400; i++) {
+	for (i = 0; i<400; i++) {
 		if (myFonts[i/100][i%100]) {
 			myFonts[i/100][i%100]->OnResetDevice();
 		}
