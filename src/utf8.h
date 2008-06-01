@@ -386,3 +386,4 @@ class Utf8 {
 	
 
 #endif
+
