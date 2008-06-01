@@ -610,7 +610,6 @@ KEXPORT void schedAtCheckPlayed(BYTE* pflag)
     {
         if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
         {
-            LOG2N(L"byte ptr [%08x] = %02x", (DWORD)pflag, *pflag);
             if (*pflag == 0)
                 *pflag = 0xff;
         }
