@@ -34,10 +34,12 @@ void schedAtCheckNumGamesCallPoint();
 void schedAfterWrotePlayoffsCallPoint();
 void schedAtCheckRoundsCallPoint();
 void schedAtReadNumGamesCallPoint();
+void schedAtCheckPlayedCallPoint();
 
 KEXPORT DWORD schedAtCheckNumGames(DWORD orgNumGames, SCHEDULE_STRUCT* ss);
 KEXPORT void schedAfterWrotePlayoffs(bool checkType=true);
 KEXPORT void schedAtCheckRounds(BYTE* pflag);
+KEXPORT void schedAtCheckPlayed(BYTE* pflag);
 KEXPORT DWORD schedAtReadNumGames();
 
 
@@ -131,15 +133,7 @@ void initSched()
     HookCallPoint(code[C_WROTE_PLAYOFFS], schedAfterWrotePlayoffsCallPoint, 6, 0, true);
     HookCallPoint(code[C_READ_NUM_GAMES], schedAtReadNumGamesCallPoint, 6, 1);
     HookCallPoint(code[C_CHECK_ROUNDS], schedAtCheckRoundsCallPoint, 6, 2);
-    {
-        BYTE* bptr = (BYTE*)(code[C_CHECK_PLAYED] + 2);
-        DWORD protection;
-        DWORD newProtection = PAGE_EXECUTE_READWRITE;
-        if (VirtualProtect(bptr, 8, newProtection, &protection)) 
-        {
-            *bptr = 0xff;
-        }
-    }
+    HookCallPoint(code[C_CHECK_PLAYED], schedAtCheckPlayedCallPoint, 6, 0, true);
 
     // hook keyboard
     HookKeyboard();
@@ -284,6 +278,35 @@ void schedAtCheckRoundsCallPoint()
         pop ebp
         popfd
         cmp byte ptr ds:[esi+0x100c],0  // execute replaced code
+        retn
+    }
+}
+
+void schedAtCheckPlayedCallPoint()
+{
+    __asm {
+        // IMPORTANT: when saving flags, use pusfd/popfd, because Windows
+        // apparently checks for stack alignment and bad things happen, if it's not
+        // DWORD-aligned. (For example, all file operations fail!)
+        pushfd 
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push eax // param: pointer to played-flag
+        call schedAtCheckPlayed
+        add esp,4  // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
         retn
     }
 }
@@ -562,7 +585,7 @@ LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
 KEXPORT void schedAtCheckRounds(BYTE* pflag)
 {
     SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
-    if (ss && ss->ext.enabled)
+    if (ss && ss->ext.numGamesInG > 3)
     {
         if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
             *pflag = 1;
@@ -572,11 +595,25 @@ KEXPORT void schedAtCheckRounds(BYTE* pflag)
 KEXPORT DWORD schedAtReadNumGames()
 {
     SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
-    if (ss && ss->ext.enabled)
+    if (ss && ss->ext.numGamesInG > 3)
     {
         if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
             return 0;
     }
     return 4;
+}
+
+KEXPORT void schedAtCheckPlayed(BYTE* pflag)
+{
+    SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
+    if (ss && ss->ext.numGamesInG > 3)
+    {
+        if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
+        {
+            LOG2N(L"byte ptr [%08x] = %02x", (DWORD)pflag, *pflag);
+            if (*pflag == 0)
+                *pflag = 0xff;
+        }
+    }
 }
 
