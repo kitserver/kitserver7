@@ -2376,15 +2376,15 @@ void SetAttributes(TEAM_KIT_INFO* src, WORD teamId)
     // save orginals
     TEAM_KIT_INFO tki;
     memcpy(&tki, src, sizeof(TEAM_KIT_INFO));
-    EnterCriticalSection(&_cs_savedTki);
     hash_map<DWORD,TEAM_KIT_INFO>::iterator it = g_savedTki.find((DWORD)src);
     if (it == g_savedTki.end()) 
     {
         // not found: save
+        EnterCriticalSection(&_cs_savedTki);
         g_savedTki.insert(pair<DWORD,TEAM_KIT_INFO>((DWORD)src,tki));
+        LeaveCriticalSection(&_cs_savedTki);
     }
     kservAfterReadTeamKitInfo(src, src);
-    LeaveCriticalSection(&_cs_savedTki);
 }
 
 void RestoreAttributes()
