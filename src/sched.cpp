@@ -32,8 +32,13 @@ bool OkToChangePlayoffs(SCHEDULE_STRUCT* ss);
 
 void schedAtCheckNumGamesCallPoint();
 void schedAfterWrotePlayoffsCallPoint();
+void schedAtCheckRoundsCallPoint();
+void schedAtReadNumGamesCallPoint();
+
 KEXPORT DWORD schedAtCheckNumGames(DWORD orgNumGames, SCHEDULE_STRUCT* ss);
 KEXPORT void schedAfterWrotePlayoffs(bool checkType=true);
+KEXPORT void schedAtCheckRounds(BYTE* pflag);
+KEXPORT DWORD schedAtReadNumGames();
 
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
@@ -124,6 +129,17 @@ void initSched()
 
     HookCallPoint(code[C_NUM_GAMES_CHECK], schedAtCheckNumGamesCallPoint, 6, 2);
     HookCallPoint(code[C_WROTE_PLAYOFFS], schedAfterWrotePlayoffsCallPoint, 6, 0, true);
+    HookCallPoint(code[C_READ_NUM_GAMES], schedAtReadNumGamesCallPoint, 6, 1);
+    HookCallPoint(code[C_CHECK_ROUNDS], schedAtCheckRoundsCallPoint, 6, 2);
+    {
+        BYTE* bptr = (BYTE*)(code[C_CHECK_PLAYED] + 2);
+        DWORD protection;
+        DWORD newProtection = PAGE_EXECUTE_READWRITE;
+        if (VirtualProtect(bptr, 8, newProtection, &protection)) 
+        {
+            *bptr = 0xff;
+        }
+    }
 
     // hook keyboard
     HookKeyboard();
@@ -236,6 +252,67 @@ void schedAfterWrotePlayoffsCallPoint()
         pop eax
         pop ebp
         popfd
+        retn
+    }
+}
+
+void schedAtCheckRoundsCallPoint()
+{
+    __asm {
+        // IMPORTANT: when saving flags, use pusfd/popfd, because Windows
+        // apparently checks for stack alignment and bad things happen, if it's not
+        // DWORD-aligned. (For example, all file operations fail!)
+        pushfd 
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov edx,esi
+        add edx,0x100c
+        push edx  // param: pointer to flag
+        call schedAtCheckRounds
+        add esp,0x04     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        cmp byte ptr ds:[esi+0x100c],0  // execute replaced code
+        retn
+    }
+}
+
+void schedAtReadNumGamesCallPoint()
+{
+    __asm {
+        // IMPORTANT: when saving flags, use pusfd/popfd, because Windows
+        // apparently checks for stack alignment and bad things happen, if it's not
+        // DWORD-aligned. (For example, all file operations fail!)
+        push eax
+        pushfd 
+        push ebp
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        call schedAtReadNumGames
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop ebp
+        popfd
+        mov cl,byte ptr ds:[edi+eax]  // execute replaced(modified) code
+        sete dl                       // ...
+        pop eax
         retn
     }
 }
@@ -480,5 +557,26 @@ LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
     }	
 
 	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
+}
+
+KEXPORT void schedAtCheckRounds(BYTE* pflag)
+{
+    SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
+    if (ss && ss->ext.enabled)
+    {
+        if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
+            *pflag = 1;
+    }
+}
+
+KEXPORT DWORD schedAtReadNumGames()
+{
+    SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
+    if (ss && ss->ext.enabled)
+    {
+        if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
+            return 0;
+    }
+    return 4;
 }
 
