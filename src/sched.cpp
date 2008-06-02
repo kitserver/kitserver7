@@ -103,6 +103,8 @@ void initSched()
     {
         PATCH_INFO patchInfo;
         memcpy(&patchInfo, &data[i*5], sizeof(PATCH_INFO));
+        if (patchInfo.addr == 0)
+            continue;
 
         BYTE* bptr = (BYTE*)(patchInfo.addr + patchInfo.offset);
         DWORD protection;
