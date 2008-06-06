@@ -40,6 +40,7 @@ KMOD k_afs = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 typedef struct _FAST_INFO_CACHE_STRUCT
 {
     bool initialized; 
+    int numItems;
     wchar_t* names;
 } FAST_INFO_CACHE_STRUCT;
 
@@ -76,11 +77,13 @@ wchar_t* GetBinFileName(DWORD afsId, DWORD binId)
         }
         if (k_afs.debug)
             LOG1N(L"initialized _fast_info_cache entry for afsId=%d",afsId);
+        _fast_info_cache[afsId].numItems = pBST->numItems;
         _fast_info_cache[afsId].initialized = true;
     }
 
     wchar_t* base = _fast_info_cache[afsId].names;
-    return (base) ? base + _fileNameLen*binId : NULL;
+    return (base && binId<_fast_info_cache[afsId].numItems) ? 
+        base + _fileNameLen*binId : NULL;
 }
 
 int GetNumItems(wstring& folder)

@@ -1,4 +1,6 @@
 /* KitServer Loader Header-File */
+#ifndef _KLOAD_H
+#define _KLOAD_H
 
 #ifdef _COMPILING_KLOAD
 #define MODID 0
@@ -32,3 +34,4 @@ KEXPORT DWORD MasterCallNext(...);
 // global critical section
 extern CRITICAL_SECTION g_cs;
 
+#endif

@@ -22,9 +22,13 @@ KEXPORT bool afsioRemoveCallback(const CLBK_GET_FILE_INFO callback);
 
 typedef struct _BIN_SIZE_INFO
 {
-    BYTE unknown1[0x10];
+    DWORD unknown1;
+    DWORD structSize;
+    DWORD numItems;
+    WORD numItems2;
+    WORD unknown2;
     char relativePathName[0x108];
-    DWORD unknown2;
+    DWORD unknown3;
     DWORD sizes[1];
 } BIN_SIZE_INFO;
 

@@ -16,8 +16,10 @@ using namespace stdext;
 // "a" might contain some info for the function, ''
 typedef void  (*PROCESSCONFIG)(char* pName, const void* pValue, DWORD a);
 
+#ifndef _KLOAD_H
 enum {DT_NORMAL, DT_STRING, DT_DWORD, DT_INT, DT_DOUBLE, DT_FLOAT};
 #define C_ALL 0x80000000
+#endif
 
 bool readConfig(const wchar_t* cfgFile);
 bool writeConfig(const wchar_t* cfgFile);
