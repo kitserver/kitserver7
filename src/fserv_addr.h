@@ -1,8 +1,8 @@
 // ADDRESSES for fserv.cpp
 BYTE allowedGames[] = {
     //gvPES2008demo,
-    //gvPES2008,
-    //gvPES2008v110,
+    gvPES2008,
+    gvPES2008v110,
     gvPES2008v120,
 };
 
@@ -18,12 +18,16 @@ DWORD codeArray[][CODELEN] = {
     // [Settings] PES2008 PC DEMO
     NOCODEADDR,
     // PES2008
-    NOCODEADDR,
+    {
+        0xb6efcf, 0xc96248,
+    },
     // [Settings] PES2008 PC
     NOCODEADDR,
     NOCODEADDR,
     // PES2008 1.10
-    NOCODEADDR,
+    {
+        0xb6edef, 0xc97bd8,
+    },
     NOCODEADDR,
     // PES2008 1.20
     { 
@@ -44,14 +48,14 @@ DWORD dataArray[][DATALEN] = {
     NODATAADDR
     // PES2008
     { 
-        0, 0,
+        0x1250d44, 0x1316b60,
     },
     // [Settings] PES2008 PC
     NODATAADDR
     NODATAADDR
     // PES2008 1.10
     { 
-        0, 0,
+        0x1251d6c, 0x1317b80,
     },
     NODATAADDR
     // PES2008 1.20

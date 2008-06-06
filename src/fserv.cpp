@@ -463,24 +463,29 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
     BYTE faceHairMask = *(BYTE*)(src+3);
     WORD slotPair = *(WORD*)(src+0x3a);
 
+    //LOG1N(L"fservAtFaceHair: slotPair=%04x",slotPair);
     WORD* from = (WORD*)(src+6); // face
     WORD* to = (WORD*)(dest+0xe);
     *to = *from & 0x7ff;
-    if (slotPair!=0 && (faceHairMask & UNIQUE_FACE))
+    if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_FACE))
     {
         hash_map<WORD,wstring>::iterator fit = _faces.find(slotPair*2);
         if (fit != _faces.end()) { *to = fit->first-1408; }
     }
+    //if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_FACE))
+    //    *to = slotPair*2-1408;
 
     from = (WORD*)(src+4); // hair
     to = (WORD*)(dest+4);
     *to = *from & 0x7ff; 
-    if (slotPair!=0 && (faceHairMask & UNIQUE_HAIR))
+    if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_HAIR))
     {
         hash_map<WORD,wstring>::iterator hit = _hairs.find(slotPair*2+1);
         if (hit != _hairs.end()) { *to = hit->first-4449; }
     }
-    LOG(L"fservAtFaceHair called.");
+    //if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_HAIR))
+    //    *to = slotPair*2+1-4449;
+    //LOG(L"fservAtFaceHair done.");
 }
 
 /**
