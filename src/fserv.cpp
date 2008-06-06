@@ -369,6 +369,7 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
     if (size != 0x12a9cc)
         return;  // not edit-data
 
+    multimap<string,DWORD> mm;
     for (int i=0; i<5460; i++)
     {
         if (players[i].id == 0)
@@ -395,7 +396,28 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
             // adjust flag
             players[i].faceHairMask |= UNIQUE_HAIR;
         }
+
+        if (players[i].name[0]!='\0')
+        {
+            string name(players[i].name);
+            mm.insert(pair<string,DWORD>(name,players[i].id));
+        }
+                    
     }
+
+    // write out playerlist.txt
+    wstring plist(getPesInfo()->myDir);
+    plist += L"\\playerlist.txt";
+    FILE* f = _wfopen(plist.c_str(),L"wt");
+    if (f)
+    {
+        for (multimap<string,DWORD>::iterator it = mm.begin();
+                it != mm.end();
+                it++)
+            fprintf(f,"%7d : %s\n",it->second,it->first.c_str());
+        fclose(f);
+    }
+
     LOG(L"fservAtCopyEditData() done: players modified.");
 }
 

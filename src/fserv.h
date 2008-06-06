@@ -1,18 +1,19 @@
 // fserv.h
 
 #define MODID 151
-#define NAMELONG L"FSERV Module 7.1.0.0"
+#define NAMELONG L"FSERV Module 7.1.2.0"
 #define NAMESHORT L"FSERV"
 #define DEFAULT_DEBUG 0
 
 typedef struct _PLAYER_INFO
 {
     DWORD id;
-    BYTE unknown1[0x6a];
+    char name[0x2e];
+    BYTE unknown1[0x3c];
     BYTE unknown2;
     BYTE faceHairMask;
-    BYTE unknown[0x34];
+    BYTE unknown3[0x34];
     BYTE country;
-    BYTE age;
+    BYTE unknown4;
     WORD padding;
 } PLAYER_INFO;
