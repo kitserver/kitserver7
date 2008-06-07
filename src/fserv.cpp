@@ -31,6 +31,8 @@
 #define CREATE_FLAGS 0
 
 #define FIRST_FACE_SLOT 20000
+#define MAX_BIN_ID 65535
+
 #define UNIQUE_FACE 0x10
 #define UNIQUE_HAIR 0x40
 
@@ -39,12 +41,12 @@ HINSTANCE hInst = NULL;
 KMOD k_fserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
 // GLOBALS
-hash_map<WORD,wstring> _faces;
-hash_map<WORD,wstring> _hairs;
 hash_map<DWORD,wstring> _player_face;
 hash_map<DWORD,wstring> _player_hair;
 hash_map<DWORD,WORD> _player_face_slot;
 hash_map<DWORD,WORD> _player_hair_slot;
+
+wstring* _fast_bin_table[MAX_BIN_ID-FIRST_FACE_SLOT+1];
 
 bool _struct_replaced = false;
 int _num_slots = 8094;
@@ -153,6 +155,8 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
 void InitMaps()
 {
+    ZeroMemory(_fast_bin_table, sizeof(_fast_bin_table));
+
     // process face/hair map file
     hash_map<WORD,wstring> mapFile;
     wstring mpath(getPesInfo()->gdbDir);
@@ -220,7 +224,7 @@ void InitMaps()
                     it = _player_face.find(playerId);
                     if (it != _player_face.end())
                     {
-                        _faces.insert(pair<WORD,wstring>(slotId,it->second));
+                        _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
                         _player_face_slot.insert(pair<DWORD,WORD>(playerId,slotId));
                     }
                     break;
@@ -228,7 +232,7 @@ void InitMaps()
                     it = _player_hair.find(playerId);
                     if (it != _player_hair.end())
                     {
-                        _hairs.insert(pair<WORD,wstring>(slotId,it->second));
+                        _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
                         _player_hair_slot.insert(pair<DWORD,WORD>(playerId,slotId));
                     }
                     break;
@@ -255,7 +259,7 @@ void InitMaps()
             nextSlotPair++;
         }
 
-        _faces.insert(pair<WORD,wstring>(slotId,it->second));
+        _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
         _player_face_slot.insert(pair<DWORD,WORD>(it->first,slotId));
         slots.insert(pair<DWORD,DWORD>(slotId,it->first));
     }
@@ -276,7 +280,7 @@ void InitMaps()
             nextSlotPair++;
         }
 
-        _hairs.insert(pair<WORD,wstring>(slotId,it->second));
+        _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
         _player_hair_slot.insert(pair<DWORD,WORD>(it->first,slotId));
         slots.insert(pair<DWORD,DWORD>(slotId,it->first));
     }
@@ -369,7 +373,6 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
     if (size != 0x12a9cc)
         return;  // not edit-data
 
-    multimap<string,DWORD> mm;
     for (int i=0; i<5460; i++)
     {
         if (players[i].id == 0)
@@ -396,28 +399,7 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
             // adjust flag
             players[i].faceHairMask |= UNIQUE_HAIR;
         }
-
-        if (players[i].name[0]!='\0')
-        {
-            string name(players[i].name);
-            mm.insert(pair<string,DWORD>(name,players[i].id));
-        }
-                    
     }
-
-    // write out playerlist.txt
-    wstring plist(getPesInfo()->myDir);
-    plist += L"\\playerlist.txt";
-    FILE* f = _wfopen(plist.c_str(),L"wt");
-    if (f)
-    {
-        for (multimap<string,DWORD>::iterator it = mm.begin();
-                it != mm.end();
-                it++)
-            fprintf(f,"%7d : %s\n",it->second,it->first.c_str());
-        fclose(f);
-    }
-
     LOG(L"fservAtCopyEditData() done: players modified.");
 }
 
@@ -485,29 +467,23 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
     BYTE faceHairMask = *(BYTE*)(src+3);
     WORD slotPair = *(WORD*)(src+0x3a);
 
-    //LOG1N(L"fservAtFaceHair: slotPair=%04x",slotPair);
     WORD* from = (WORD*)(src+6); // face
     WORD* to = (WORD*)(dest+0xe);
     *to = *from & 0x7ff;
     if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_FACE))
     {
-        hash_map<WORD,wstring>::iterator fit = _faces.find(slotPair*2);
-        if (fit != _faces.end()) { *to = fit->first-1408; }
+        if (_fast_bin_table[slotPair*2 - FIRST_FACE_SLOT])
+            *to = slotPair*2-1408;
     }
-    //if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_FACE))
-    //    *to = slotPair*2-1408;
 
     from = (WORD*)(src+4); // hair
     to = (WORD*)(dest+4);
     *to = *from & 0x7ff; 
     if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_HAIR))
     {
-        hash_map<WORD,wstring>::iterator hit = _hairs.find(slotPair*2+1);
-        if (hit != _hairs.end()) { *to = hit->first-4449; }
+        if (_fast_bin_table[slotPair*2+1 - FIRST_FACE_SLOT])
+            *to = slotPair*2+1-4449;
     }
-    //if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_HAIR))
-    //    *to = slotPair*2+1-4449;
-    //LOG(L"fservAtFaceHair done.");
 }
 
 /**
@@ -536,33 +512,17 @@ bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
  */
 bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
 {
-    if (afsId != 0)
+    if (afsId != 0 || binId < FIRST_FACE_SLOT)
         return false;
 
     wchar_t filename[1024] = {0};
-    hash_map<WORD,wstring>::iterator it;
-    switch (binId % 2)
+    wstring* pws = _fast_bin_table[binId - FIRST_FACE_SLOT];
+    if (pws) 
     {
-        case 0:
-            it = _faces.find(binId);
-            if (it != _faces.end())
-            {
-                swprintf(filename,L"%sGDB\\faces\\%s", getPesInfo()->gdbDir,
-                        it->second.c_str());
-                return OpenFileIfExists(filename, hfile, fsize);
-            }
-            break;
-        case 1:
-            it = _hairs.find(binId);
-            if (it != _hairs.end())
-            {
-                swprintf(filename,L"%sGDB\\faces\\%s", getPesInfo()->gdbDir,
-                        it->second.c_str());
-                return OpenFileIfExists(filename, hfile, fsize);
-            }
-            break;
+        swprintf(filename,L"%sGDB\\faces\\%s", getPesInfo()->gdbDir,
+                pws->c_str());
+        return OpenFileIfExists(filename, hfile, fsize);
     }
-
     return false;
 }
 
