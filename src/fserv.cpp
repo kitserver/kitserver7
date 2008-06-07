@@ -14,6 +14,7 @@
 #include "dllinit.h"
 #include "pngdib.h"
 #include "configs.h"
+#include "configs.hpp"
 #include "utf8.h"
 
 #define lang(s) getTransl("fserv",s)
@@ -158,7 +159,7 @@ void InitMaps()
     ZeroMemory(_fast_bin_table, sizeof(_fast_bin_table));
 
     // process face/hair map file
-    hash_map<WORD,wstring> mapFile;
+    hash_map<DWORD,wstring> mapFile;
     wstring mpath(getPesInfo()->gdbDir);
     mpath += L"GDB\\faces\\map.txt";
     if (!readMap(mpath.c_str(), mapFile))
@@ -167,7 +168,7 @@ void InitMaps()
     }
     else
     {
-        for (hash_map<WORD,wstring>::iterator it = mapFile.begin(); it != mapFile.end(); it++)
+        for (hash_map<DWORD,wstring>::iterator it = mapFile.begin(); it != mapFile.end(); it++)
         {
             wstring& line = it->second;
             int comma = line.find(',');
@@ -190,9 +191,9 @@ void InitMaps()
             LOG2S(L"{%s}/{%s}",face.c_str(),hair.c_str());
 
             if (!face.empty())
-                _player_face.insert(pair<WORD,wstring>(it->first,face));
+                _player_face.insert(pair<DWORD,wstring>(it->first,face));
             if (!hair.empty())
-                _player_hair.insert(pair<WORD,wstring>(it->first,hair));
+                _player_hair.insert(pair<DWORD,wstring>(it->first,hair));
         }
     }
 

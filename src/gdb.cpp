@@ -5,6 +5,7 @@
 #include <string>
 #include "gdb.h"
 #include "configs.h"
+#include "configs.hpp"
 #include "utf8.h"
 #include "log.h"
 
