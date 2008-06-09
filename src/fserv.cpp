@@ -51,6 +51,8 @@ wstring* _fast_bin_table[MAX_BIN_ID-FIRST_FACE_SLOT+1];
 
 bool _struct_replaced = false;
 int _num_slots = 8094;
+typedef DWORD (*COPYDATA_PROC)(DWORD dest, DWORD src, DWORD len);
+COPYDATA_PROC _org_copyData2 = NULL;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -62,6 +64,7 @@ void fservAtFaceHairCallPoint();
 void fservAtCopyEditDataCallPoint();
 KEXPORT void fservAtFaceHair(DWORD dest, DWORD src);
 KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size);
+DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len);
 
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
@@ -70,6 +73,7 @@ bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
 bool ReplaceBinSizes();
 void InitMaps();
+void CopyPlayerData(PLAYER_INFO* players, bool writeList=true);
 
 
 static void string_strip(wstring& s)
@@ -143,6 +147,9 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
             fservAtFaceHairCallPoint, 6, 20);
     HookCallPoint(code[C_COPY_DATA], 
             fservAtCopyEditDataCallPoint, 6, 1);
+    _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
+    HookCallPoint(code[C_COPY_DATA2], 
+            fservAtCopyEditData2, 0, 0);
 
     // register callback
     afsioAddCallback(fservGetFileInfo);
@@ -187,13 +194,41 @@ void InitMaps()
                     string_strip_quotes(hair);
             }
 
-            LOG1N(L"{%d}:",it->first);
-            LOG2S(L"{%s}/{%s}",face.c_str(),hair.c_str());
+            //LOG1N(L"{%d}:",it->first);
+            //LOG2S(L"{%s}/{%s}",face.c_str(),hair.c_str());
 
             if (!face.empty())
-                _player_face.insert(pair<DWORD,wstring>(it->first,face));
+            {
+                // check that the file exists, so that we don't crash
+                // later, when it's attempted to replace a face.
+                wstring filename(getPesInfo()->gdbDir);
+                filename += L"GDB\\faces\\" + face;
+                HANDLE handle;
+                DWORD size;
+                if (OpenFileIfExists(filename.c_str(), handle, size))
+                {
+                    CloseHandle(handle);
+                    _player_face.insert(pair<DWORD,wstring>(it->first,face));
+                }
+                else
+                    LOG1N1S(L"ERROR in faceserver map for ID = %d: FAILED to open face BIN \"%s\". Skipping", it->first, face.c_str());
+            }
             if (!hair.empty())
-                _player_hair.insert(pair<DWORD,wstring>(it->first,hair));
+            {
+                // check that the file exists, so that we don't crash
+                // later, when it's attempted to replace a hair.
+                wstring filename(getPesInfo()->gdbDir);
+                filename += L"GDB\\faces\\" + hair;
+                HANDLE handle;
+                DWORD size;
+                if (OpenFileIfExists(filename.c_str(), handle, size))
+                {
+                    CloseHandle(handle);
+                    _player_hair.insert(pair<DWORD,wstring>(it->first,hair));
+                }
+                else
+                    LOG1N1S(L"ERROR in faceserver map for ID = %d: FAILED to open hair BIN \"%s\". Skipping", it->first, hair.c_str());
+            }
         }
     }
 
@@ -369,11 +404,8 @@ bool ReplaceBinSizes()
     return true;
 }
 
-KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
+void CopyPlayerData(PLAYER_INFO* players, bool writeList)
 {
-    if (size != 0x12a9cc)
-        return;  // not edit-data
-
     multimap<string,DWORD> mm;
     for (int i=0; i<5460; i++)
     {
@@ -387,8 +419,8 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
         if (it != _player_face_slot.end())
         {
             players[i].padding = it->second/2; // place slot.
-            LOG2N(L"player #%d assigned slot #%d",
-                    players[i].id,it->second);
+            //LOG2N(L"player #%d assigned slot (face) #%d",
+            //        players[i].id,it->second);
             // adjust flag
             players[i].faceHairMask |= UNIQUE_FACE;
         }
@@ -396,13 +428,13 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
         if (it != _player_hair_slot.end())
         {
             players[i].padding = it->second/2; // place slot.
-            LOG2N(L"player #%d assigned slot #%d",
-                    players[i].id,it->second);
+            //LOG2N(L"player #%d assigned slot (hair) #%d",
+            //        players[i].id,it->second);
             // adjust flag
             players[i].faceHairMask |= UNIQUE_HAIR;
         }
 
-        if (players[i].name[0]!='\0')
+        if (writeList && players[i].name[0]!='\0')
         {
             string name(players[i].name);
             mm.insert(pair<string,DWORD>(name,players[i].id));
@@ -410,20 +442,31 @@ KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
                     
     }
 
-    // write out playerlist.txt
-    wstring plist(getPesInfo()->myDir);
-    plist += L"\\playerlist.txt";
-    FILE* f = _wfopen(plist.c_str(),L"wt");
-    if (f)
+    if (writeList)
     {
-        for (multimap<string,DWORD>::iterator it = mm.begin();
-                it != mm.end();
-                it++)
-            fprintf(f,"%7d : %s\n",it->second,it->first.c_str());
-        fclose(f);
+        // write out playerlist.txt
+        wstring plist(getPesInfo()->myDir);
+        plist += L"\\playerlist.txt";
+        FILE* f = _wfopen(plist.c_str(),L"wt");
+        if (f)
+        {
+            for (multimap<string,DWORD>::iterator it = mm.begin();
+                    it != mm.end();
+                    it++)
+                fprintf(f,"%7d : %s\n",it->second,it->first.c_str());
+            fclose(f);
+        }
     }
 
-    LOG(L"fservAtCopyEditData() done: players modified.");
+    LOG(L"CopyPlayerData() done: players updated.");
+}
+
+KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
+{
+    if (size != 0x12a9cc)
+        return;  // not edit-data
+
+    CopyPlayerData(players);
 }
 
 void fservAtCopyEditDataCallPoint()
@@ -507,6 +550,17 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
         if (_fast_bin_table[slotPair*2+1 - FIRST_FACE_SLOT])
             *to = slotPair*2+1-4449;
     }
+}
+
+DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
+{
+    DWORD result = _org_copyData2(dest, src, len);
+    DWORD *data_ptr = (DWORD*)data[EDIT_DATA_PTR];
+    if (data_ptr && dest==(*data_ptr)+4) // player data being modified
+    {
+        CopyPlayerData((PLAYER_INFO*)dest);
+    }
+    return result;
 }
 
 /**
