@@ -32,7 +32,7 @@
 #define CREATE_FLAGS 0
 
 #define FIRST_FACE_SLOT 20000
-#define MAX_BIN_ID 65535
+#define NUM_SLOTS 65536
 
 #define UNIQUE_FACE 0x10
 #define UNIQUE_HAIR 0x40
@@ -47,7 +47,7 @@ hash_map<DWORD,wstring> _player_hair;
 hash_map<DWORD,WORD> _player_face_slot;
 hash_map<DWORD,WORD> _player_hair_slot;
 
-wstring* _fast_bin_table[MAX_BIN_ID-FIRST_FACE_SLOT+1];
+wstring* _fast_bin_table[NUM_SLOTS-FIRST_FACE_SLOT];
 
 bool _struct_replaced = false;
 int _num_slots = 8094;
@@ -250,6 +250,13 @@ void InitMaps()
             if (fread(&playerId,sizeof(playerId),1,f)!=1)
                 break;
 
+            if (slotId > NUM_SLOTS)
+            {
+                LOG2N(L"WARN: Invalid value in slotmap: %d (for player %d)",
+                        slotId, playerId);
+                continue;
+            }
+
             slots.insert(pair<DWORD,DWORD>(slotId,playerId));
             nextSlotPair = max(nextSlotPair,slotId/2+1);
 
@@ -295,6 +302,13 @@ void InitMaps()
             nextSlotPair++;
         }
 
+        // check whether we ran out of slots
+        if (nextSlotPair*2 >= NUM_SLOTS)
+        {
+            LOG1N(L"No more slots for faces: ID = %d skipped.", it->first);
+            continue;
+        }
+
         _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
         _player_face_slot.insert(pair<DWORD,WORD>(it->first,slotId));
         slots.insert(pair<DWORD,DWORD>(slotId,it->first));
@@ -314,6 +328,13 @@ void InitMaps()
         {
             slotId = nextSlotPair*2+1; // assign new slot
             nextSlotPair++;
+        }
+
+        // check whether we ran out of slots
+        if (nextSlotPair*2 >= NUM_SLOTS)
+        {
+            LOG1N(L"No more slots for hairs: ID = %d skipped.", it->first);
+            continue;
         }
 
         _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
@@ -532,23 +553,27 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
 
     BYTE faceHairMask = *(BYTE*)(src+3);
     WORD slotPair = *(WORD*)(src+0x3a);
+    DWORD faceSlot = slotPair*2;
+    DWORD hairSlot = faceSlot+1;
 
     WORD* from = (WORD*)(src+6); // face
     WORD* to = (WORD*)(dest+0xe);
     *to = *from & 0x7ff;
-    if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_FACE))
+    if ((faceHairMask & UNIQUE_FACE) &&
+            faceSlot >= FIRST_FACE_SLOT && faceSlot < NUM_SLOTS)
     {
-        if (_fast_bin_table[slotPair*2 - FIRST_FACE_SLOT])
-            *to = slotPair*2-1408;
+        if (_fast_bin_table[faceSlot - FIRST_FACE_SLOT])
+            *to = faceSlot-1408;
     }
 
     from = (WORD*)(src+4); // hair
     to = (WORD*)(dest+4);
     *to = *from & 0x7ff; 
-    if (slotPair>=FIRST_FACE_SLOT/2 && (faceHairMask & UNIQUE_HAIR))
+    if ((faceHairMask & UNIQUE_HAIR) &&
+            hairSlot >= FIRST_FACE_SLOT && hairSlot < NUM_SLOTS)
     {
-        if (_fast_bin_table[slotPair*2+1 - FIRST_FACE_SLOT])
-            *to = slotPair*2+1-4449;
+        if (_fast_bin_table[hairSlot - FIRST_FACE_SLOT])
+            *to = hairSlot-4449;
     }
 }
 
@@ -589,7 +614,7 @@ bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
  */
 bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
 {
-    if (afsId != 0 || binId < FIRST_FACE_SLOT)
+    if (afsId != 0 || binId < FIRST_FACE_SLOT || binId >= NUM_SLOTS)
         return false;
 
     wchar_t filename[1024] = {0};
