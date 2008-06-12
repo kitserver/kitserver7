@@ -1,11 +1,16 @@
 ﻿[kload]
+debug = 0
 dll = zlib1.dll
 dll = libpng13.dll
-dll = kserv.dll
 dll = lodmixer.dll
+dll = kserv.dll
 dll = afsio.dll
+dll = fserv.dll
 dll = afs2fs.dll
+dll = sched.dll
+dll = rwdata.dll
 
 [lodmixer]
 aspect-ratio.correction.enabled = 1
+
 
