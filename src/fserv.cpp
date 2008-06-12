@@ -41,6 +41,15 @@
 HINSTANCE hInst = NULL;
 KMOD k_fserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
+class fserv_config_t
+{
+public:
+    bool _enable_online;
+    fserv_config_t() : _enable_online(false) {}
+};
+
+fserv_config_t _fserv_config;
+
 // GLOBALS
 hash_map<DWORD,wstring> _player_face;
 hash_map<DWORD,wstring> _player_hair;
@@ -128,6 +137,9 @@ void fservConfig(char* pName, const void* pValue, DWORD a)
 		case 1: // debug
 			k_fserv.debug = *(DWORD*)pValue;
 			break;
+        case 2: // disable-online
+            _fserv_config._enable_online = *(DWORD*)pValue == 1;
+            break;
 	}
 	return;
 }
@@ -142,6 +154,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     LOG(L"Initializing Faceserver");
 
     getConfig("fserv", "debug", DT_DWORD, 1, fservConfig);
+    getConfig("fserv", "online.enabled", DT_DWORD, 2, fservConfig);
 
     HookCallPoint(code[C_CHECK_FACE_AND_HAIR_ID], 
             fservAtFaceHairCallPoint, 6, 20);
@@ -583,7 +596,8 @@ DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
     DWORD *data_ptr = (DWORD*)data[EDIT_DATA_PTR];
     if (data_ptr && dest==(*data_ptr)+4) // player data being modified
     {
-        CopyPlayerData((PLAYER_INFO*)dest);
+        if (_fserv_config._enable_online)
+            CopyPlayerData((PLAYER_INFO*)dest);
     }
     return result;
 }

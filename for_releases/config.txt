@@ -13,4 +13,6 @@ dll = rwdata.dll
 [lodmixer]
 aspect-ratio.correction.enabled = 1
 
+[fserv]
+online.enabled = 0
 
