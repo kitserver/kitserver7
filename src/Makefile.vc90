@@ -54,7 +54,7 @@ all_apps: apps
 pngdib:
 	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
-dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll fserv.dll rwdata.dll
 apps: setup.exe lodcfg.exe zlibtool.exe
 
 setup: setup.exe
@@ -81,6 +81,16 @@ afsio.lib: afsio.obj configs.obj
 afsio.dll: afsio.lib afsio.res
 	$(LINK) $(LFLAGS) /out:afsio.dll /DLL afsio.obj configs.obj afsio.res $(LIBS) $(D3DX9) kload.lib
 afsio.obj: afsio.cpp afsio.h afsio_addr.h afsio.rc
+
+fserv.lib: fserv.obj configs.obj
+fserv.dll: fserv.lib afsio.lib fserv.res
+	$(LINK) $(LFLAGS) /out:fserv.dll /DLL fserv.obj configs.obj fserv.res $(LIBS) $(D3DX9) kload.lib afsio.lib
+fserv.obj: fserv.cpp fserv.h fserv_addr.h fserv.rc
+
+rwdata.lib: rwdata.obj configs.obj
+rwdata.dll: rwdata.lib rwdata.res
+	$(LINK) $(LFLAGS) /out:rwdata.dll /DLL rwdata.obj configs.obj rwdata.res $(LIBS) $(D3DX9) kload.lib
+rwdata.obj: rwdata.cpp rwdata.h rwdata_addr.h rwdata.rc
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
 kload.dll: kload.lib kload.res
