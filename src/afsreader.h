@@ -28,7 +28,6 @@ typedef struct _AFSNAMEINFO {
 } AFSNAMEINFO;
 
 char* GetAfsErrorText(DWORD errorCode);
-DWORD GetUniSig(char* afsFileName, char* uniFileName);
 DWORD GetItemInfo(char* afsFileName, char* uniFileName, AFSITEMINFO* itemInfo, DWORD* base);
 DWORD GetItemInfoById(char* afsFileName, int id, AFSITEMINFO* itemInfo, DWORD* base);
 DWORD ReadItemInfoById(FILE* f, DWORD id, AFSITEMINFO* itemInfo, DWORD base);

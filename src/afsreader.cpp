@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "afsreader.h"
-#include "crc32.h"
 
 #define MIN_ERROR_CODE -3
 #define MAX_ERROR_CODE -1
@@ -27,47 +26,6 @@ char* GetAfsErrorText(DWORD code)
 	int idx = -(int)code - 1;
 	return errorText[idx];
 }	
-
-// Calculates CRC32 of encoded buffer of
-// given uniform.
-DWORD GetUniSig(char* afsFileName, char* uniFileName)
-{
-	DWORD base = 0;
-	AFSITEMINFO itemInfo;
-	ZeroMemory(&itemInfo, sizeof(AFSITEMINFO));
-
-	// locate the file in AFS, using filename
-	DWORD result = GetItemInfo(afsFileName, uniFileName, &itemInfo, &base);
-	if (result != AFS_OK)
-		return result;
-
-	// Allocate buffer for the item
-	BYTE* buffer = (BYTE*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, itemInfo.dwSize);
-	if (buffer == NULL)
-		return AFS_HEAPALLOC_FAILED;
-
-	FILE* f = fopen(afsFileName, "rb");
-	if (f == NULL)
-	{
-		// release the buffer memory
-		HeapFree(GetProcessHeap(), 0, buffer);
-		return AFS_FOPEN_FAILED;
-	}
-
-	// Now, read the item into a buffer
-	fseek(f, base + itemInfo.dwOffset, SEEK_SET);
-	fread(buffer, itemInfo.dwSize, 1, f);
-
-	// close the file
-	fclose(f);
-
-	// Calculate the signature
-	DWORD sig = Sign((PACKED_BIN*)buffer);
-
-	// release the buffer memory
-	HeapFree(GetProcessHeap(), 0, buffer);
-	return sig;
-}
 
 // Returns information about location of a file in AFS,
 // given its name.

@@ -16,6 +16,7 @@
 #include "configs.h"
 #include "configs.hpp"
 #include "utf8.h"
+#include "crc32.h"
 
 #define lang(s) getTransl("fserv",s)
 
@@ -36,6 +37,8 @@
 
 #define UNIQUE_FACE 0x10
 #define UNIQUE_HAIR 0x40
+#define CLEAR_UNIQUE_FACE 0xef
+#define CLEAR_UNIQUE_HAIR 0xbf
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -55,6 +58,8 @@ hash_map<DWORD,wstring> _player_face;
 hash_map<DWORD,wstring> _player_hair;
 hash_map<DWORD,WORD> _player_face_slot;
 hash_map<DWORD,WORD> _player_hair_slot;
+list<DWORD> _non_unique_face;
+list<DWORD> _non_unique_hair;
 
 wstring* _fast_bin_table[NUM_SLOTS-FIRST_FACE_SLOT];
 
@@ -77,6 +82,7 @@ DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len);
 
 DWORD GetTargetAddress(DWORD addr);
 void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
+DWORD HookIndirectCall(DWORD addr, void* func);
 void fservConfig(char* pName, const void* pValue, DWORD a);
 bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
@@ -84,6 +90,22 @@ bool ReplaceBinSizes();
 void InitMaps();
 void CopyPlayerData(PLAYER_INFO* players, bool writeList=true);
 
+typedef BOOL (WINAPI *WRITEFILE_PROC)(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+);
+WRITEFILE_PROC _writeFile = NULL;
+
+BOOL WINAPI fservWriteFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+);
 
 static void string_strip(wstring& s)
 {
@@ -131,6 +153,28 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	return true;
 }
 
+DWORD HookIndirectCall(DWORD addr, void* func)
+{
+    DWORD target = (DWORD)func;
+	if (addr && target)
+	{
+	    BYTE* bptr = (BYTE*)addr;
+        DWORD* orgTarget = *(DWORD**)(bptr + 2);
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
+	        bptr[0] = 0xe8;
+	        DWORD* ptr = (DWORD*)(addr + 1);
+	        ptr[0] = target - (DWORD)(addr + 5);
+            // padding with NOP
+            bptr[5] = 0x90;
+	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
+            return *orgTarget;
+	    }
+	}
+    return NULL;
+}
+
 void fservConfig(char* pName, const void* pValue, DWORD a)
 {
 	switch (a) {
@@ -163,6 +207,9 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
     HookCallPoint(code[C_COPY_DATA2], 
             fservAtCopyEditData2, 0, 0);
+
+    _writeFile = (WRITEFILE_PROC)HookIndirectCall(code[C_WRITE_FILE],
+            fservWriteFile);
 
     // register callback
     afsioAddCallback(fservGetFileInfo);
@@ -440,6 +487,9 @@ bool ReplaceBinSizes()
 
 void CopyPlayerData(PLAYER_INFO* players, bool writeList)
 {
+    _non_unique_face.clear();
+    _non_unique_hair.clear();
+
     multimap<string,DWORD> mm;
     for (int i=0; i<5460; i++)
     {
@@ -455,7 +505,10 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
             players[i].padding = it->second/2; // place slot.
             //LOG2N(L"player #%d assigned slot (face) #%d",
             //        players[i].id,it->second);
-            // adjust flag
+            // if not unique face, remember that for later restoring
+            if (!(players[i].faceHairMask & UNIQUE_FACE))
+                _non_unique_face.push_back(i);
+            // adjust flag 
             players[i].faceHairMask |= UNIQUE_FACE;
         }
         it = _player_hair_slot.find(players[i].id);
@@ -464,6 +517,9 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
             players[i].padding = it->second/2; // place slot.
             //LOG2N(L"player #%d assigned slot (hair) #%d",
             //        players[i].id,it->second);
+            // if not unique hair, remember that for later restoring
+            if (!(players[i].faceHairMask & UNIQUE_HAIR))
+                _non_unique_hair.push_back(i);
             // adjust flag
             players[i].faceHairMask |= UNIQUE_HAIR;
         }
@@ -640,5 +696,59 @@ bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
         return OpenFileIfExists(filename, hfile, fsize);
     }
     return false;
+}
+
+/**
+ * WriteFile interceptor
+ */
+BOOL WINAPI fservWriteFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+)
+{
+    if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
+    {
+        LOG(L"Saving Edit Data...");
+
+        // restore non-unique face/hair settings
+        PLAYER_INFO* players = (PLAYER_INFO*)((BYTE*)lpBuffer + 0x120);
+        for (list<DWORD>::iterator it = _non_unique_face.begin();
+                it != _non_unique_face.end();
+                it++)
+        {
+            LOG2N(L"Restoring face-type flags for %d (id=%d)", 
+                    *it, players[*it].id);
+            players[*it].faceHairMask &= CLEAR_UNIQUE_FACE;
+        }
+        for (list<DWORD>::iterator it = _non_unique_hair.begin();
+                it != _non_unique_hair.end();
+                it++)
+        {
+            LOG2N(L"Restoring hair-type flags for %d (id=%d)",
+                    *it, players[*it].id);
+            players[*it].faceHairMask &= CLEAR_UNIQUE_HAIR;
+        }
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x12aaec - 0x100);
+    }
+
+    BOOL result = _writeFile(
+            hFile,
+            lpBuffer,
+            nNumberOfBytesToWrite,
+            lpNumberOfBytesWritten,
+            lpOverlapped);
+
+    if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
+    {
+        LOG(L"Edit Data SAVED.");
+    }
+
+    return result;
 }
 
