@@ -103,7 +103,11 @@ run setup.exe again and click "Remove". You can also install/remove Kitserver
 only for one exe by setting the other one to "no action".
 </p>
 
-<h3>3. Usage with settings.exe</h3>
+<img src="setup.png"/>
+
+<h3>3. Usage and configuration</h3>
+
+<h5>3.1. Running settings.exe</h5>
 
 <p>
 After installing Kitserver, if you run <b>settings.exe</b> from your game main folder, you are asked if you want to enable all quality
@@ -118,6 +122,52 @@ For that, you shouldn't setup a gamepad as first controller but always as #2, #3
 or #4. However you can't use your gamepad in the main menu then, that works only
 with the first controller.
 </p>
+
+<h5>3.2. Main configuration file: config.txt</h5>
+
+<p>
+In the <b>kitserver</b> folder, there is the program's main configuration file - <b>config.txt</b>. This is where you would need to make changes to enable/disable individual modules (DLLs), and/or configure module settings.
+</p>
+
+<p>Here's how my config.txt looks like:
+</p>
+
+<pre>
+[afsio]
+debug = 0
+
+[fserv]
+online.enabled = 0
+
+[kload]
+debug = 0
+dll = zlib1.dll
+dll = libpng13.dll
+dll = lodmixer.dll
+dll = kserv.dll
+dll = afsio.dll
+dll = fserv.dll
+dll = afs2fs.dll
+dll = sched.dll
+dll = rwdata.dll
+
+[lodmixer]
+aspect-ratio.correction.enabled = 1
+controller.check.enabled = 1
+
+[rwdata]
+debug = 1
+edit.data = edit.bin          
+#system.data = "c:\data-files\option.bin"
+</pre>
+
+<p>
+Each module can have its own configuration section, which starts with <b>[<i>module-name</i>]</b>, and typically has one or more options following it. Now, normally you wouldn't need to modify config.txt file, except for the cases, when you need to modify the behaviour of a particular module (DLL), or enable/disable such DLL. For example: <b>rwdata</b> module reads the "edit.data" and "system.data" settings from config.txt - check <a href="#rwdata"><b>rwdata section</b></a> for more details on this.
+</p>
+
+<p>To disable a particular module - just comment out the corresponding line in the <b>[kload]</b> section. (Or you can delete that line altogether.)
+</p>
+<p class="note">The order of the DLLs is important. In particular: <b>zlib1.dll</b>, <b>libpng13.dll</b> must be loaded in that order before <b>kserv.dll</b>; also <b>afsio.dll</b> must be loaded before <b>fserv.dll</b> and <b>afs2fs.dll</b></p>
 
 <a name="kserv"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
@@ -198,16 +248,16 @@ a ".png" extension.</b></div>
 <table>
     <tr><th>Reserved file name</th><th>Meaning</th><th>Format</th></tr>
     <tr><td><nobr>kit.png</nobr></td><td>Kit texture</td>
-        <td>512x512 8-bit paletted image with 32-bit palette entries (24bit color + 8bit alpha transparency).
+        <td>512x512 8-bit paletted image in PNG format.
     </td></tr>
     <tr><td><nobr>font.png</nobr></td><td>Font texture: used for names on the back of the shirt</td>
-        <td>512x128 8-bit or 4-bit paletted image</td></tr>
+        <td>512x128 8-bit or 4-bit paletted image in PNG format.</td></tr>
     <tr><td><nobr>numbers-back.png</nobr></td><td>Numbers texture: used for (big) numbers on the back of the shirt</td>
-        <td>512x256 8-bit or 4-bit paletted image</td></tr>
+        <td>512x256 8-bit or 4-bit paletted image in PNG format.</td></tr>
     <tr><td><nobr>numbers-front.png</nobr></td><td>Numbers texture: used for smaller front numbers</td>
-        <td>256x128 8-bit or 4-bit paletted image</td></tr>
+        <td>256x128 8-bit or 4-bit paletted image in PNG format.</td></tr>
     <tr><td><nobr>numbers-shorts.png</nobr></td><td>Numbers texture: used for numbers on shorts</td>
-        <td>256x128 8-bit or 4-bit paletted image</td></tr>
+        <td>256x128 8-bit or 4-bit paletted image in PNG format.</td></tr>
     <tr><td>config.txt</td><td>Kit attribute configuration file (see next section for more details)</td>
         <td>text file (in UTF-8 encoding)</td></tr>
 </table>
@@ -332,6 +382,9 @@ By repeatedly pressing the keys, you will cycle through all of the kits availabl
 
 <img src="kitsel-master.png" />
 
+<p>The colored rectangles indicate the "overall" colors of the shirts and shorts selected. This information is retrieved from <b>main.color</b>(radar.color) and <b>shorts.color</b> kit attributes in config.txt file - if the kit is from GDB; or from the game data, if the kit is from AFS (cv_0.img). If you don't define those attributes in your GDB kits, then you won't see the colored boxes.
+</p>
+
 <p>
 It is also possible to choose extra (3rd,4th,5th,etc.) kits in the Exhibition Mode. At the top of the screen, you will also see the <b>Kit Selection Overlay</b> - like in Cup modes.
 </p>
@@ -454,15 +507,53 @@ You can also now choose a "Spectator" mode for in tournaments.
 <p><a class="backlink" href="manual.html#">Top</a></p>
 <h3>8. Scheduler (sched.dll)</h3>
 
+<p>
+This module allows to organize a Konami Cup, which is more like the real <b>UEFA Champions League</b>: you play 6 matches in the group, then 2 in each of the knock-out rounds, except the final, where there's only 1 match.
+
+<h5>8.1. How to use</h5>
+
+<p>
+Create a new Konami Cup, choose 'Group League'. The Home/Away option will still be greyed out, but ignore that for now. Once you select the teams, and are ready to begin the tournament - i.e. you are at the "Next game" screen, press [<b>F1</b>] key to toggle the display of schedule info. It will appear on the left side of you screen like this:
+</p>
+
+<img src="sched.png"/>
+
+<p>
+Press [<b>F2</b>] to switch between the default mode (3 games in group, 1 in each knock-out round) and the new mode (6 games in group, 2 in each knock-out round before final, 1 game in final). Press [<b>F1</b>] again to hide the schedule info overlay. Once you have played your first group match, the number of matches in the group becomes fixed, and you won't be able to change it anymore - the "G" will become grey. Similarly, once you played the first match of the knock-out stage, you won't be able to change the knock-out settings anymore as they become fixed.
+</p>
+
 <a name="rwdata"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
 <h3>9. Read/Write data (rwdata.dll)</h3>
+
+<p>
+This little module allows you to redirect the reading and writing operations for <b>Edit Data</b> (PES2008_EDIT01.bin) and <b>System Data</b> (PES2008_OPTION01.bin). This was originally intended for patchmakers that use kitserver as their base, because then the Edit Data file can be included in the patch, and kitserver can make the game work with that file, while keeping the original PES2008_EDIT01.bin unmodified, which also can be useful for easy uninstall of the patch.
+</p>
+
+<p>You redirect the read/write operations by adding the following section to your kitserver's <b>config.txt</b> file:
+</p>
+
+<pre>
+[rwdata]
+edit.data = "edit01.bin"
+system.data = "option01.bin"
+</pre>
+
+<p>The exact filenames are not important - you can name them whatever you want, just make sure you correctly specify them in the [rwdata] section. You can use either an absolute filename, like: <b>c:\mydata\edit.bin</b>, or a relative filename, like in the example above. For relative names, Kitserver will look for them in <b>GDB\data</b> folder.
+
+<p class="devnote" style="font-weight:normal">The Edit Data file (PES2008_EDIT01.bin) is also often called "option file", because historically that's how it was named in previous versions of PES. However, with PES2008, it's a little bit confusing terminology, because now another file - PES2008_OPTION01.bin - has the word "option" in its name, even though it doesn't actually contain the data, typically associated with option file, such as: player names and attributes, team, stadium names, and so for, but instead it holds things like: sound settings, camera settings, etc.
+</p>
 
 <div style="height:20px"></div>
 
 <h2>Credits</h2>
 <p>
-Programming: <b>juce</b> and <b>Robbie</b>
+Programming: <b>juce</b> and <b>Robbie</b><br />
+Beta-testing: <b>ntalex</b>, <b>ASD91</b>, <b>Str@teG</b>, and many others on Evo-Web and PesWe.com forums.<br />
+Ideas for <i>rwdata</i> and <i>afs2fs</i> modules: <b>Str@teG</b><br />
+uni.txt file: created with help of "PES2008 Kit Info Manager" program by <b>Yogui</b><br />
+<br />
+Special thanks go to: all users of <a href="http://www.peswe.com">PesWe.com</a> website and <a href="http://www.peswe.com/fm">forums</a>.
 </p>
 
 </body>
