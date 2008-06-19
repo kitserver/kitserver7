@@ -1,0 +1,469 @@
+<html>
+<head>
+    <title>Kitserver 7 Manual</title>
+    <style>
+        img { display:block;margin:10px 15px 15px 0;border:1px solid #888;}
+        table td img {border:0}
+        .note { background-color:#fdc;color:#800; }
+        div.note { padding:5px; }
+        p.minornote { background-color:#eee;color:#666;padding:5px;font-style:italic }
+        p.devnote { font-weight:bold;font-style:italic;color:#666; }
+        table {padding:10px 0 10px 0;margin-top:5px;border-right:1px;border-bottom:1px}
+        table td {padding:9px;border:1px solid #888}
+        table th {padding:5px;border:1px solid #888;background-color:#eef;text-align:left}
+        span.kitid {color:#080;font-style:italic}
+        pre {background-color:#dfd;border-top:1px solid #668;border-bottom:1px solid #668}
+        h5 {color:#668; background-color:#dec; display:block;padding:5px;margin-top:10px;margin-bottom:5px;font-family:arial;font-size:1.0em}
+        h3,h4 {color:#668; background-color:#bdc;display:block;padding:5px;font-family:arial;margin-top:1.3em;}
+        h2 {color:#446; display:block;padding:5px 0 5px 0;font-family:tahoma,arial;border-bottom:3px solid #668}
+        div,span,p,li {font-family:arial;}
+        li {margin-bottom:10px;}
+        table {font-family:arial;}
+        table.shpal td {padding:5px 20px 5px 0;border-bottom:1px solid #000;
+            border-top:none;border-left:none;border-right:none}
+        table.shpal td.top {border-top:1px solid #000}
+        span.soft {font-weight:bold;color:#696;}
+        span.ex {font-weight:bold;color:#669;}
+        a {color:#448;}
+        a:visited {color:#448;}
+        a:hover {color:#448;background-color:#ccf}
+        a:active {color:#448;}
+        tr.newf td {background-color:#efd}
+        span.exclam {font-weight:bold;color:#484;}
+        span.emph {color:#844;}
+        div.hist {color:#888;float:right;}
+        span.buttontext {font-weight:bold;color:#000;background-color:#888}
+        a.ac{font-weight:bold;}
+        a.backlink {float:right;margin-top:0.6em}
+    </style>
+</head>
+<body>
+<h2>Kitserver 7 Manual</h2>
+
+<div class="hist">
+Version history: <a href="history.txt">history.txt</a><br />
+</div>
+<div>
+June 18, 2008 - <b>Kitserver 7.2.0</b><br />
+
+</div>
+
+<h3>1. Introduction</h3>
+<p>
+Kitserver 7 is an add-on program for Pro Evolution Soccer 2008. It is a loader and manager for various modules.<br />
+Below is a quck summary of the available features. Follow the link in the left column to get more details about a particular module.
+</p>
+
+<table>
+    <tr><td><a href="#kserv">Kserv 7.2.0</a></td>
+        <th><b>kserv.dll</b></th>
+        <td>Assign kits to all teams (no re-linking needed), Extra (3rd,4th,etc.) kits. Allows selection of kits in all game modes: Exhbition, Cup, League, Master League.</td>
+    </tr>
+    <tr><td><a href="#lodmixer">LOD Mixer 7.1.0</a></td>
+        <th><b>lodmixer.dll</b></th>
+        <td>Various tweaks to graphics and game options: 
+Select quality levels which PES doesn't want you to choose;
+Any window resolution supported, hidden fullscreen resolutions unlocked;
+Manual/Automatic aspect ratio correction;
+Disable controller check for Master League/League/Cup games: this allows your
+friend to play for the opposition team.
+        </td>
+    </tr>
+    <tr><td><a href="#afs2fs">AFS2FS 7.2.0</a></td>
+        <th><b>afs2fs.dll</b></th>
+        <td>Manage AFS (.img) game content using files and folders: much easier and quicker to install/remove patches, without the need modify *.img files</td>
+    </tr>
+    <tr><td><a href="#fserv">Faceserver 7.2.0</a></td>
+        <th><b>fserv.dll</b></th>
+        <td>Assign special face/hair for any player.</td>
+    </tr>
+    <tr><td><a href="#sched">Scheduler 7.2.0</a></td>
+        <th><b>sched.dll</b></th>
+        <td>Make changes to Konami Cup tournaments: now possible to play Home/Away matches in the groups, and also have Home/Away knock-out stages - ala UEFA Champions League</td>
+    </tr>
+    <tr><td><a href="#rwdata">Read/Write data 7.2.0</a></td>
+        <th><b>rwdata.dll</b></th>
+        <td>Manage your edit and system data. Useful for patchmakers - to keep all things in one place and have the ability to keep the original PES2008_EDIT01.bin and PES2008_OPTION01.bin unchanged.</td>
+    </tr>
+</table>
+
+<h3>2. Installation / Removal</h3>
+
+<p>
+As with previous version of Kitserver, you have to unpack the archive to your PES installation
+folder. It should look like this:
+
+<img src="layout.png"/>
+
+Then go to <b>kitserver</b> folder and run the <b>setup.exe</b>. What is new is that you can now also select your
+settings.exe. This is necessary because some changes are only possible in that
+file. simply select these both files (they should already be preselected) and
+click "Install". If you choose that you don't want to use Kitserver any longer,
+run setup.exe again and click "Remove". You can also install/remove Kitserver
+only for one exe by setting the other one to "no action".
+</p>
+
+<h3>3. Usage with settings.exe</h3>
+
+<p>
+After installing Kitserver, if you run <b>settings.exe</b> from your game main folder, you are asked if you want to enable all quality
+levels. In PES2008, Konami doesn't allow you to choose a high quality level if
+the game thinks your PC isn't good enough for that. If you click on "Yes", that
+check is removed and you can try if they are right with their assumption.
+Apart from that you can now choose 4 controllers in the "Controller" tab. That
+means you can configure your gamepads here and later play with them. Note that
+by default the keyboard is controller #1. If you setup your gamepad as first
+controller, you can't play against someone using the keyboard and your gamepad.
+For that, you shouldn't setup a gamepad as first controller but always as #2, #3
+or #4. However you can't use your gamepad in the main menu then, that works only
+with the first controller.
+</p>
+
+<a name="kserv"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>4. Kserv Module (kserv.dll)</h3>
+
+<p>
+Kserv module is responsible for serving kits from the GDB ("<b>G</b>ame content <b>D</b>ata<b>B</b>ase") during the game. The main feature of it is that you are not limited to the slots that cv_0.img has for the kits, and you can assign a kit to any team. With Kserv and GDB, it is also possible for the teams to have more than 2 kits: so instead of just a standard pair of 1st and 2nd, you can have a potentially unlimited set of alternative uniforms for playing in European cups, or special exhibition games and so for. In real life, typically a team has a wide selection of kit variations. By organizing your kits in the GDB, it is possible to achieve that.
+</p>
+
+<p class="devnote" style="font-weight:normal">
+Kserv was historically the first module implemented in the original Kitserver program, made for PES3. That's where the <b>Kitserver</b> name originated from. Later, as more functionality were introduced as new modules, to avoid confusion, we changed the name of the module that serves kits to <b>kserv</b>, while Kitserver name now refers to the entire program.
+</p>
+
+<h5>4.1 GDB organization</h5>
+<p>
+The GDB contains a folder named <b>uni</b>, which is responsible for storing
+the team kits (uniforms). The single most important file inside <b>uni</b> is called <b>map.txt</b>.
+This file tells kitserver where to find the kits for particular team. As you know, each team
+has a unique id - a integer number from 0 to 203, i think. So
+for every team in the GDB, you must specify in the map.txt, where the kits are for this team.
+Here is an example:
+
+<pre>
+# This config maps team number into folder name
+# Format: &lt;team-num&gt;,"&lt;folder name&gt;"
+# Example: 21,"Russia"
+
+21,"National\Russia"
+69,"EPL\Chelsea"
+73,"EPL\Liverpool"
+</pre>
+</p>
+
+<div class="note">IMPORTANT: Double quotes are not required, but advised - just so that there is no ambiguity about 
+folder name. For IDs for all the teams - see <a href="uni.txt">uni.txt</a> file</div>
+
+<p>
+Please note that the sample GDB (provided with kitserver) is just one possible way of organizing the teams and 
+folders. It uses "EPL" folder to group all english teams, "National" - to group all national
+teams, and so for. You may find that you just prefer a flat list of folders - without these
+extra groups. In that case, just modify the <b>map.txt</b> file accordingly, and create
+the structure of folders that you prefer. That's the main advantage of having map.txt - the
+flexibility of kit organization.
+</p>
+
+<p>
+You can see from map.txt above that in order to find a kit for team #69, the kitserver needs to go to the 
+folder <b>GDB\uni\EPL\Chelsea</b>. This folder will contain all of the kits that are
+available to team #69. Inside it, you must create an individual folder for each kit. Like this:
+
+<img src="chelsea.png"/>
+
+For players, 1st kit must have a folder name <b>pa</b>, 2nd - <b>pb</b>. Extra kits can have 
+any folder names that start with letter "p". I found it useful to prefix all extra kits with 
+<b>px-</b>. For example, <b>px-blue</b>. For the goalkeepers, 1st kit must be in the folder
+<b>ga</b>, 2nd - in the <b>gb</b>. Extra kits can have any folder names that start with letter "g".
+</p>
+
+<div class="note">IMPORTANT: Folder name acts as a kind of ID for kitserver, which puts the 
+additional restriction on all those folder names: they cannot contain spaces, and preferably
+they should be relatively short, and in English,French or other language withing Latin1 
+(iso8859-1) character set. Typically, if you want to make sure kitserver can properly
+find/read the folder, just use latin characters, digits, underscore, and the dash (minus sign).
+</div>
+
+<p>
+Now let's move on inside one of the kit folders. Take <b>pa</b>, for example.
+
+<img src="pa.png" />
+
+See the table below for explanation of each file:
+</p>
+
+<div class="note">Images must be in PNG format: 8-bit paletted or 4-bit paletted (those may be used with fonts/numbers). So the filename must have 
+a ".png" extension.</b></div>
+
+<p>
+<table>
+    <tr><th>Reserved file name</th><th>Meaning</th><th>Format</th></tr>
+    <tr><td><nobr>kit.png</nobr></td><td>Kit texture</td>
+        <td>512x512 8-bit paletted image with 32-bit palette entries (24bit color + 8bit alpha transparency).
+    </td></tr>
+    <tr><td><nobr>font.png</nobr></td><td>Font texture: used for names on the back of the shirt</td>
+        <td>512x128 8-bit or 4-bit paletted image</td></tr>
+    <tr><td><nobr>numbers-back.png</nobr></td><td>Numbers texture: used for (big) numbers on the back of the shirt</td>
+        <td>512x256 8-bit or 4-bit paletted image</td></tr>
+    <tr><td><nobr>numbers-front.png</nobr></td><td>Numbers texture: used for smaller front numbers</td>
+        <td>256x128 8-bit or 4-bit paletted image</td></tr>
+    <tr><td><nobr>numbers-shorts.png</nobr></td><td>Numbers texture: used for numbers on shorts</td>
+        <td>256x128 8-bit or 4-bit paletted image</td></tr>
+    <tr><td>config.txt</td><td>Kit attribute configuration file (see next section for more details)</td>
+        <td>text file (in UTF-8 encoding)</td></tr>
+</table>
+</p>
+
+<p class="devnote">
+IMPORTANT NOTE TO KITMAKERS:<br />
+BMP kits are no longer supported, please use PNG format instead.
+</p>
+
+<h5>4.2. config.txt</h5>
+
+<p>
+This is the attribute configuration file.
+As before, it is just a plain text file - you can use Notepad or any other text editor to
+view or modify it. For each folder, you should have a <b>config.txt</b> file in it.</p>
+
+<p>
+Here's the summary table of all the supported attributes:<br />
+</p>
+
+<table>
+    <tr><th>Attribute name</th><th>Meaning</th><th>Format</th><th>Example</th></tr>
+    <tr>
+        <td><b>model</b></td>
+        <td>identifier for 3D-model of the shirt</td>
+        <td>decimal integer</td>
+        <td><nobr>model = 37</nobr></td>
+    </tr>
+    <tr>
+        <td><b>collar</b></td>
+        <td>Collar-type</td>
+        <td>0/1/2/3 (0=yes, 1=no)</td>
+        <td><nobr>collar = 0</nobr></td>
+    </tr>
+    <tr>
+        <td><b>shirt.number.location</b></td>
+        <td>Where on the front of the shirt the number should be placed. ("off" means the number
+will not be displayed at all.) This only applies to national teams.
+        </td>
+        <td>center|topright|off</td>
+        <td><nobr>shirt.number.location = topright</nobr></td>
+    </tr>
+
+    <tr>
+        <td><b>shorts.number.location</b></td>
+        <td>Where on the shorts the number should be placed. ("off" means the number
+will not be displayed at all.)
+        </td>
+        <td>left|right|off</td>
+        <td><nobr>shorts.number.location = left</nobr></td>
+    </tr>
+    <tr>
+        <td><b>name.location</b></td>
+        <td>Where on the shirt the name of the player should be placed. This is useful
+for teams like Boca Juniors, who have player names printed at the bottom of the
+shirt. ("off" means the name will not be displayed at all.)</td>
+        <td>top|bottom|off</td>
+        <td><nobr>name.location = top</nobr></td>
+    </tr>
+    <tr>
+        <td><b>logo.location</b></td>
+        <td>Where on the shirt the sponsor logo should be placed. (This attribute
+is probably not gonna be very useful with kitserver, since if the
+team has the logo on the back of the shirt, it will probably be painted
+as part of the kit texture itself, by kitmaker)</td>
+        <td>top|bottom|off</td>
+        <td><nobr>logo.location = off</nobr></td>
+    </tr>
+    <tr>
+        <td><b>name.shape</b></td>
+        <td>Indicates whether the name should be curved or straight. The values
+have the same meaning as in Edit Mode: type1 - straight, type2 - slightly curved,
+type3 - curved, type4 - even more curved.</td>
+        <td>type1|type2|type3|type4</td>
+        <td><nobr>name.shape = type1</nobr></td>
+    </tr>
+	<tr>
+        <td><b>main.color</b><br />
+            <span style="color:#888"><b>( radar.color )</b></span></td>
+        <td>This attribute specifies the main color of the shirt. It is also used as the color of the players on radar screen. It also influences the kit that is selected by default. (The old name "radar.color" is also supported for backwards compatibility)</td>
+        <td>color, written in hexadecimal format RRGGBB (red,green,blue)</td>
+        <td><nobr>main.color = 0A5D88</nobr><br />
+            <nobr><span style="color:#888">radar.color = 0A5D88</span></nobr></td>
+    </tr>
+	<tr>
+        <td><b>shorts.color</b></td>
+        <td>This attribute specifies the color of the player/gk shorts. The color
+         of shorts is used by the game to determine correct color of the underpants
+         for those players who wear them, and have them set to match the shorts
+         color.</td>
+        <td>color, written in hexadecimal format RRGGBB (red,green,blue)</td>
+        <td><nobr>shorts.color = 0A5D88</nobr></td>
+    </tr>
+	<tr>
+        <td><b>description</b></td>
+        <td>Any notes about the kit. This text will be displayed on
+            kit selection screen, under the mini-kit. Useful when there are
+            several similar kits that have near identical mini-kit rendering
+            but you want to know which one is currently selected.</td>
+        <td>any text in double quotes</td>
+        <td><nobr>description = "All white (WC2006 Final)"</nobr></td>
+    </tr>
+</table>
+
+<h5>4.4 Kit Selection</h5>
+
+<p>
+In order to provide a visual reference for currently selected GDB kits (including extra kits), Kitserver uses a <b>Kit Selection Overlay</b>, located at the top of your screen - see the image below. The top left corner indicates the team IDs (<b>69 vs 73</b>), and in case of Master League, there's also a <b>Home</b> or <b>Away</b> text, showing whether your team is player at home or away. In the center of the screen, the two sections represent the kit selection for the Home team (left side) and the Away team (right side). Initially, the kit selection is set to <b>P: auto</b> and <b>G: auto</b>, meaning that kitserver lets the game choose the player and goalkeeper kits. You can change that by pressing the following keys on the keyboard:
+</p>
+
+<ul>
+    <li>[<b>1</b>] - Switch home player kit</li>
+    <li>[<b>2</b>] - Switch away player kit</li>
+    <li>[<b>3</b>] - Switch home goalkeeper kit</li>
+    <li>[<b>4</b>] - Switch away goalkeeper kit</li>
+</ul>
+
+<p>
+By repeatedly pressing the keys, you will cycle through all of the kits available in the GDB for the chosen teams. So, if for example, you have 5 different kits, you can choose any of them, and not just the <b>pa</b> and </b>pb</b>. The screenshot shows Chelsea selected the <b>px-allblue</b> alternative kit:
+</p>
+
+<img src="kitsel-master.png" />
+
+<p>
+It is also possible to choose extra (3rd,4th,5th,etc.) kits in the Exhibition Mode. At the top of the screen, you will also see the <b>Kit Selection Overlay</b> - like in Cup modes.
+</p>
+
+<p>
+<span class="note">Please note that currently, kitserver cannot change the kits on the rotating figures of the players.</span> So the visual indicators are a little bit misleading in that regard. For example, on the screenshot below, the players are wearing yellow and red kits, even though the Kit Selection Overlay shows blue and white/black uniforms selected: 
+</p>
+
+<img src="kitsel-exhib.png" />
+
+<p>
+However, once the match starts, the kitsever will make sure the teams are wearing <b>the kits chosen in Kit Selection Overlay at the top</b>, and not necessarily the ones on the rotating player figures. In the future releases, i'll try to make it so that the rotating figures also change their kits dynamically, as you press the [<b>1</b>], [<b>2</b>], [<b>3</b>], [<b>4</b>] keys.
+</p>
+
+<a name="lodmixer"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>5. LOD Mixer (lodmixer.dll)</h3>
+
+<p>
+LOD-Mixer is the module that allows to fine-tune some aspects of PES2008 graphics engine.<br />
+Currently the following features are implemented: screen resolution, aspect ratio correction,
+and LOD adjustment. All of these can be configured manually in kitserver's main 
+configuration file (kitserver/config.txt), but also there is now a GUI program that
+makes it even easier:
+</p>
+
+<img src="lodcfg.png" style="border:0"/>
+
+<h5>5.1. Aspect Ratio.</h5>
+<p>
+PES2008 offers only two choices for aspect ratio - 4:3 and 16:9. However, lots of
+LCD monitors don't exactly fit into either of those. Often, a 16:10 ratio is
+used, or even 16:9.6. This results in the picture being distored: players either
+too fat or too skinny, and ball is not round.
+</p>
+
+<p>
+With LOD Mixer, you can set the aspect ratio to whatever you want. Either let
+LOD Mixer calculate it automatically - at run-time, using the current screen
+width and height in pixels - or set the value manually. Automatic way would work quite
+accurately, assuming the pixel is square. Sometimes, however, you would want to
+set it manually. For example, i play on widescreen monitor, but using a 800x600 
+resolution, because my video card is not powerful enough. The automatic 
+calculation would give 4:3, but since the view is stretched to fill the entire 
+screen, we need to account for that. Setting aspect ratio to 1.6 (which is a 
+natural AR for my laptop) does the trick.
+</p>
+
+<h5>5.2. Screen Resolution.</h5>
+<p>
+You can set any screen resolution you want, if you play in a Windowed mode. Even
+crazy screens like 1567x532 will work, but you're likely to suffer from 
+performance problems on such cases.
+Hidden fullscreen resolutions are fully unlocked now as well. However, only those
+that your video card really supports in full-screen mode, will work. If you 
+accidently choose an unsupported fullscreen resolution, then PES should still 
+be able to start in a window.
+</p>
+
+<h5>5.3. LOD configuration.</h5>
+<p>
+LOD (Level-Of-Detail) algorithms are used in graphics engines to improve both
+the picture quality and the speed of rendering, when drawing objects at various
+distances from the viewer. The basic idea is that when the object is close to
+the camera, one (very detailed) model is used. When it is far - another, simpler
+model with less detail is used instead. It's much faster to render a low-poly
+model of the object, and it typically looks better, when drawn in small size,
+because it suffers less from aliasing. In theory, at least, 
+that is how it is supposed to work.
+</p>
+<p>
+For some inexplicable reason, PES series had always suffered from an overly-
+conservative LOD configuration, where the switch to low-poly models would happen
+way too soon, and that would result in various visible artifacts. In PES4-PES6,
+examples were: balding players, and missing details on kits. In PES2008, the
+players appear to have blurred generic faces, once they move slightly away from
+the camera.
+</p>
+<p>
+So, if you have a good PC and a fancy videocard with GPU cycles to spare, you
+may fancy tunning the LOD sligtly to make the game engine display more detailed
+models, even when they players are a bit away from the camera (Animation quality seems
+to be affected by this as well). To do that, <b>move the sliders to the right.</b>
+</p>
+<p>
+Also, if on the contrary, your machine is stuggling to run the game at a smooth
+frame rate, you can try tunning the LOD sliders in the opposite direction - thus
+making the engine switch to the low-poly models sooner than normal. This may
+improve the framerate, although at the expense of picture quality. To achieve
+that, <b>move the sliders to the left.</b>
+</p>
+
+<p class="minornote">
+Note that in game versions 1.0 and 1.10, the second LOD slider had the default
+value of <b>0.070</b>. In version 1.20, KONAMI had changed this value slightly 
+and it is now <b>0.074</b>, which makes the game switch from LOD1 to LOD2
+a tiny bit sooner than before (if default LOD configuration is used that is).
+</p>
+
+<h5>5.4 Controller check</h5>
+<p>
+This feature may be useful to people who like to play a tournament - a league or
+cup together. PES 2008 doesn't allow human players to control both teams, unless
+both of their selected teams are playing against each other in the match. With
+this new feature, you can remove that limitation. Now, even if it is for example,
+P1 vs. COM game, or P2 vs. COM - you can freely select which team you control
+with each controller. So, you can both play on the same team, or you can let 
+your friend control the opposition - to make things more interesting.
+You can also now choose a "Spectator" mode for in tournaments.
+
+<a name="afs2fs"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>6. AFS2FS Module (afs2fs.dll)</h3>
+
+<a name="fserv"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>7. Faceserver (fserv.dll)</h3>
+
+<a name="sched"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>8. Scheduler (sched.dll)</h3>
+
+<a name="rwdata"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>9. Read/Write data (rwdata.dll)</h3>
+
+<div style="height:20px"></div>
+
+<h2>Credits</h2>
+<p>
+Programming: <b>juce</b> and <b>Robbie</b>
+</p>
+
+</body>
+</html>
