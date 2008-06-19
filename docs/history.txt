@@ -2,6 +2,14 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2008-06-19
+----------
+v7.2.0
+- Lots of internal refactoring
+- New modules: afs2fs, faceserver, scheduler, rwdata
+- Kit selection for exhibition mode
+
+
 2007-12-30
 ----------
 v7.0.6

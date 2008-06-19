@@ -44,7 +44,7 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-June 18, 2008 - <b>Kitserver 7.2.0</b><br />
+June 19, 2008 - <b>Kitserver 7.2.0</b><br />
 
 </div>
 
@@ -75,7 +75,7 @@ friend to play for the opposition team.
     </tr>
     <tr><td><a href="#fserv">Faceserver 7.2.0</a></td>
         <th><b>fserv.dll</b></th>
-        <td>Assign special face/hair for any player.</td>
+        <td>Assign special face/hair to any player you want.</td>
     </tr>
     <tr><td><a href="#sched">Scheduler 7.2.0</a></td>
         <th><b>sched.dll</b></th>
@@ -494,14 +494,105 @@ P1 vs. COM game, or P2 vs. COM - you can freely select which team you control
 with each controller. So, you can both play on the same team, or you can let 
 your friend control the opposition - to make things more interesting.
 You can also now choose a "Spectator" mode for in tournaments.
+</p>
 
 <a name="afs2fs"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
 <h3>6. AFS2FS Module (afs2fs.dll)</h3>
 
+<p>
+This is a relatively new kitserver module. It allows to organize your BIN-files into folders on disk, instead of inserting them into AFS(*.img) files, which is sometimes a pain, and may require a lot of extra disk space.
+</p>
+
+<p>Several people over the last few years had suggested similar solutions, but ultimately it was <b>Str@teG</b> who kept talking about this idea of organizing BINs into folders, and eventually i decided to just go ahead and do it. So now this is realized in the this module - afs2fs.dll. From personal experience, i know that people are sometimes reluctant to install big patches that require an AFS-rebuild, not because it's particularly difficult or anything, but because it can be time-consuming and disk-space-hungry. With afs2fs, this is now very easy: you just put the BIN into correct folder and that's it. And, of course, there are no size constraints - the bins can be as large as needed!
+</p>
+
+<h5>6.1. How to set up the folders</h5>
+
+<p>
+In <b>kitserver</b> folder, there should be an <b>img</b> folder - if it's not there, create it, and then inside "img", create folders, as needed, named - <b>cv_0.img</b>, <b>cv_1.img</b>, <b>rs_e.img</b>, and so for. That's where you're going to be putting the BIN-files. 
+</p>
+
+<p class="note">It's important to name the folders correctly: a folder must have exactly the same name as the corresponding AFS-file. For instance, if you call a folder cv_0, instead of cv_0.img, things will not work.)
+</p>
+
+<p>This is how my <b>img</b> folder looks:
+
+<img src="afs2fs.png"/>
+</p>
+
+<h5>6.2. How to name the files</h5>
+<p>
+Together with the afs2fs.dll, there's an example with <b>cv_1.img</b> folder, and a file called <b>stadium_40.bin</b>, which contains black nets (Euro2008 style), made by <b>poloplo</b>. That's one example of naming a file.</p>
+
+<p class="devnote">In general, you can name the files whichever way you want, but you must follow one rule: there must be a BIN number in the name, and it must be preceded by an underscore character ('_'). Also, the filenames CANNOT be longer than 63 characters.
+</p>
+
+<p>
+Examples of correctly named files:<br /><br />
+<span style="color:#080;font-weight:bold">faces_1951.bin</span><br />
+<span style="color:#080;font-weight:bold">unnamed_40.bin</span><br />
+<span style="color:#080;font-weight:bold">balls_7.bin</span><br />
+<span style="color:#080;font-weight:bold">unknow_8</span> (.bin extension is optional)<br />
+<span style="color:#080;font-weight:bold">vne_zony_dostupa_1.adx</span> (a file can have a different extension: .adx is typically used for music and sound files)<br />
+</p>
+
+<p>
+Examples of incorrectly named files:<br /><br />
+<span style="color:#800;font-weight:bold">unnamed10.bin</span> - no underscore symbol before the BIN number.<br />
+<span style="color:#800;font-weight:bold">face.bin</span> - no BIN number.<br />
+</p>
+
 <a name="fserv"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
 <h3>7. Faceserver (fserv.dll)</h3>
+
+<p>
+Faceserver makes it possible to load as many faces and hair from the GDB as you want. So, you can assign each player a unique face/hair combination, if you want to, including custom created players. Faceserver makes use of unique ids, which are assigned to each player, and it creates "virtual" face and hair slots, that only exist during run-time. One difference from how faceserver worked in the past is this: new faceserver works ok in replays.
+</p>
+
+<img src="fserv.png"/>
+
+<h5>7.1. How to find out ID for a player</h5>
+<p>
+If you have faceserver enabled (which it is by default), just run the game, make sure the Edit Data is loaded (game EXEs prior to 1.20 didn't do that automatically), and then in the <b>kitserver</b> folder, there should appear a text file called <span style="color:#060"><b>playerlist.txt</b></span>. It will contain the IDs for all the players that you have in your game, sorted alphabetically for easy searching.
+</p>
+
+<h5>7.2. How to configure</h5>
+<p>
+Faceserver uses a map file (<b>GDB/faces/map.txt</b>), similar in format to Kserv: you specify player's unique ID, followed by a filename for his face, and optionally followed by a filename for his hair:<br />
+</p>
+<p class="devnote">{ID}, {face-file}, {hair-file}</p>
+
+<p>
+The filenames are relative to <b>GDB/faces</b> folder, but inside that you're free to organize them whichever way you want: either one flat directory, or a folder hierarchy. The only important thing is that you correctly specify the paths in the map.txt. The double-quotes around filenames are optional.
+</p>
+
+<p>
+Here are some examples of entries in map.txt:
+
+<pre>
+# Example 1: face and hair BINs:
+5786, arshavin-face.bin, arshavin-hair.bin
+
+# Example 2: face only (fetched from a "Russia" folder inside "faces"):
+5786, "Russia\arshavin-f.bin"
+
+# Example 3: hair only (notice 2 commas!)
+5786, , somehair.bin
+</pre>
+</p>
+
+<h5>7.3. Network play</h5>
+<p>
+Currently, faceserver doesn't work in Network mode, at least not in the "official" Konami online rooms. Perhaps, this will change in the future releases of faceserver. There is, however, a configuration setting, which allows the use of faceserver in the so-called "PES-Magazine"-type of network play. By default, that setting is disabled, but you can enable it if you want, in the <b>config.txt</b> file, by changing its value from 0 to 1:
+</p>
+
+<pre>
+[fserv]
+online.enabled = 1
+</pre>
+
 
 <a name="sched"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
@@ -521,6 +612,7 @@ Create a new Konami Cup, choose 'Group League'. The Home/Away option will still 
 <p>
 Press [<b>F2</b>] to switch between the default mode (3 games in group, 1 in each knock-out round) and the new mode (6 games in group, 2 in each knock-out round before final, 1 game in final). Press [<b>F1</b>] again to hide the schedule info overlay. Once you have played your first group match, the number of matches in the group becomes fixed, and you won't be able to change it anymore - the "G" will become grey. Similarly, once you played the first match of the knock-out stage, you won't be able to change the knock-out settings anymore as they become fixed.
 </p>
+
 
 <a name="rwdata"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
@@ -550,6 +642,7 @@ system.data = "option01.bin"
 <p>
 Programming: <b>juce</b> and <b>Robbie</b><br />
 Beta-testing: <b>ntalex</b>, <b>ASD91</b>, <b>Str@teG</b>, and many others on Evo-Web and PesWe.com forums.<br />
+GDB and "img" content: <b>poloplo</b><br />
 Ideas for <i>rwdata</i> and <i>afs2fs</i> modules: <b>Str@teG</b><br />
 uni.txt file: created with help of "PES2008 Kit Info Manager" program by <b>Yogui</b><br />
 <br />
