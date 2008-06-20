@@ -90,8 +90,7 @@ friend to play for the opposition team.
 <h3>2. Installation / Removal</h3>
 
 <p>
-As with previous version of Kitserver, you have to unpack the archive to your PES installation
-folder. It should look like this:
+As with previous version of Kitserver, you have to unpack the archive to your PES installation folder. It should look like this:
 
 <img src="layout.png"/>
 
@@ -104,6 +103,20 @@ only for one exe by setting the other one to "no action".
 </p>
 
 <img src="setup.png"/>
+
+<h5>2.1. Advanced usage of setup.exe</h5>
+<p>
+The kitserver <b>setup.exe</b> program can also be run without GUI - in a so-called batch or command-line mode. This can be useful, if kitserver is part of a bigger patch, which contains an installer, and typically the last step of the installer is to attach kitserver to the game EXE file. This can be accomplished by running the setup like this:
+</p>
+
+<p class="devnote">
+setup --install --gfile={game-exe} --sfile={settings-exe}<br />
+setup --remove --gfile={game-exe} --sfile={settings-exe}<br />
+</p>
+<p>Example:</p>
+<p>
+<b>setup --install --gfile=..\PES2008.exe --sfile=..\settings.exe</b>
+</p>
 
 <h3>3. Usage and configuration</h3>
 
@@ -165,9 +178,27 @@ edit.data = edit.bin
 Each module can have its own configuration section, which starts with <b>[<i>module-name</i>]</b>, and typically has one or more options following it. Now, normally you wouldn't need to modify config.txt file, except for the cases, when you need to modify the behaviour of a particular module (DLL), or enable/disable such DLL. For example: <b>rwdata</b> module reads the "edit.data" and "system.data" settings from config.txt - check <a href="#rwdata"><b>rwdata section</b></a> for more details on this.
 </p>
 
-<p>To disable a particular module - just comment out the corresponding line in the <b>[kload]</b> section. (Or you can delete that line altogether.)
+<p>To disable a particular module - just comment out the corresponding line in the <b>[kload]</b> section by putting a '#' symbol at the beginning. (Or you can delete that line altogether.)
 </p>
 <p class="note">The order of the DLLs is important. In particular: <b>zlib1.dll</b>, <b>libpng13.dll</b> must be loaded in that order before <b>kserv.dll</b>; also <b>afsio.dll</b> must be loaded before <b>fserv.dll</b> and <b>afs2fs.dll</b></p>
+
+<h5>3.3. GDB location</h5>
+<p>
+GDB is a collection of different types of game data. In the current release, those include: kits, faces and hair files. In the future, there will also be stadiums and possibly boots. The GDB is essentially a simple hierarchy of folders: the root folder itself MUST be named <b>GDB</b>, inside it there is a folder for kits: <b>uni</b>, and a folder for faces and hair: <b>faces</b>.
+</p>
+<p>By default the <b>GDB</b> folder itself is located inside kitserver folder, but you can put it anywhere on your hard disk. To do that, you would need to use "gdb.dir" setting in the [kload] section of the config.txt file, like this:
+</p>
+
+<pre>
+[kload]
+gdb.dir = "c:\mypesfiles\"
+...
+</pre>
+
+<p class="devnote" style="font-weight:normal">A couple of important notes here:<br />
+1. The path MUST end with a backslash, like in the example above.<br />
+2. You specify the folder that holds the "GDB" folder in it, instead of the "GDB" folder itself. So, in the example above, the full path of the GDB folder would be <b>c:\mypesfiles\GDB</b>, but in the config.txt, the "GDB" ending must be omitted.
+</p>
 
 <a name="kserv"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
@@ -182,6 +213,7 @@ Kserv was historically the first module implemented in the original Kitserver pr
 </p>
 
 <h5>4.1 GDB organization</h5>
+
 <p>
 The GDB contains a folder named <b>uni</b>, which is responsible for storing
 the team kits (uniforms). The single most important file inside <b>uni</b> is called <b>map.txt</b>.

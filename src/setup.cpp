@@ -1147,6 +1147,15 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
                 exit(result?0:1);
             }
+            else if (params.find(L"--help") != params.end())
+            {
+                // print out the usage
+                fwprintf(f,L"Setup can be run as follows:\n\n");
+                fwprintf(f,L"setup --install --gfile=<game-exe> --sfile=<settings-exe>\n");
+                fwprintf(f,L"setup --remove --gfile=<game-exe> --sfile=<settings-exe>\n\n");
+                fwprintf(f,L"Example: setup --remove --gfile=..\\PES2008.exe --sfile=..\\settings.exe\n");
+                exit(0);
+            }
         }
         return 1;
     }

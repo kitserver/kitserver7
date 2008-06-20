@@ -26,7 +26,7 @@ song_map_t::song_map_t(const wstring& filename)
     hash_map<WORD,wstring> mapFile;
     if (!readMap(filename.c_str(), mapFile))
     {
-        LOG1S(L"Unable to read songs map (%s)\n",filename.c_str());
+        LOG1S(L"Unable to read songs map (%s)",filename.c_str());
         return;
     }
 
@@ -75,7 +75,7 @@ ball_map_t::ball_map_t(const wstring& filename)
     hash_map<WORD,wstring> mapFile;
     if (!readMap(filename.c_str(), mapFile))
     {
-        LOG1S(L"Unable to read balls map (%s)\n",filename.c_str());
+        LOG1S(L"Unable to read balls map (%s)",filename.c_str());
         return;
     }
 
