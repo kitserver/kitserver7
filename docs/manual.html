@@ -534,7 +534,7 @@ Examples of correctly named files:<br /><br />
 <span style="color:#080;font-weight:bold">unnamed_40.bin</span><br />
 <span style="color:#080;font-weight:bold">balls_7.bin</span><br />
 <span style="color:#080;font-weight:bold">unknow_8</span> (.bin extension is optional)<br />
-<span style="color:#080;font-weight:bold">vne_zony_dostupa_1.adx</span> (a file can have a different extension: .adx is typically used for music and sound files)<br />
+<span style="color:#080;font-weight:bold">vne_zony_dostupa_113.adx</span> (a file can have a different extension: .adx is typically used for music and sound files)<br />
 </p>
 
 <p>
@@ -542,6 +542,40 @@ Examples of incorrectly named files:<br /><br />
 <span style="color:#800;font-weight:bold">unnamed10.bin</span> - no underscore symbol before the BIN number.<br />
 <span style="color:#800;font-weight:bold">face.bin</span> - no BIN number.<br />
 </p>
+
+<h5>6.3. Names for balls and songs</h5>
+<p>
+When replacing songs with AFS2FS, it is also possible to change the title of the song and the author name, by using a <b>songs.txt</b> map-file, which should be put into <b>kitserver\names</b> folder.<br />
+<br />
+Here's an example of such songs.txt file:
+</p>
+
+<pre>
+# Song names map
+# Format: <binId>, "<name>", "<author>" 
+# Note that double quotes are required.
+
+111, "I'm mad about you", "Sting"
+112, "Jamaica", "Marksheider Kunst"
+113, "Vne zony dostupa", "Gorod 007"
+114, "Gitara", "Piroogov"
+115, "Takie devchenki", "Mummi Troll"
+116, "Podmoskovnye vechera", "Mireille Mathieu"
+117, "Pardonne moi", "Mireille Mathieu"
+</pre>
+
+<p>
+Similarly with balls, it is often desirable to specify names which are longer than the original ones. One easy way to do that is to use a <b>balls.txt</b> map-file, which should be put into <b>kitserver\names</b> folder:
+
+<pre>
+# Ball names map
+# Format: <ball-number>, "<name>"
+# Note that double quotes are required.
+# (Ball numbers go from 1 to 12)
+
+6, "Nike Arrow II Yellow"
+7, "Fevernova 2002"
+</pre>
 
 <a name="fserv"><br /></a>
 <p><a class="backlink" href="manual.html#">Top</a></p>
@@ -642,11 +676,18 @@ system.data = "option01.bin"
 <p>
 Programming: <b>juce</b> and <b>Robbie</b><br />
 Beta-testing: <b>ntalex</b>, <b>ASD91</b>, <b>Str@teG</b>, and many others on Evo-Web and PesWe.com forums.<br />
-GDB and "img" content: <b>poloplo</b><br />
 Ideas for <i>rwdata</i> and <i>afs2fs</i> modules: <b>Str@teG</b><br />
-uni.txt file: created with help of "PES2008 Kit Info Manager" program by <b>Yogui</b><br />
-<br />
-Special thanks go to: all users of <a href="http://www.peswe.com">PesWe.com</a> website and <a href="http://www.peswe.com/fm">forums</a>.
+uni.txt file: created with help of <span style="color:#060"><b>PES2008 Kit Info Manager</b></span> program by <b>Yogui</b></p>
+
+<p>
+sample GDB: kits taken from <span style="color:#060"><b>Evo-Web GDB Folder 3.4</b></span> collection, which was created by: <b>devill_sfc</b>, <b>Roamer</b>, <b>FCH</b>, <b>silenthill</b>, <b>Ravenger</b>, <b>RKO</b>, <b>Tottimas</b>, <b>Cesc Fabregas</b>, <b>biker_jim_Uk</b> and <b>R9 Ronaldo</b>.<br />
+Kit artwork by: [Members] evo-web.co.uk / pesbrasil.org / gammingaccess.com<br />
+Black nets (stadium_40.bin): <b>poloplo</b><br />
+Arshavin's face and hair: <b>Pro</b><br />
+</p>
+
+<p>
+Special thanks go to: administrators of <a href="http://www.peswe.com">PesWe.com</a> website and members of <a href="http://www.peswe.com/fm">PesWe.com forums</a>.
 </p>
 
 </body>
