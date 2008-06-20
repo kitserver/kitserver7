@@ -1,0 +1,7 @@
+﻿model = 30
+collar = yes
+shirt.number.location = off
+shorts.number.location = left
+radar.color = 0033cc
+shorts.color = 0033cc
+description = "Home kit"
