@@ -54,7 +54,7 @@ all_apps: apps
 pngdib:
 	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
-dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll fserv.dll rwdata.dll
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll fserv.dll rwdata.dll camera.dll
 apps: setup.exe lodcfg.exe zlibtool.exe
 
 setup: setup.exe
@@ -91,6 +91,11 @@ rwdata.lib: rwdata.obj configs.obj
 rwdata.dll: rwdata.lib rwdata.res
 	$(LINK) $(LFLAGS) /out:rwdata.dll /DLL rwdata.obj configs.obj rwdata.res $(LIBS) $(D3DX9) kload.lib
 rwdata.obj: rwdata.cpp rwdata.h rwdata_addr.h rwdata.rc
+
+camera.lib: camera.obj configs.obj
+camera.dll: camera.lib camera.res
+	$(LINK) $(LFLAGS) /out:camera.dll /DLL camera.obj configs.obj camera.res $(LIBS) $(D3DX9) kload.lib
+camera.obj: camera.cpp camera.h camera_addr.h camera.rc
 
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
 kload.dll: kload.lib kload.res
