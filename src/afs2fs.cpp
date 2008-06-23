@@ -234,7 +234,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
         for (hash_map<string,wchar_t*>::iterator it = _info_cache.begin(); 
                 it != _info_cache.end();
                 it++)
-            if (it->second) HeapFree(it->second, 0, GetProcessHeap());
+            if (it->second) HeapFree(GetProcessHeap(), 0, it->second);
 
         delete _songs;
 	}
