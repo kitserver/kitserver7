@@ -28,7 +28,7 @@
 #define CREATE_FLAGS 0
 
 enum {
-    COMMON,
+    PLACKARDS, ADBOARDS_1, ADBOARDS_2, GOALS,
     DAY_SUMMER_MESH, DAY_SUMMER_TURF,
     DAY_WINTER_MESH, DAY_WINTER_TURF,
     EVENING_SUMMER_MESH, EVENING_SUMMER_TURF, 
@@ -44,7 +44,11 @@ KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 #define STAD_FIRST  45
 #define STAD_LAST   712
 #define STAD_SPAN   42
-#define STAD_COMMON 40
+
+#define STAD_PLACKARDS  37
+#define STAD_ADBOARDS_1 38
+#define STAD_ADBOARDS_2 39
+#define STAD_GOALS      40
 
 bool _stadium_bins[726];
 
@@ -127,8 +131,17 @@ bool inline IsStadiumFile(DWORD binId)
 
 int GetBinType(DWORD binId)
 {
-    if (binId == STAD_COMMON)
-        return COMMON;
+    switch (binId)
+    {
+        case STAD_PLACKARDS:
+            return PLACKARDS;
+        case STAD_ADBOARDS_1:
+            return ADBOARDS_1;
+        case STAD_ADBOARDS_2:
+            return ADBOARDS_2;
+        case STAD_GOALS:
+            return GOALS;
+    }
 
     if (binId < STAD_FIRST || binId > STAD_LAST)
         return -1;  // not a stadium file
