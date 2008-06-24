@@ -80,8 +80,6 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src);
 KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size);
 DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len);
 
-DWORD GetTargetAddress(DWORD addr);
-void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 DWORD HookIndirectCall(DWORD addr, void* func);
 void fservConfig(char* pName, const void* pValue, DWORD a);
 bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
@@ -424,42 +422,6 @@ void InitMaps()
     // initialize total number of BINs
     _num_slots = nextSlotPair*2;
     LOG1N(L"_num_slots = %d",_num_slots);
-}
-
-void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
-{
-    DWORD target = (DWORD)func + codeShift;
-	if (addr && target)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
-	        bptr[0] = 0xe8;
-	        DWORD* ptr = (DWORD*)(addr + 1);
-	        ptr[0] = target - (DWORD)(addr + 5);
-            // padding with NOPs
-            for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
-	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
-	    }
-	}
-}
-
-DWORD GetTargetAddress(DWORD addr)
-{
-	if (addr)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 8, newProtection, &protection)) 
-        {
-            // get original target
-            DWORD* ptr = (DWORD*)(addr + 1);
-            return (DWORD)(ptr[0] + addr + 5);
-	    }
-	}
-    return 0;
 }
 
 bool ReplaceBinSizes()

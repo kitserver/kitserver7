@@ -106,4 +106,10 @@ void hookedBeginRenderPlayer();
 DWORD STDMETHODCALLTYPE hookedEditCopyPlayerName(DWORD p1, DWORD p2);
 DWORD hookedCopyString(DWORD dest, DWORD destLen, DWORD src, DWORD srcLen);
 
+KEXPORT void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops, bool addRetn=false);
+KEXPORT DWORD GetTargetAddress(DWORD addr);
+
+typedef void (*OVERLAY_EVENT_CALLBACK)(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
+KEXPORT void addOverlayCallback(OVERLAY_EVENT_CALLBACK callback);
+
 #endif

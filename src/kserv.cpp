@@ -131,7 +131,6 @@ DWORD g_teamKitInfoBase = 0;
 bool g_slotMapsInitialized = false;
 bool g_presentHooked = false;
 bool g_beginShowKitSelection = false;
-DWORD g_menuMode = 0;
 DWORD g_cupModeInd = 0;
 hash_map<DWORD,TEAM_KIT_INFO> g_savedTki;
 
@@ -185,10 +184,8 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2);
 void kservUnpackBinCallPoint();
 KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 DWORD kservGetBinSize(DWORD afsId, DWORD binId);
-DWORD GetTargetAddress(DWORD addr);
 void HookSetFilePointerEx();
 void HookReadFile();
-void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 void HookAt(DWORD addr, void* func);
 PACKED_BIN* LoadBinFromAFS(DWORD id);
 KEXPORT bool LoadBinFromAFS2(DWORD afsId, DWORD binId, PACKED_BIN* bin);
@@ -217,9 +214,6 @@ void HookKeyboard();
 void UnhookKeyboard();
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
 void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
-void kservTriggerKitSelection(int delta); 
-void kservAddMenuModeCallPoint();
-void kservSubMenuModeCallPoint();
 void ResetIterators();
 void kservStartReadKitInfoCallPoint();
 void kservStartReadKitInfoCallPoint2();
@@ -241,6 +235,7 @@ KEXPORT DWORD kservAtLoadAwayKeeper(DWORD teamId);
 //void kservAtWriteTeamIdCallPoint();
 //KEXPORT void kservAtWriteTeamId(TEAM_MATCH_DATA_INFO*);
 bool IsKitBin(DWORD afsId, DWORD binId);
+void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
 
 // FUNCTION POINTERS
 
@@ -535,68 +530,6 @@ void kservEndReadKitInfoCallPoint()
     }
 }
 
-void kservAddMenuModeCallPoint()
-{
-    // this is helper function so that we can
-    // hook kservTriggerKitSelection() at a certain place
-    __asm 
-    {
-        pushfd
-        push ebp
-        push eax
-        push ebx
-        push ecx
-        push edx
-        push esi
-        push edi
-        mov esi,g_menuMode
-        add [esi],1 // execute replaced code
-        push 0x00000001
-        call kservTriggerKitSelection
-        add esp,4
-        pop edi
-        pop esi
-        pop edx
-        pop ecx
-        pop ebx
-        pop eax
-        pop ebp
-        popfd
-        retn
-    }
-}
-
-void kservSubMenuModeCallPoint()
-{
-    // this is helper function so that we can
-    // hook kservTriggerKitSelection() at a certain place
-    __asm 
-    {
-        pushfd
-        push ebp
-        push eax
-        push ebx
-        push ecx
-        push edx
-        push esi
-        push edi
-        mov esi,g_menuMode
-        sub [esi],1 // execute replaced code
-        push 0xffffffff
-        call kservTriggerKitSelection
-        add esp,4
-        pop edi
-        pop esi
-        pop edx
-        pop ecx
-        pop ebx
-        pop eax
-        pop ebp
-        popfd
-        retn
-    }
-}
-
 void kservOnEnterCupsCallPoint()
 {
     __asm 
@@ -743,9 +676,7 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_END_READKITINFO], kservEndReadKitInfoCallPoint, 6, 0);
 
     // hook kit selection points
-    g_menuMode = data[MENU_MODE_IDX];
-    HookCallPoint(code[C_ADD_MENUMODE], kservAddMenuModeCallPoint, 6, 2);
-    HookCallPoint(code[C_SUB_MENUMODE], kservSubMenuModeCallPoint, 6, 2);
+    addOverlayCallback(kservOverlayEvent);
 
     // hook mode enter/exit points
     g_cupModeInd = data[CUP_MODE_PTR];
@@ -775,42 +706,6 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     }
     
     return D3D_OK;
-}
-
-void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
-{
-    DWORD target = (DWORD)func + codeShift;
-	if (addr && target)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
-	        bptr[0] = 0xe8;
-	        DWORD* ptr = (DWORD*)(addr + 1);
-	        ptr[0] = target - (DWORD)(addr + 5);
-            // padding with NOPs
-            for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
-	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
-	    }
-	}
-}
-
-DWORD GetTargetAddress(DWORD addr)
-{
-	if (addr)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 8, newProtection, &protection)) 
-        {
-            // get original target
-            DWORD* ptr = (DWORD*)(addr + 1);
-            return (DWORD)(ptr[0] + addr + 5);
-	    }
-	}
-    return 0;
 }
 
 void HookAt(DWORD addr, void* func)
@@ -2355,42 +2250,11 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     }
 }
 
-/**
- * @param delta: either 1 (if menuMode increased), or -1 (if menuMode decreased)
- */
-void kservTriggerKitSelection(int delta)
+void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
 {
-    DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
-    DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
-    DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
-    DWORD cupModeInd = *(DWORD*)data[CUP_MODE_PTR];
-    if (ind == 0 && inGameInd == 0 && menuMode == 2 && cupModeInd != 0)
+    if (isExhibitionMode)
     {
-        if (!g_presentHooked)
-        {
-            hookFunction(hk_D3D_Present, kservPresent);
-            g_presentHooked = true;
-            g_beginShowKitSelection = true;
-
-            HookKeyboard();
-        }
-    }
-    else if (cupModeInd != 0)
-    {
-        if (g_presentHooked)
-        {
-            unhookFunction(hk_D3D_Present, kservPresent);
-            g_presentHooked = false;
-
-            UnhookKeyboard();
-        }
-    }
-
-    // Exhibition mode
-    TRACE2N(L"menuMode = %x (delta=%d)",menuMode,delta);
-    if (menuMode == 0x21 || menuMode == 0x0d)
-    {
-        if (!g_presentHooked)
+        if (overlayOn)
         {
             hookFunction(hk_D3D_Present, kservPresent);
             TRACE(L"Showing kit selection");
@@ -2401,19 +2265,30 @@ void kservTriggerKitSelection(int delta)
                 ResetIterators();
             HookKeyboard();
         }
-    }
-    else if (menuMode == 0x28 || menuMode == 0x1e 
-            || menuMode == 0x0a || menuMode == 0x11)
-    {
-        if (delta==1 && menuMode == 0x0a)
-            ResetIterators();
-
-        if (g_presentHooked)
+        else
         {
             unhookFunction(hk_D3D_Present, kservPresent);
             TRACE(L"Hiding kit selection");
             g_presentHooked = false;
 
+            if (delta==1 && menuMode == 0x0a)
+                ResetIterators();
+            UnhookKeyboard();
+        }
+    }
+    else
+    {
+        if (overlayOn)
+        {
+            hookFunction(hk_D3D_Present, kservPresent);
+            g_presentHooked = true;
+            g_beginShowKitSelection = true;
+            HookKeyboard();
+        }
+        else 
+        {
+            unhookFunction(hk_D3D_Present, kservPresent);
+            g_presentHooked = false;
             UnhookKeyboard();
         }
     }

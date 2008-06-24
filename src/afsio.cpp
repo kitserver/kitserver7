@@ -72,8 +72,6 @@ KEXPORT void afsioAfterCreateEvent(DWORD eventId, READ_EVENT_STRUCT* res, char* 
 KEXPORT void afsioBeforeRead(READ_STRUCT* rs);
 KEXPORT void afsioAtCloseHandle(DWORD eventId);
 
-DWORD GetTargetAddress(DWORD addr);
-void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops);
 void afsioConfig(char* pName, const void* pValue, DWORD a);
 
 // callbacks chain
@@ -151,42 +149,6 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
     //__asm { int 3 }          // uncomment this for debugging as needed
     return D3D_OK;
-}
-
-void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops)
-{
-    DWORD target = (DWORD)func + codeShift;
-	if (addr && target)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
-	        bptr[0] = 0xe8;
-	        DWORD* ptr = (DWORD*)(addr + 1);
-	        ptr[0] = target - (DWORD)(addr + 5);
-            // padding with NOPs
-            for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
-	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
-	    }
-	}
-}
-
-DWORD GetTargetAddress(DWORD addr)
-{
-	if (addr)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 8, newProtection, &protection)) 
-        {
-            // get original target
-            DWORD* ptr = (DWORD*)(addr + 1);
-            return (DWORD)(ptr[0] + addr + 5);
-	    }
-	}
-    return 0;
 }
 
 void afsioAtGetBinBufferSizeCallPoint()

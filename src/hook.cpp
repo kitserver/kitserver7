@@ -47,6 +47,14 @@ PFNPRESENTPROC g_orgPresent = NULL;
 PFNRESETPROC g_orgReset = NULL;
 PFNSETTRANSFORMPROC g_orgSetTransform = NULL;
 
+bool g_overlayOn = false;
+list<OVERLAY_EVENT_CALLBACK> _overlay_callbacks;
+
+DWORD g_menuMode = 0;
+void hookAddMenuModeCallPoint();
+void hookSubMenuModeCallPoint();
+void hookTriggerSelectionOverlay(int delta);
+
 ALLVOID g_orgBeginRender1 = NULL;
 ALLVOID g_orgBeginRender2 = NULL;
 DWORD g_orgEditCopyPlayerName = NULL;
@@ -276,6 +284,10 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
     }
     */
 	}
+
+    g_menuMode = data[MENU_MODE_IDX];
+    HookCallPoint(code[C_ADD_MENUMODE], hookAddMenuModeCallPoint, 6, 2);
+    HookCallPoint(code[C_SUB_MENUMODE], hookSubMenuModeCallPoint, 6, 2);
 	
 	CALLCHAIN_BEGIN(hk_D3D_CreateDevice, it) {
 		PFNCREATEDEVICEPROC NextCall = (PFNCREATEDEVICEPROC)*it;
@@ -803,3 +815,168 @@ DWORD hookedCopyString(DWORD dest, DWORD destLen, DWORD src, DWORD srcLen)
 	
 	return MasterCallNext(dest, destLen, src, srcLen);
 }
+
+KEXPORT void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops, bool addRetn)
+{
+    DWORD target = (DWORD)func + codeShift;
+	if (addr && target)
+	{
+	    BYTE* bptr = (BYTE*)addr;
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
+	        bptr[0] = 0xe8;
+	        DWORD* ptr = (DWORD*)(addr + 1);
+	        ptr[0] = target - (DWORD)(addr + 5);
+            // padding with NOPs
+            for (int i=0; i<numNops; i++) bptr[5+i] = 0x90;
+            if (addRetn)
+                bptr[5+numNops]=0xc3;
+	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
+	    }
+	}
+}
+
+KEXPORT DWORD GetTargetAddress(DWORD addr)
+{
+	if (addr)
+	{
+	    BYTE* bptr = (BYTE*)addr;
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	    if (VirtualProtect(bptr, 8, newProtection, &protection)) 
+        {
+            // get original target
+            DWORD* ptr = (DWORD*)(addr + 1);
+            return (DWORD)(ptr[0] + addr + 5);
+	    }
+	}
+    return 0;
+}
+
+KEXPORT void addOverlayCallback(OVERLAY_EVENT_CALLBACK callback)
+{
+    _overlay_callbacks.push_back(callback);
+}
+
+/**
+ * @param delta: either 1 (if menuMode increased), or -1 (if menuMode decreased)
+ */
+void hookTriggerSelectionOverlay(int delta)
+{
+    DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+    DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
+    DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
+    DWORD cupModeInd = *(DWORD*)data[CUP_MODE_PTR];
+    if (ind == 0 && inGameInd == 0 && menuMode == 2 && cupModeInd != 0)
+    {
+        if (!g_overlayOn)
+        {
+            g_overlayOn = true;
+            // call the callbacks
+            for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
+                    it != _overlay_callbacks.end();
+                    it++)
+                (*it)(g_overlayOn, false, delta, menuMode);
+        }
+    }
+    else if (cupModeInd != 0)
+    {
+        if (g_overlayOn)
+        {
+            g_overlayOn = false;
+            // call the callbacks
+            for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
+                    it != _overlay_callbacks.end();
+                    it++)
+                (*it)(g_overlayOn, false, delta, menuMode);
+        }
+    }
+
+    // Exhibition mode
+    TRACE2N(L"menuMode = %x (delta=%d)",menuMode,delta);
+    if (menuMode == 0x21 || menuMode == 0x0d)
+    {
+        if (!g_overlayOn)
+        {
+            g_overlayOn = true;
+            // call the callbacks
+            for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
+                    it != _overlay_callbacks.end();
+                    it++)
+                (*it)(g_overlayOn, true, delta, menuMode);
+        }
+    }
+    else if (menuMode == 0x28 || menuMode == 0x1e 
+            || menuMode == 0x0a || menuMode == 0x11)
+    {
+        if (g_overlayOn)
+        {
+            g_overlayOn = false;
+            // call the callbacks
+            for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
+                    it != _overlay_callbacks.end();
+                    it++)
+                (*it)(g_overlayOn, true, delta, menuMode);
+        }
+    }
+}
+
+void hookAddMenuModeCallPoint()
+{
+    __asm 
+    {
+        pushfd
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov esi,g_menuMode
+        add [esi],1 // execute replaced code
+        push 0x00000001
+        call hookTriggerSelectionOverlay
+        add esp,4
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        retn
+    }
+}
+
+void hookSubMenuModeCallPoint()
+{
+    __asm 
+    {
+        pushfd
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        mov esi,g_menuMode
+        sub [esi],1 // execute replaced code
+        push 0xffffffff
+        call hookTriggerSelectionOverlay
+        add esp,4
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        retn
+    }
+}
+
