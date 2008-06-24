@@ -1,4 +1,4 @@
-# For debug builds, use "debug=1" in command line. For instance,
+# For release builds, use "debug=1" in command line. For instance,
 # to build DLLs in release mode: nmake dlls debug=1
 
 CC=cl
@@ -21,7 +21,7 @@ D3DX9=d3dx9.lib
 
 # 4731: warning about ebp modification
 CFLAGS=/nologo /EHsc /wd4731 $(EXTRA_CFLAGS)
-LFLAGS=/NOLOGO /NODEFAULTLIB:libcmt.lib
+LFLAGS=/NOLOGO
 LIBS=user32.lib gdi32.lib advapi32.lib comctl32.lib
 LIBSDLL=pngdib.obj libpng.lib zdll.lib $(LIBS)
 
@@ -54,11 +54,8 @@ all_apps: apps
 pngdib:
 	(cd soft\pngdib && nmake EXTRA_CFLAGS=$(EXTRA_CFLAGS))
 
-dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll fserv.dll rwdata.dll camera.dll time.dll
+dlls: kload.dll kserv.dll lodmixer.dll kset.dll afsio.dll afs2fs.dll sched.dll fserv.dll rwdata.dll camera.dll time.dll stadium.dll
 apps: setup.exe lodcfg.exe zlibtool.exe
-
-#release:
-#	$(MAKE) EXTRA_CFLAGS=/DMYDLL_RELEASE_BUILD MYDLL_RELEASE_BUILD=1
 
 setup: setup.exe
 kset: kset.dll
@@ -85,9 +82,9 @@ afsio.dll: afsio.lib afsio.res
 	$(LINK) $(LFLAGS) /out:afsio.dll /DLL afsio.obj configs.obj afsio.res $(LIBS) $(D3DX9) kload.lib
 afsio.obj: afsio.cpp afsio.h afsio_addr.h afsio.rc
 
-fserv.lib: fserv.obj configs.obj
+fserv.lib: fserv.obj configs.obj crc32.obj
 fserv.dll: fserv.lib afsio.lib fserv.res
-	$(LINK) $(LFLAGS) /out:fserv.dll /DLL fserv.obj configs.obj fserv.res $(LIBS) $(D3DX9) kload.lib afsio.lib
+	$(LINK) $(LFLAGS) /out:fserv.dll /DLL fserv.obj configs.obj crc32.obj fserv.res $(LIBS) $(D3DX9) kload.lib afsio.lib
 fserv.obj: fserv.cpp fserv.h fserv_addr.h fserv.rc
 
 rwdata.lib: rwdata.obj configs.obj
@@ -105,6 +102,11 @@ time.dll: time.lib time.res
 	$(LINK) $(LFLAGS) /out:time.dll /DLL time.obj configs.obj time.res $(LIBS) $(D3DX9) kload.lib
 time.obj: time.cpp time.h time_addr.h time.rc
 
+stadium.lib: stadium.obj configs.obj
+stadium.dll: stadium.lib afsio.lib stadium.res
+	$(LINK) $(LFLAGS) /out:stadium.dll /DLL stadium.obj configs.obj stadium.res $(LIBS) $(D3DX9) kload.lib afsio.lib
+stadium.obj: stadium.cpp stadium.h stadium_addr.h stadium.rc
+
 kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
 kload.dll: kload.lib kload.res
 	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj kload.res $(LIBS) $(D3DX9) winmm.lib
@@ -114,9 +116,9 @@ kload.res:
 	$(RC) -r -fo kload.res kload.rc
 	
 	
-kserv.lib: kserv.obj afsreader.obj crc32.obj gdb.obj configs.obj pngdib
+kserv.lib: kserv.obj afsreader.obj gdb.obj configs.obj pngdib
 kserv.dll: kserv.lib kserv.res
-	$(LINK) $(LFLAGS) /out:kserv.dll /LIBPATH:$(LPPNGDIB) /LIBPATH:$(LPLIBPNG) /LIBPATH:$(LPZLIB) /DLL kserv.obj afsreader.obj crc32.obj gdb.obj configs.obj kserv.res $(LIBS) $(D3DX9) kload.lib $(LIBSDLL)
+	$(LINK) $(LFLAGS) /out:kserv.dll /LIBPATH:$(LPPNGDIB) /LIBPATH:$(LPLIBPNG) /LIBPATH:$(LPZLIB) /DLL kserv.obj afsreader.obj gdb.obj configs.obj kserv.res $(LIBS) $(D3DX9) kload.lib $(LIBSDLL)
 kserv.obj: kserv.cpp kserv.h kserv_addr.h kserv.rc
 
 lodmixer.lib: lodmixer.obj
