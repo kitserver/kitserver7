@@ -55,6 +55,12 @@ void hookAddMenuModeCallPoint();
 void hookSubMenuModeCallPoint();
 void hookTriggerSelectionOverlay(int delta);
 
+HHOOK g_hKeyboardHook = NULL;
+list<KEY_EVENT_CALLBACK> _key_callbacks;
+void HookKeyboard();
+void UnhookKeyboard();
+LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
+
 ALLVOID g_orgBeginRender1 = NULL;
 ALLVOID g_orgBeginRender2 = NULL;
 DWORD g_orgEditCopyPlayerName = NULL;
@@ -859,6 +865,11 @@ KEXPORT void addOverlayCallback(OVERLAY_EVENT_CALLBACK callback)
     _overlay_callbacks.push_back(callback);
 }
 
+KEXPORT void addKeyboardCallback(KEY_EVENT_CALLBACK callback)
+{
+    _key_callbacks.push_back(callback);
+}
+
 /**
  * @param delta: either 1 (if menuMode increased), or -1 (if menuMode decreased)
  */
@@ -873,6 +884,7 @@ void hookTriggerSelectionOverlay(int delta)
         if (!g_overlayOn)
         {
             g_overlayOn = true;
+            HookKeyboard();
             // call the callbacks
             for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
                     it != _overlay_callbacks.end();
@@ -885,6 +897,7 @@ void hookTriggerSelectionOverlay(int delta)
         if (g_overlayOn)
         {
             g_overlayOn = false;
+            UnhookKeyboard();
             // call the callbacks
             for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
                     it != _overlay_callbacks.end();
@@ -900,6 +913,7 @@ void hookTriggerSelectionOverlay(int delta)
         if (!g_overlayOn)
         {
             g_overlayOn = true;
+            HookKeyboard();
             // call the callbacks
             for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
                     it != _overlay_callbacks.end();
@@ -913,6 +927,7 @@ void hookTriggerSelectionOverlay(int delta)
         if (g_overlayOn)
         {
             g_overlayOn = false;
+            UnhookKeyboard();
             // call the callbacks
             for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
                     it != _overlay_callbacks.end();
@@ -979,4 +994,36 @@ void hookSubMenuModeCallPoint()
         retn
     }
 }
+
+void HookKeyboard()
+{
+    if (g_hKeyboardHook == NULL) 
+    {
+		g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, hInst, GetCurrentThreadId());
+		TRACE1N(L"Installed keyboard hook: g_hKeyboardHook = %d", (DWORD)g_hKeyboardHook);
+	}
+}
+
+void UnhookKeyboard()
+{
+	if (g_hKeyboardHook != NULL) 
+    {
+		UnhookWindowsHookEx(g_hKeyboardHook);
+		TRACE(L"Keyboard hook uninstalled.");
+		g_hKeyboardHook = NULL;
+	}
+}
+
+LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
+{
+	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
+        // call the callbacks
+        for (list<KEY_EVENT_CALLBACK>::iterator it = _key_callbacks.begin();
+                it != _key_callbacks.end();
+                it++)
+            (*it)(code1, wParam, lParam);
+    }	
+
+	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
+};
 

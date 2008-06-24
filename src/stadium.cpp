@@ -50,7 +50,12 @@ KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 #define STAD_ADBOARDS_2 39
 #define STAD_GOALS      40
 
+// GLOBALS
+
 bool _stadium_bins[726];
+
+static bool g_presentHooked = false;
+static bool g_beginShowKitSelection = false;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -62,6 +67,9 @@ void stadConfig(char* pName, const void* pValue, DWORD a);
 bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool IsStadiumFile(DWORD binId);
 int GetBinType(DWORD binId);
+void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
+void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
+void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
 
 // FUNCTION POINTERS
 
@@ -117,8 +125,10 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
         if (GetBinType(i)!=-1)
             _stadium_bins[i] = true;
 
-    // register callback
+    // register callbacks
     afsioAddCallback(stadGetFileInfo);
+    addOverlayCallback(stadOverlayEvent);
+    addKeyboardCallback(stadKeyboardEvent);
 
 	TRACE(L"Hooking done.");
     return D3D_OK;
@@ -215,5 +225,163 @@ bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
             (binId==40) ? 40 : (213+((binId-STAD_FIRST)%STAD_SPAN)));
 
     return OpenFileIfExists(filename, hfile, fsize);
+}
+
+void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
+{
+    if (isExhibitionMode)
+    {
+        if (overlayOn)
+        {
+            hookFunction(hk_D3D_Present, stadPresent);
+            TRACE(L"Showing kit selection");
+            g_presentHooked = true;
+            g_beginShowKitSelection = true;
+
+            //if (delta==1) 
+            //    ResetIterators();
+        }
+        else
+        {
+            unhookFunction(hk_D3D_Present, stadPresent);
+            TRACE(L"Hiding kit selection");
+            g_presentHooked = false;
+
+            //if (delta==1 && menuMode == 0x0a)
+            //    ResetIterators();
+        }
+    }
+    else
+    {
+        if (overlayOn)
+        {
+            hookFunction(hk_D3D_Present, stadPresent);
+            g_presentHooked = true;
+            g_beginShowKitSelection = true;
+        }
+        else 
+        {
+            unhookFunction(hk_D3D_Present, stadPresent);
+            g_presentHooked = false;
+        }
+    }
+}
+
+void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
+	HWND hWnd, LPVOID unused)
+{
+    if (g_beginShowKitSelection)
+    {
+        g_beginShowKitSelection = false;
+    }
+
+	KDrawText(L"stadPresent", 0, 0, D3DCOLOR_RGBA(0xff,0xff,0xff,0xff), 20.0f);
+
+    /*
+    // display "home"/"away" helper for Master League games
+    if (pNextMatch->home->teamIdSpecial != pNextMatch->home->teamId)
+    {
+        KDrawText(L"Home", 7, 35, COLOR_BLACK, 26.0f);
+        KDrawText(L"Home", 5, 33, COLOR_INFO, 26.0f);
+    }
+    else if (pNextMatch->away->teamIdSpecial != pNextMatch->away->teamId)
+    {
+        KDrawText(L"Away", 7, 35, COLOR_BLACK, 26.0f);
+        KDrawText(L"Away", 5, 33, COLOR_INFO, 26.0f);
+    }
+
+    // display current kit selection
+
+    // Home PL
+    if (g_iterHomePL == g_iterHomePL_end)
+    {
+        KDrawText(L"P: auto", 200, 7, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 202, 5, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 202, 7, COLOR_BLACK, 30.0f);
+        KDrawText(L"P: auto", 200, 5, COLOR_AUTO, 30.0f);
+    }
+    else
+    {
+        wchar_t wbuf[512] = {0};
+        swprintf(wbuf, L"P: %s", g_iterHomePL->first.c_str());
+        KDrawText(wbuf, 200, 7, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 202, 5, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 202, 7, COLOR_BLACK, 30.0f);
+        KDrawText(wbuf, 200, 5, COLOR_CHOSEN, 30.0f);
+        gdb->loadConfig(g_iterHomePL->second);
+        if (g_iterHomePL->second.attDefined & MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterHomePL->second.mainColor;
+            KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomePL->second.foldername == L"")
+        {
+            // non-GDB kit => get main color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
+            if (pNM->home->teamIdSpecial != pNM->home->teamId)
+                tki = &pNM->home->tki;
+
+            KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.mainColor : tki->pb.mainColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        if (g_iterHomePL->second.attDefined & SHORTS_MAIN_COLOR)
+        {
+            RGBAColor& c = g_iterHomePL->second.shortsFirstColor;
+            KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+        else if (g_iterHomePL->second.foldername == L"")
+        {
+            // non-GDB kit => get shorts color from attribute structures
+            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
+            if (pNM->home->teamIdSpecial != pNM->home->teamId)
+                tki = &pNM->home->tki;
+
+            KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.shortsFirstColor : tki->pb.shortsFirstColor;
+            RGBAColor c;
+            KCOLOR2RGBAColor(kc, c);
+            KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
+            KDrawText(L"\x2584", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+        }
+    }
+    */
+}
+
+void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
+{
+    /*
+	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
+        if (wParam == 0x31) { // home PL
+            if (g_iterHomePL == g_iterHomePL_end)
+                g_iterHomePL = g_iterHomePL_begin;
+            else
+                g_iterHomePL++;
+        }
+        else if (wParam == 0x32) { // away PL
+            if (g_iterAwayPL == g_iterAwayPL_end)
+                g_iterAwayPL = g_iterAwayPL_begin;
+            else
+                g_iterAwayPL++;
+        }
+        else if (wParam == 0x33) { // home GK
+            if (g_iterHomeGK == g_iterHomeGK_end)
+                g_iterHomeGK = g_iterHomeGK_begin;
+            else
+                g_iterHomeGK++;
+        }
+        else if (wParam == 0x34) { // away GK
+            if (g_iterAwayGK == g_iterAwayGK_end)
+                g_iterAwayGK = g_iterAwayGK_begin;
+            else
+                g_iterAwayGK++;
+        }
+    }	
+    */
 }
 

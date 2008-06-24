@@ -111,5 +111,7 @@ KEXPORT DWORD GetTargetAddress(DWORD addr);
 
 typedef void (*OVERLAY_EVENT_CALLBACK)(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
 KEXPORT void addOverlayCallback(OVERLAY_EVENT_CALLBACK callback);
+typedef void (*KEY_EVENT_CALLBACK)(int code, WPARAM wParam, LPARAM lParam);
+KEXPORT void addKeyboardCallback(KEY_EVENT_CALLBACK callback);
 
 #endif

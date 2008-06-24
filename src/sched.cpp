@@ -22,9 +22,6 @@ EXTENSION g_ext;
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved);
 void initSched();
-void HookKeyboard();
-void UnhookKeyboard();
-LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
 void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
 bool OkToChangeGroups(SCHEDULE_STRUCT* ss);
 bool OkToChangePlayoffs(SCHEDULE_STRUCT* ss);
@@ -40,6 +37,9 @@ KEXPORT void schedAfterWrotePlayoffs(bool checkType=true);
 KEXPORT void schedAtCheckRounds(BYTE* pflag);
 KEXPORT void schedAtCheckPlayed(BYTE* pflag);
 KEXPORT DWORD schedAtReadNumGames();
+
+void schedKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
+void schedOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
 
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
@@ -59,30 +59,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	}
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-		LOG(L"Detaching dll...");
-        unhookFunction(hk_D3D_Present, schedPresent);
-        UnhookKeyboard();
 	}
 	return true;
-}
-
-void HookKeyboard()
-{
-    if (g_hKeyboardHook == NULL) 
-    {
-		g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, hInst, GetCurrentThreadId());
-		TRACE1N(L"Installed keyboard hook: g_hKeyboardHook = %d", (DWORD)g_hKeyboardHook);
-	}
-}
-
-void UnhookKeyboard()
-{
-	if (g_hKeyboardHook != NULL) 
-    {
-		UnhookWindowsHookEx(g_hKeyboardHook);
-		TRACE(L"Keyboard hook uninstalled.");
-		g_hKeyboardHook = NULL;
-	}
 }
 
 void initSched()
@@ -136,9 +114,9 @@ void initSched()
     HookCallPoint(code[C_CHECK_ROUNDS], schedAtCheckRoundsCallPoint, 6, 2);
     HookCallPoint(code[C_CHECK_PLAYED], schedAtCheckPlayedCallPoint, 6, 0, true);
 
-    // hook keyboard
-    HookKeyboard();
-    hookFunction(hk_D3D_Present, schedPresent);
+    // add callbacks
+    addKeyboardCallback(schedKeyboardEvent);
+    addOverlayCallback(schedOverlayEvent);
 
     LOG(L"Initialization complete.");
     unhookFunction(hk_D3D_Create, initSched);
@@ -483,7 +461,7 @@ void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     }
 }
 
-LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
+void schedKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) 
     {
@@ -558,8 +536,6 @@ LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
             }
         }
     }	
-
-	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
 }
 
 KEXPORT void schedAtCheckRounds(BYTE* pflag)
@@ -593,6 +569,17 @@ KEXPORT void schedAtCheckPlayed(BYTE* pflag)
             if (*pflag == 0)
                 *pflag = 0xff;
         }
+    }
+}
+
+void schedOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
+{
+    if (!isExhibitionMode)
+    {
+        if (overlayOn)
+            hookFunction(hk_D3D_Present, schedPresent);
+        else 
+            unhookFunction(hk_D3D_Present, schedPresent);
     }
 }
 

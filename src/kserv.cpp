@@ -156,8 +156,6 @@ map<wstring,Kit>::iterator g_iterAwayPL_end;
 map<wstring,Kit>::iterator g_iterHomeGK_end;
 map<wstring,Kit>::iterator g_iterAwayGK_end;
 
-HHOOK g_hKeyboardHook = NULL;
-
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
@@ -210,9 +208,6 @@ void ApplyKitAttributes(map<wstring,Kit>& m, const wchar_t* kitKey, KIT_INFO& ki
 KEXPORT void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO& ki);
 void RGBAColor2KCOLOR(const RGBAColor& color, KCOLOR& kcolor);
 void KCOLOR2RGBAColor(const KCOLOR kcolor, RGBAColor& color);
-void HookKeyboard();
-void UnhookKeyboard();
-LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
 void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
 void ResetIterators();
 void kservStartReadKitInfoCallPoint();
@@ -236,6 +231,7 @@ KEXPORT DWORD kservAtLoadAwayKeeper(DWORD teamId);
 //KEXPORT void kservAtWriteTeamId(TEAM_MATCH_DATA_INFO*);
 bool IsKitBin(DWORD afsId, DWORD binId);
 void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
+void kservKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
 
 // FUNCTION POINTERS
 
@@ -675,8 +671,9 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_START_READKITINFO_3], kservStartReadKitInfoCallPoint3, 6, 2);
     HookCallPoint(code[C_END_READKITINFO], kservEndReadKitInfoCallPoint, 6, 0);
 
-    // hook kit selection points
+    // add callbacks
     addOverlayCallback(kservOverlayEvent);
+    addKeyboardCallback(kservKeyboardEvent);
 
     // hook mode enter/exit points
     g_cupModeInd = data[CUP_MODE_PTR];
@@ -1840,26 +1837,7 @@ WORD FindFreeKitSlot()
     return -1;
 }
 
-void HookKeyboard()
-{
-    if (g_hKeyboardHook == NULL) 
-    {
-		g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD, KeyboardProc, hInst, GetCurrentThreadId());
-		TRACE1N(L"Installed keyboard hook: g_hKeyboardHook = %d", (DWORD)g_hKeyboardHook);
-	}
-}
-
-void UnhookKeyboard()
-{
-	if (g_hKeyboardHook != NULL) 
-    {
-		UnhookWindowsHookEx(g_hKeyboardHook);
-		TRACE(L"Keyboard hook uninstalled.");
-		g_hKeyboardHook = NULL;
-	}
-}
-
-LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
+void kservKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
         if (wParam == 0x31) { // home PL
@@ -1887,9 +1865,7 @@ LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
                 g_iterAwayGK++;
         }
     }	
-
-	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
-};
+}
 
 void ResetIterators()
 {
@@ -2263,7 +2239,6 @@ void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD m
 
             if (delta==1) 
                 ResetIterators();
-            HookKeyboard();
         }
         else
         {
@@ -2273,7 +2248,6 @@ void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD m
 
             if (delta==1 && menuMode == 0x0a)
                 ResetIterators();
-            UnhookKeyboard();
         }
     }
     else
@@ -2283,13 +2257,11 @@ void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD m
             hookFunction(hk_D3D_Present, kservPresent);
             g_presentHooked = true;
             g_beginShowKitSelection = true;
-            HookKeyboard();
         }
         else 
         {
             unhookFunction(hk_D3D_Present, kservPresent);
             g_presentHooked = false;
-            UnhookKeyboard();
         }
     }
 }
