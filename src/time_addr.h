@@ -19,14 +19,14 @@ DWORD codeArray[][CODELEN] = {
     NOCODEADDR,
     // PES2008
     {
-        0, 0, 0,
+        0xaa6ed2, 0x8ff332, 0x90498d,
     },
     // [Settings] PES2008 PC
     NOCODEADDR,
     NOCODEADDR,
     // PES2008 1.10
     {
-        0, 0, 0,
+        0xaa7f72, 0x900262, 0x90475d,
     },
     NOCODEADDR,
     // PES2008 1.20
