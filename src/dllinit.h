@@ -84,4 +84,17 @@ inline void copyAdresses()
 
 	return;
 }
+
+#define CHECK_KLOAD(minVer) {\
+    FARPROC GetLoaderVersion = GetProcAddress(\
+            GetModuleHandle(L"kload"),\
+            "GetLoaderVersion");\
+    if (!GetLoaderVersion || GetLoaderVersion() < minVer)\
+    {\
+        LOG2N(L"ERROR: This module requires kload.dll %d.%d.0 or newer.",\
+                HIWORD(minVer), LOWORD(minVer));\
+        return false;\
+    }\
+}
+
 #endif //_COMPILING_KLOAD

@@ -11,6 +11,7 @@
 #include "gdb.h"
 #include "pngdib.h"
 #include "utf8.h"
+#include "commctrl.h"
 
 #if _CPPLIB_VER < 503
 #define  __in
@@ -250,6 +251,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			LOG(L"Sorry, your game version isn't supported!");
 			return false;
 		}
+
+        CHECK_KLOAD(MAKELONG(3,7));
 
         // initialize critical sections
         InitializeCriticalSection(&g_csRead);

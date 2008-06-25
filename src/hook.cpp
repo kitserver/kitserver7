@@ -60,12 +60,52 @@ list<KEY_EVENT_CALLBACK> _key_callbacks;
 void HookKeyboard();
 void UnhookKeyboard();
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
+HRESULT RestoreDeviceObjects(IDirect3DDevice9* device);
 
 ALLVOID g_orgBeginRender1 = NULL;
 ALLVOID g_orgBeginRender2 = NULL;
 DWORD g_orgEditCopyPlayerName = NULL;
 
 string renderedPlayers = "";
+
+///// Graphics //////////////////
+
+#define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZRHW|D3DFVF_DIFFUSE)
+#define D3DFVF_CUSTOMVERTEX2 (D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1)
+
+struct CUSTOMVERTEX { 
+	FLOAT x,y,z,w;
+	DWORD color;
+};
+
+struct CUSTOMVERTEX2 { 
+	FLOAT x,y,z,w;
+	DWORD color;
+	FLOAT tu, tv;
+};
+
+CUSTOMVERTEX g_shaded[] = {
+	{0.0f, 0.0f, 0.0f, 1.0f, 0xcc000000}, //1
+	{0.0f, 66.0f, 0.0f, 1.0f, 0x00707070}, //2
+	{1024.0f, 0.0f, 0.0f, 1.0f, 0xcc000000}, //3
+	{1024.0f, 66.0f, 0.0f, 1.0f, 0x00707070}, //4
+};
+
+// shaded zone
+static IDirect3DVertexBuffer9* g_pVB_shaded = NULL;
+
+static IDirect3DStateBlock9* g_sb_them = NULL;
+static IDirect3DStateBlock9* g_sb_me = NULL;
+
+void SetPosition(CUSTOMVERTEX* dest, CUSTOMVERTEX* src, int n, int x, int y) 
+{
+    FLOAT xratio = getPesInfo()->bbWidth / 1024.0;
+    FLOAT yratio = getPesInfo()->bbHeight / 768.0;
+    for (int i=0; i<n; i++) {
+        dest[i].x = (FLOAT)(int)((src[i].x + x) * xratio);
+        dest[i].y = (FLOAT)(int)((src[i].y + y) * yratio);
+    }
+}
 
 void hookDirect3DCreate9()
 {
@@ -108,6 +148,7 @@ void hookDirect3DCreate9()
 KEXPORT void hookFunction(HOOKS h, void* addr)
 {
 	if (h >= hk_LAST) return;
+    //LOG1N(L"hookFunction: %d", (DWORD)h);
 	
 	g_callChains[h].push_back(addr);
 }
@@ -115,12 +156,15 @@ KEXPORT void hookFunction(HOOKS h, void* addr)
 KEXPORT void unhookFunction(HOOKS h, void* addr)
 {
 	if (h >= hk_LAST) return;
+    //LOG1N(L"unhookFunction: %d", (DWORD)h);
 		
     // we need "erase", because "remove" doesn't actually remove the items, but
     // instead re-arranges them.
+    EnterCriticalSection(&g_cs);
     g_callChains[h].erase(
             remove(g_callChains[h].begin(),	g_callChains[h].end(), addr),
             g_callChains[h].end());
+    LeaveCriticalSection(&g_cs);
 }
 
 void initAddresses()
@@ -333,6 +377,69 @@ KEXPORT void KDrawText(wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontS
 	return;
 }
 
+HRESULT RestoreDeviceObjects(IDirect3DDevice9* device)
+{
+    // create vertex buffers
+    if (!g_pVB_shaded)
+    {
+        BYTE* pVertices;
+        if (FAILED(device->CreateVertexBuffer(sizeof(g_shaded), D3DUSAGE_WRITEONLY, 
+                        D3DFVF_CUSTOMVERTEX, D3DPOOL_MANAGED, &g_pVB_shaded, NULL)))
+        {
+            LOG(L"CreateVertexBuffer() failed.");
+            return E_FAIL;
+        }
+        LOG(L"CreateVertexBuffer() done.");
+
+        if (FAILED(g_pVB_shaded->Lock(0, sizeof(g_shaded), (void**)&pVertices, 0)))
+        {
+            LOG(L"g_pVB_shaded->Lock() failed.");
+            return E_FAIL;
+        }
+        memcpy(pVertices, g_shaded, sizeof(g_shaded));
+        SetPosition((CUSTOMVERTEX*)pVertices, g_shaded, sizeof(g_shaded)/sizeof(CUSTOMVERTEX), 0, 0);
+        g_pVB_shaded->Unlock();
+    }
+
+	// Create the state blocks
+    if (g_sb_them) g_sb_them->Release();
+    if (g_sb_me) g_sb_me->Release();
+
+	for( UINT which=0; which<2; which++ )
+	{
+		device->BeginStateBlock();
+
+		device->SetRenderState( D3DRS_ZENABLE, D3DZB_FALSE );
+		device->SetRenderState( D3DRS_ALPHABLENDENABLE, true );
+		device->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+		device->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+		device->SetRenderState( D3DRS_FILLMODE,   D3DFILL_SOLID );
+		device->SetRenderState( D3DRS_CULLMODE,   D3DCULL_CW );
+		device->SetRenderState( D3DRS_STENCILENABLE,    false );
+		device->SetRenderState( D3DRS_CLIPPING, true );
+		device->SetRenderState( D3DRS_CLIPPLANEENABLE, false );
+		device->SetRenderState( D3DRS_FOGENABLE,        false );
+
+		device->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_DISABLE );
+		device->SetTextureStageState( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+
+		device->SetVertexShader( NULL );
+		device->SetFVF( D3DFVF_CUSTOMVERTEX );
+		device->SetPixelShader( NULL );
+		device->SetStreamSource( 0, g_pVB_shaded, 0, sizeof(CUSTOMVERTEX));
+
+		if( which==0 )
+		{
+			device->EndStateBlock( &g_sb_them );
+		}
+		else
+		{
+			device->EndStateBlock( &g_sb_me );
+		}
+	}
+    return S_OK;
+}
+
 HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused)
 {
@@ -341,10 +448,28 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 		kloadGetBackBufferInfo(self);
 	}
 
-	CALLCHAIN(hk_D3D_Present, it) {
-		PFNPRESENTPROC NextCall=(PFNPRESENTPROC)*it;
-		NextCall(self, src, dest, hWnd, unused);
-	}
+    if (!g_callChains[hk_D3D_Present].empty())
+    {
+        if (g_sb_them && g_sb_me && g_pVB_shaded)
+        {
+            g_sb_them->Capture();
+            g_sb_me->Apply();
+
+            // draw shaded zone
+            self->BeginScene();
+            self->SetStreamSource(0, g_pVB_shaded, 0, sizeof(CUSTOMVERTEX));
+            self->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+            self->EndScene();
+
+            g_sb_them->Apply();
+        }
+
+        // call the callbacks
+        CALLCHAIN(hk_D3D_Present, it) {
+            PFNPRESENTPROC NextCall=(PFNPRESENTPROC)*it;
+            NextCall(self, src, dest, hWnd, unused);
+        }
+    }
 
     /*
 	wchar_t* rp = Utf8::ansiToUnicode(renderedPlayers.c_str());
@@ -384,7 +509,7 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 			myFonts[i/100][i%100]->OnLostDevice();
 		}
 	}
-	
+
 	CALLCHAIN(hk_D3D_Reset, it) {
 		PFNRESETPROC NextCall = (PFNRESETPROC)*it;
 		NextCall(self, params);
@@ -398,7 +523,8 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 			myFonts[i/100][i%100]->OnResetDevice();
 		}
 	}
-	
+
+    RestoreDeviceObjects(self);
 	return res;
 }
 
@@ -435,6 +561,9 @@ void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice)
 		
 		// release backbuffer
 		backBuffer->Release();
+
+        // initialize vertext buffers
+        RestoreDeviceObjects(d3dDevice);
 	}
 	
 	return;

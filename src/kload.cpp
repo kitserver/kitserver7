@@ -50,6 +50,16 @@ DWORD lastCallSite = 0;
 void setPesInfo();
 void kloadLoadDlls(char* pName, const wchar_t* pValue, DWORD a);
 void kloadConfig(char* pName, const void* pValue, DWORD a);
+KEXPORT DWORD GetLoaderVersion();
+
+/**
+ * Other modules can call this to determine whether it is 
+ * save to proceed with loading/initialization tasks.
+ */
+KEXPORT DWORD GetLoaderVersion()
+{
+    return MAKELONG(3,7); // 7.3.x
+}
 
 /*******************/
 /* DLL Entry Point */

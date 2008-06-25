@@ -10,7 +10,7 @@
 #define THISMOD &k_afsio
 
 #define MODID 123
-#define NAMELONG L"AFSIO Module 7.1.0.0"
+#define NAMELONG L"AFSIO Module 7.3.0.0"
 #define NAMESHORT L"AFSIO"
 #define DEFAULT_DEBUG 0
 
@@ -93,6 +93,8 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			LOG(L"Sorry, your game version isn't supported!");
 			return false;
 		}
+
+        CHECK_KLOAD(MAKELONG(3,7));
 
 		copyAdresses();
 		hookFunction(hk_D3D_CreateDevice, initModule);
