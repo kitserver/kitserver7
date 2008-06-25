@@ -47,8 +47,12 @@ PFNPRESENTPROC g_orgPresent = NULL;
 PFNRESETPROC g_orgReset = NULL;
 PFNSETTRANSFORMPROC g_orgSetTransform = NULL;
 
+#define MAX_OVERLAYS 40
 bool g_overlayOn = false;
+int g_overlayPage = -1;
 list<OVERLAY_EVENT_CALLBACK> _overlay_callbacks;
+bool _activeOverlayPages[MAX_OVERLAYS];
+int _numOverlayPages = 0;
 
 DWORD g_menuMode = 0;
 void hookAddMenuModeCallPoint();
@@ -453,6 +457,23 @@ HRESULT RestoreDeviceObjects(IDirect3DDevice9* device)
     return S_OK;
 }
 
+bool NeedShade()
+{
+    for (int i=0; i<_numOverlayPages; i++)
+        if (_activeOverlayPages[i])
+        {
+            if (g_overlayPage == -1) 
+                g_overlayPage = i;
+            return true;
+        }
+    return false;
+}
+
+void ResetOverlayPage()
+{
+    g_overlayPage = -1;
+}
+
 HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused)
 {
@@ -463,7 +484,7 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 
     if (!g_callChains[hk_D3D_Present].empty())
     {
-        if (g_sb_them && g_sb_me && g_pVB_shaded)
+        if (NeedShade() && g_sb_them && g_sb_me && g_pVB_shaded)
         {
             g_sb_them->Capture();
             g_sb_me->Apply();
@@ -1003,9 +1024,23 @@ KEXPORT DWORD GetTargetAddress(DWORD addr)
     return 0;
 }
 
-KEXPORT void addOverlayCallback(OVERLAY_EVENT_CALLBACK callback)
+KEXPORT int getOverlayPage()
+{
+    return g_overlayPage;
+}
+
+KEXPORT void setOverlayPageVisible(int page, bool flag)
+{
+    if (0 <= page && page < _numOverlayPages)
+        _activeOverlayPages[page] = flag;
+}
+
+KEXPORT int addOverlayCallback(OVERLAY_EVENT_CALLBACK callback, bool ownPage)
 {
     _overlay_callbacks.push_back(callback);
+    if (ownPage)
+        return _numOverlayPages++;
+    return -1;
 }
 
 KEXPORT void addKeyboardCallback(KEY_EVENT_CALLBACK callback)
@@ -1028,6 +1063,8 @@ void hookTriggerSelectionOverlay(int delta)
         {
             g_overlayOn = true;
             HookKeyboard();
+            // reset overlay page
+            ResetOverlayPage();
             // call the callbacks
             for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
                     it != _overlay_callbacks.end();
@@ -1057,6 +1094,8 @@ void hookTriggerSelectionOverlay(int delta)
         {
             g_overlayOn = true;
             HookKeyboard();
+            // reset overlay page
+            ResetOverlayPage();
             // call the callbacks
             for (list<OVERLAY_EVENT_CALLBACK>::iterator it = _overlay_callbacks.begin();
                     it != _overlay_callbacks.end();
@@ -1157,16 +1196,58 @@ void UnhookKeyboard()
 	}
 }
 
+void PreviousPage()
+{
+    if (_numOverlayPages==0)
+        return;
+
+    int page = g_overlayPage-1;
+    if (page<0) page = _numOverlayPages-1;
+    while (page != g_overlayPage && !_activeOverlayPages[page])
+    {
+        page--;
+        if (page<0) page = _numOverlayPages-1;
+    }
+    g_overlayPage = page;
+}
+
+void NextPage()
+{
+    if (_numOverlayPages==0)
+        return;
+
+    int page = g_overlayPage+1;
+    if (page>=_numOverlayPages) page = 0;
+    while (page != g_overlayPage && !_activeOverlayPages[page])
+    {
+        page++;
+        if (page>=_numOverlayPages) page = 0;
+    }
+    g_overlayPage = page;
+}
+
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
 {
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
-        // call the callbacks
-        for (list<KEY_EVENT_CALLBACK>::iterator it = _key_callbacks.begin();
-                it != _key_callbacks.end();
-                it++)
-            (*it)(code1, wParam, lParam);
+        // handle page flips
+        if (wParam == VK_PRIOR) { // page up
+            PreviousPage();
+            TRACE1N(L"g_overlayPage = %d", g_overlayPage);
+        }
+        else if (wParam == VK_NEXT) { // page down
+            NextPage();
+            TRACE1N(L"g_overlayPage = %d", g_overlayPage);
+        }
+        else
+        {
+            // call the callbacks
+            for (list<KEY_EVENT_CALLBACK>::iterator it = _key_callbacks.begin();
+                    it != _key_callbacks.end();
+                    it++)
+                (*it)(code1, wParam, lParam);
+        }
     }	
 
 	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
-};
+}
 

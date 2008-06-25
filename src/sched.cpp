@@ -41,6 +41,7 @@ KEXPORT DWORD schedAtReadNumGames();
 void schedKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
 void schedOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
 
+static int _myPage = -1;
 
 EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
@@ -55,6 +56,11 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		}
 
         CHECK_KLOAD(MAKELONG(3,7));
+
+        // we need to do this early so that the overlay pages
+        // appear in the same order as DLLs in config.txt
+        _myPage = addOverlayCallback(schedOverlayEvent,true);
+        LOG1N(L"_myPage = %d", _myPage);
 
 		copyAdresses();
 		hookFunction(hk_D3D_Create, initSched);
@@ -118,7 +124,6 @@ void initSched()
 
     // add callbacks
     addKeyboardCallback(schedKeyboardEvent);
-    addOverlayCallback(schedOverlayEvent);
 
     LOG(L"Initialization complete.");
     unhookFunction(hk_D3D_Create, initSched);
@@ -421,7 +426,7 @@ KEXPORT void schedAfterWrotePlayoffs(bool checkType)
 void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused)
 {
-    if (g_showScheduleExt)
+    if (g_showScheduleExt && getOverlayPage()==_myPage)
     {
         SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
         if (ss && (ss->header.tournamentType==7 || ss->header.tournamentType==8)
@@ -438,11 +443,20 @@ void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
                         swprintf(wbuf, L"G: %d", ss->ext.numGamesInG);
                     else
                         swprintf(wbuf, L"G: 3");
+                    /*
                     KDrawText(wbuf, 7, 307, COLOR_BLACK, 26.0f);
                     if (OkToChangeGroups(ss))
                         KDrawText(wbuf, 5, 305, COLOR_INFO, 26.0f);
                     else
                         KDrawText(wbuf, 5, 305, COLOR_AUTO, 26.0f);
+                        */
+                    KDrawText(L"Format:", 102, 7, COLOR_BLACK, 26.0f);
+                    KDrawText(L"Format:", 100, 5, COLOR_CHOSEN, 26.0f);
+                    KDrawText(wbuf, 202, 7, COLOR_BLACK, 26.0f);
+                    if (OkToChangeGroups(ss))
+                        KDrawText(wbuf, 200, 5, COLOR_INFO, 26.0f);
+                    else
+                        KDrawText(wbuf, 200, 5, COLOR_AUTO, 26.0f);
                 }
 
                 BYTE* num = (BYTE*)&ss->ext.numGamesInF;
@@ -452,11 +466,18 @@ void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
                         swprintf(wbuf, patterns[i], num[i]);
                     else
                         swprintf(wbuf, patterns[i], 1);
+                    /*
                     KDrawText(wbuf, 7, 307+j*20, COLOR_BLACK, 26.0f);
                     if (OkToChangePlayoffs(ss))
                         KDrawText(wbuf, 5, 305+j*20, COLOR_INFO, 26.0f);
                     else
                         KDrawText(wbuf, 5, 305+j*20, COLOR_AUTO, 26.0f);
+                        */
+                    KDrawText(wbuf, 202+j*65, 7, COLOR_BLACK, 26.0f);
+                    if (OkToChangePlayoffs(ss))
+                        KDrawText(wbuf, 200+j*65, 5, COLOR_INFO, 26.0f);
+                    else
+                        KDrawText(wbuf, 200+j*65, 5, COLOR_AUTO, 26.0f);
                 }
             }
         } // end if (ss)
@@ -467,7 +488,7 @@ void schedKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) 
     {
-		if (wParam == 0x70) 
+		if (0)//(wParam == 0x70) 
         { // trigger schedule extensions
             LOG(L"F1 pressed.");
             SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
@@ -579,9 +600,21 @@ void schedOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD m
     if (!isExhibitionMode)
     {
         if (overlayOn)
+        {
             hookFunction(hk_D3D_Present, schedPresent);
+            SCHEDULE_STRUCT* ss = *(SCHEDULE_STRUCT**)code[D_SCHEDULE_STRUCT_PTR];
+            if (ss->header.tournamentType==7 || ss->header.tournamentType==8)
+            {
+                setOverlayPageVisible(_myPage, true);
+                g_showScheduleExt = true;
+            }
+        }
         else 
+        {
+            g_showScheduleExt = false;
+            setOverlayPageVisible(_myPage, false);
             unhookFunction(hk_D3D_Present, schedPresent);
+        }
     }
 }
 

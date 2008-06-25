@@ -71,6 +71,8 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
 void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
 void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
 
+static int _myPage = -1;
+
 // FUNCTION POINTERS
 
 /*******************/
@@ -90,6 +92,11 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		}
 
         CHECK_KLOAD(MAKELONG(3,7));
+
+        // we need to do this early so that the overlay pages
+        // appear in the same order as DLLs in config.txt
+        _myPage = addOverlayCallback(stadOverlayEvent,true);
+        LOG1N(L"_myPage = %d", _myPage);
 
 		copyAdresses();
 		hookFunction(hk_D3D_CreateDevice, initModule);
@@ -129,7 +136,6 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
     // register callbacks
     afsioAddCallback(stadGetFileInfo);
-    addOverlayCallback(stadOverlayEvent);
     addKeyboardCallback(stadKeyboardEvent);
 
 	TRACE(L"Hooking done.");
@@ -236,6 +242,7 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
         if (overlayOn)
         {
             hookFunction(hk_D3D_Present, stadPresent);
+            setOverlayPageVisible(_myPage, true);
             TRACE(L"Showing kit selection");
             g_presentHooked = true;
             g_beginShowKitSelection = true;
@@ -245,6 +252,7 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
         }
         else
         {
+            setOverlayPageVisible(_myPage, false);
             unhookFunction(hk_D3D_Present, stadPresent);
             TRACE(L"Hiding kit selection");
             g_presentHooked = false;
@@ -258,11 +266,13 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
         if (overlayOn)
         {
             hookFunction(hk_D3D_Present, stadPresent);
+            setOverlayPageVisible(_myPage, true);
             g_presentHooked = true;
             g_beginShowKitSelection = true;
         }
         else 
         {
+            setOverlayPageVisible(_myPage, false);
             unhookFunction(hk_D3D_Present, stadPresent);
             g_presentHooked = false;
         }
@@ -272,6 +282,9 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
 void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 	HWND hWnd, LPVOID unused)
 {
+    if (getOverlayPage() != _myPage) // page-check
+        return;
+
     if (g_beginShowKitSelection)
     {
         g_beginShowKitSelection = false;

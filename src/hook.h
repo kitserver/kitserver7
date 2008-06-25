@@ -110,7 +110,9 @@ KEXPORT void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops, b
 KEXPORT DWORD GetTargetAddress(DWORD addr);
 
 typedef void (*OVERLAY_EVENT_CALLBACK)(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
-KEXPORT void addOverlayCallback(OVERLAY_EVENT_CALLBACK callback);
+KEXPORT int addOverlayCallback(OVERLAY_EVENT_CALLBACK callback, bool ownPage);
+KEXPORT int getOverlayPage();
+KEXPORT void setOverlayPageVisible(int page, bool flag);
 typedef void (*KEY_EVENT_CALLBACK)(int code, WPARAM wParam, LPARAM lParam);
 KEXPORT void addKeyboardCallback(KEY_EVENT_CALLBACK callback);
 
