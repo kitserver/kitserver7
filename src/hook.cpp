@@ -60,6 +60,7 @@ list<KEY_EVENT_CALLBACK> _key_callbacks;
 void HookKeyboard();
 void UnhookKeyboard();
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
+HRESULT InvalidateDeviceObjects(IDirect3DDevice9* device);
 HRESULT RestoreDeviceObjects(IDirect3DDevice9* device);
 
 ALLVOID g_orgBeginRender1 = NULL;
@@ -377,6 +378,15 @@ KEXPORT void KDrawText(wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontS
 	return;
 }
 
+HRESULT InvalidateDeviceObjects(IDirect3DDevice9* device)
+{
+    LOG(L"Invalidating device objects.");
+    // delete state blocks
+    if (g_sb_them) { g_sb_them->Release(); g_sb_them=NULL; }
+    if (g_sb_me) { g_sb_me->Release(); g_sb_me=NULL; }
+    return S_OK;
+}
+
 HRESULT RestoreDeviceObjects(IDirect3DDevice9* device)
 {
     // create vertex buffers
@@ -402,41 +412,44 @@ HRESULT RestoreDeviceObjects(IDirect3DDevice9* device)
     }
 
 	// Create the state blocks
-    if (g_sb_them) g_sb_them->Release();
-    if (g_sb_me) g_sb_me->Release();
+    if (!g_sb_them || !g_sb_me)
+    {
+        LOG(L"Preparing state blocks...");
+        for( UINT which=0; which<2; which++ )
+        {
+            device->BeginStateBlock();
 
-	for( UINT which=0; which<2; which++ )
-	{
-		device->BeginStateBlock();
+            device->SetRenderState( D3DRS_ZENABLE, D3DZB_FALSE );
+            device->SetRenderState( D3DRS_ALPHABLENDENABLE, true );
+            device->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+            device->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+            device->SetRenderState( D3DRS_FILLMODE,   D3DFILL_SOLID );
+            device->SetRenderState( D3DRS_CULLMODE,   D3DCULL_CW );
+            device->SetRenderState( D3DRS_STENCILENABLE,    false );
+            device->SetRenderState( D3DRS_CLIPPING, true );
+            device->SetRenderState( D3DRS_CLIPPLANEENABLE, false );
+            device->SetRenderState( D3DRS_FOGENABLE,        false );
 
-		device->SetRenderState( D3DRS_ZENABLE, D3DZB_FALSE );
-		device->SetRenderState( D3DRS_ALPHABLENDENABLE, true );
-		device->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-		device->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-		device->SetRenderState( D3DRS_FILLMODE,   D3DFILL_SOLID );
-		device->SetRenderState( D3DRS_CULLMODE,   D3DCULL_CW );
-		device->SetRenderState( D3DRS_STENCILENABLE,    false );
-		device->SetRenderState( D3DRS_CLIPPING, true );
-		device->SetRenderState( D3DRS_CLIPPLANEENABLE, false );
-		device->SetRenderState( D3DRS_FOGENABLE,        false );
+            device->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_DISABLE );
+            device->SetTextureStageState( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-		device->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		device->SetTextureStageState( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+            device->SetVertexShader( NULL );
+            device->SetFVF( D3DFVF_CUSTOMVERTEX );
+            device->SetPixelShader( NULL );
+            device->SetStreamSource( 0, g_pVB_shaded, 0, sizeof(CUSTOMVERTEX));
 
-		device->SetVertexShader( NULL );
-		device->SetFVF( D3DFVF_CUSTOMVERTEX );
-		device->SetPixelShader( NULL );
-		device->SetStreamSource( 0, g_pVB_shaded, 0, sizeof(CUSTOMVERTEX));
+            if( which==0 )
+            {
+                device->EndStateBlock( &g_sb_them );
+            }
+            else
+            {
+                device->EndStateBlock( &g_sb_me );
+            }
+        }
+    }
 
-		if( which==0 )
-		{
-			device->EndStateBlock( &g_sb_them );
-		}
-		else
-		{
-			device->EndStateBlock( &g_sb_me );
-		}
-	}
+    LOG(L"RestoreDeviceObjects DONE.");
     return S_OK;
 }
 
@@ -524,6 +537,7 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 		}
 	}
 
+    InvalidateDeviceObjects(self);
     RestoreDeviceObjects(self);
 	return res;
 }
