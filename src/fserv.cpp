@@ -36,8 +36,10 @@
 #define NUM_SLOTS 65536
 
 #define UNIQUE_FACE 0x10
+#define SCAN_FACE   0x20
 #define UNIQUE_HAIR 0x40
 #define CLEAR_UNIQUE_FACE 0xef
+#define CLEAR_SCAN_FACE   0xdf
 #define CLEAR_UNIQUE_HAIR 0xbf
 
 // VARIABLES
@@ -60,6 +62,7 @@ hash_map<DWORD,WORD> _player_face_slot;
 hash_map<DWORD,WORD> _player_hair_slot;
 list<DWORD> _non_unique_face;
 list<DWORD> _non_unique_hair;
+list<DWORD> _scan_face;
 
 wstring* _fast_bin_table[NUM_SLOTS-FIRST_FACE_SLOT];
 
@@ -453,6 +456,7 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
 {
     _non_unique_face.clear();
     _non_unique_hair.clear();
+    _scan_face.clear();
 
     multimap<string,DWORD> mm;
     for (int i=0; i<5460; i++)
@@ -472,8 +476,11 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
             // if not unique face, remember that for later restoring
             if (!(players[i].faceHairMask & UNIQUE_FACE))
                 _non_unique_face.push_back(i);
-            // adjust flag 
+            if (players[i].faceHairMask & SCAN_FACE)
+                _scan_face.push_back(i);
+            // adjust flags
             players[i].faceHairMask |= UNIQUE_FACE;
+            players[i].faceHairMask &= CLEAR_SCAN_FACE;
         }
         it = _player_hair_slot.find(players[i].id);
         if (it != _player_hair_slot.end())
@@ -493,7 +500,6 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
             string name(players[i].name);
             mm.insert(pair<string,DWORD>(name,players[i].id));
         }
-                    
     }
 
     if (writeList)
@@ -677,7 +683,7 @@ BOOL WINAPI fservWriteFile(
     {
         LOG(L"Saving Edit Data...");
 
-        // restore non-unique face/hair settings
+        // restore face/hair settings
         PLAYER_INFO* players = (PLAYER_INFO*)((BYTE*)lpBuffer + 0x120);
         for (list<DWORD>::iterator it = _non_unique_face.begin();
                 it != _non_unique_face.end();
@@ -694,6 +700,14 @@ BOOL WINAPI fservWriteFile(
             LOG2N(L"Restoring hair-type flags for %d (id=%d)",
                     *it, players[*it].id);
             players[*it].faceHairMask &= CLEAR_UNIQUE_HAIR;
+        }
+        for (list<DWORD>::iterator it = _scan_face.begin();
+                it != _scan_face.end();
+                it++)
+        {
+            LOG2N(L"Restoring scan-type flags for %d (id=%d)",
+                    *it, players[*it].id);
+            players[*it].faceHairMask |= SCAN_FACE;
         }
         // adjust CRC32 checksum
         DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
