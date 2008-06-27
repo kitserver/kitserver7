@@ -316,7 +316,7 @@ KEXPORT DWORD schedAtCheckNumGames(DWORD orgNumGames, SCHEDULE_STRUCT* ss)
         memcpy(&g_ext, &ss->ext, sizeof(EXTENSION));
 
         // check of schedule extension is enabled
-        if (ss->ext.enabled)
+        if (ss->ext.enabled && ss->ext.numGamesInG > 0)
         {
             // return extended number of games 
             return ss->ext.numGamesInG;
