@@ -98,13 +98,28 @@ typedef BOOL (WINAPI *WRITEFILE_PROC)(
   LPDWORD lpNumberOfBytesWritten,
   LPOVERLAPPED lpOverlapped
 );
+typedef BOOL (WINAPI *READFILE_PROC)(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
+  LPOVERLAPPED lpOverlapped
+);
 WRITEFILE_PROC _writeFile = NULL;
+READFILE_PROC _readFile = NULL;
 
 BOOL WINAPI fservWriteFile(
   HANDLE hFile,
   LPCVOID lpBuffer,
   DWORD nNumberOfBytesToWrite,
   LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+);
+BOOL WINAPI fservReadFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
   LPOVERLAPPED lpOverlapped
 );
 
@@ -213,6 +228,8 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
     _writeFile = (WRITEFILE_PROC)HookIndirectCall(code[C_WRITE_FILE],
             fservWriteFile);
+    _readFile = (READFILE_PROC)HookIndirectCall(code[C_READ_FILE],
+            fservReadFile);
 
     // register callback
     afsioAddCallback(fservGetFileInfo);
@@ -295,59 +312,9 @@ void InitMaps()
         }
     }
 
-    // read slot-map if available
-    map<DWORD,DWORD> slots;
     DWORD nextSlotPair = FIRST_FACE_SLOT/2;
 
-    wstring spath(getPesInfo()->myDir);
-    spath += L"\\fserv.slotmap";
-    FILE* f = _wfopen(spath.c_str(),L"rb");
-    if (f) 
-    {
-        while (true)
-        {
-            DWORD playerId;
-            DWORD slotId;
-            if (fread(&slotId,sizeof(slotId),1,f)!=1)
-                break;
-            if (fread(&playerId,sizeof(playerId),1,f)!=1)
-                break;
-
-            if (slotId > NUM_SLOTS)
-            {
-                LOG2N(L"WARN: Invalid value in slotmap: %d (for player %d)",
-                        slotId, playerId);
-                continue;
-            }
-
-            slots.insert(pair<DWORD,DWORD>(slotId,playerId));
-            nextSlotPair = max(nextSlotPair,slotId/2+1);
-
-            hash_map<DWORD,wstring>::iterator it;
-            switch (slotId % 2)
-            {
-                case 0: // face
-                    it = _player_face.find(playerId);
-                    if (it != _player_face.end())
-                    {
-                        _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
-                        _player_face_slot.insert(pair<DWORD,WORD>(playerId,slotId));
-                    }
-                    break;
-                case 1: // hair
-                    it = _player_hair.find(playerId);
-                    if (it != _player_hair.end())
-                    {
-                        _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
-                        _player_hair_slot.insert(pair<DWORD,WORD>(playerId,slotId));
-                    }
-                    break;
-            }
-        }
-        fclose(f);
-    }
-
-    // assign new slots, if necessary
+    // assign slots
     for (hash_map<DWORD,wstring>::iterator it = _player_face.begin();
             it != _player_face.end();
             it++)
@@ -374,7 +341,6 @@ void InitMaps()
 
         _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
         _player_face_slot.insert(pair<DWORD,WORD>(it->first,slotId));
-        slots.insert(pair<DWORD,DWORD>(slotId,it->first));
     }
     for (hash_map<DWORD,wstring>::iterator it = _player_hair.begin();
             it != _player_hair.end();
@@ -402,27 +368,7 @@ void InitMaps()
 
         _fast_bin_table[slotId - FIRST_FACE_SLOT] = &it->second;
         _player_hair_slot.insert(pair<DWORD,WORD>(it->first,slotId));
-        slots.insert(pair<DWORD,DWORD>(slotId,it->first));
     }
-
-    // update slot-map
-    f = _wfopen(spath.c_str(), L"wb");
-    if (!f) 
-    {
-        LOG(L"ERROR: Unable to update face/hair slot-map.");
-        return;
-    }
-    for (map<DWORD,DWORD>::iterator it = slots.begin();
-            it != slots.end();
-            it++)
-    {
-        LOG2N(L"Face/Hair slot-map: (slot) %d --> (player) %d",
-                it->first,it->second);
-
-        fwrite(&it->first,sizeof(DWORD),1,f);
-        fwrite(&it->second,sizeof(DWORD),1,f);
-    }
-    fclose(f);
 
     // initialize total number of BINs
     _num_slots = nextSlotPair*2;
@@ -454,12 +400,12 @@ bool ReplaceBinSizes()
 
 void CopyPlayerData(PLAYER_INFO* players, bool writeList)
 {
-    _non_unique_face.clear();
-    _non_unique_hair.clear();
-    _scan_face.clear();
+    //_non_unique_face.clear();
+    //_non_unique_hair.clear();
+    //_scan_face.clear();
 
     multimap<string,DWORD> mm;
-    for (int i=0; i<5460; i++)
+    for (WORD i=0; i<5460; i++)
     {
         if (players[i].id == 0)
             continue;
@@ -470,7 +416,8 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
             _player_face_slot.find(players[i].id);
         if (it != _player_face_slot.end())
         {
-            players[i].padding = it->second/2; // place slot.
+            players[i].padding = i; // player index
+            
             //LOG2N(L"player #%d assigned slot (face) #%d",
             //        players[i].id,it->second);
             // if not unique face, remember that for later restoring
@@ -485,7 +432,8 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
         it = _player_hair_slot.find(players[i].id);
         if (it != _player_hair_slot.end())
         {
-            players[i].padding = it->second/2; // place slot.
+            players[i].padding = i; // player index
+
             //LOG2N(L"player #%d assigned slot (hair) #%d",
             //        players[i].id,it->second);
             // if not unique hair, remember that for later restoring
@@ -585,15 +533,30 @@ void fservAtFaceHairCallPoint()
     }
 }
 
+void GetSlotsByPlayerIndex(DWORD idx, DWORD& faceSlot, DWORD& hairSlot)
+{
+    if (idx >= 5460)
+        return;
+
+    PLAYER_INFO* players = (PLAYER_INFO*)(*(DWORD**)data[EDIT_DATA_PTR] + 1);
+    hash_map<DWORD,WORD>::iterator sit;
+    sit = _player_face_slot.find(players[idx].id);
+    if (sit != _player_face_slot.end())
+        faceSlot = sit->second;
+    sit = _player_hair_slot.find(players[idx].id);
+    if (sit != _player_hair_slot.end())
+        hairSlot = sit->second;
+}
+
 KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
 {
     if (!_struct_replaced)
         _struct_replaced = ReplaceBinSizes();
 
     BYTE faceHairMask = *(BYTE*)(src+3);
-    WORD slotPair = *(WORD*)(src+0x3a);
-    DWORD faceSlot = slotPair*2;
-    DWORD hairSlot = faceSlot+1;
+    WORD playerIdx = *(WORD*)(src+0x3a);
+    DWORD faceSlot = 0, hairSlot = 0;
+    GetSlotsByPlayerIndex(playerIdx, faceSlot, hairSlot);
 
     WORD* from = (WORD*)(src+6); // face
     WORD* to = (WORD*)(dest+0xe);
@@ -679,6 +642,7 @@ BOOL WINAPI fservWriteFile(
   LPOVERLAPPED lpOverlapped
 )
 {
+    LOG1N(L"WriteFile: len=%d", nNumberOfBytesToWrite);
     if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
     {
         LOG(L"Saving Edit Data...");
@@ -715,6 +679,53 @@ BOOL WINAPI fservWriteFile(
         *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x12aaec - 0x100);
     }
 
+    else if (nNumberOfBytesToWrite == 0x377f80)  // replay data
+    {
+        LOG(L"Saving Replay Data...");
+
+        // restore face/hair settings
+        REPLAY_PLAYER_INFO* players = (REPLAY_PLAYER_INFO*)((BYTE*)lpBuffer + 0x1c0);
+        for (int i=0; i<22; i++)
+        {
+            wchar_t* name = Utf8::ansiToUnicode(players[i].name);
+            LOG1S1N(L"player {%s}, padding=%04x", name, players[i].padding);
+            Utf8::free(name);
+
+            WORD idx = players[i].padding;
+            if (idx != 0)
+            {
+                for (list<DWORD>::iterator it = _non_unique_face.begin();
+                        it != _non_unique_face.end();
+                        it++)
+                    if (*it == idx)
+                    {
+                        players[i].faceHairMask &= CLEAR_UNIQUE_FACE;
+                        break;
+                    }
+                for (list<DWORD>::iterator it = _non_unique_hair.begin();
+                        it != _non_unique_hair.end();
+                        it++)
+                    if (*it == idx)
+                    {
+                        players[i].faceHairMask &= CLEAR_UNIQUE_HAIR;
+                        break;
+                    }
+                for (list<DWORD>::iterator it = _scan_face.begin();
+                        it != _scan_face.end();
+                        it++)
+                    if (*it == idx)
+                    {
+                        players[i].faceHairMask |= SCAN_FACE;
+                        break;
+                    }
+            }
+        }
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x377f80 - 0x100);
+    }
+
     BOOL result = _writeFile(
             hFile,
             lpBuffer,
@@ -725,6 +736,67 @@ BOOL WINAPI fservWriteFile(
     if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
     {
         LOG(L"Edit Data SAVED.");
+    }
+
+    return result;
+}
+
+/**
+ * ReadFile interceptor
+ */
+BOOL WINAPI fservReadFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
+  LPOVERLAPPED lpOverlapped
+)
+{
+    LOG1N(L"ReadFile: len=%d", nNumberOfBytesToRead);
+
+    BOOL result = _readFile(
+            hFile,
+            lpBuffer,
+            nNumberOfBytesToRead,
+            lpNumberOfBytesRead,
+            lpOverlapped);
+
+    if (nNumberOfBytesToRead == 0x12aaec)  // edit data
+    {
+        LOG(L"Loading Edit Data...");
+        // maybe do something here
+    }
+
+    else if (nNumberOfBytesToRead == 0x377f80)  // replay data
+    {
+        LOG(L"Loading Replay Data...");
+
+        // set face/hair settings
+        REPLAY_PLAYER_INFO* players = (REPLAY_PLAYER_INFO*)((BYTE*)lpBuffer + 0x1c0);
+        for (int i=0; i<22; i++)
+        {
+            wchar_t* name = Utf8::ansiToUnicode(players[i].name);
+            LOG1S1N(L"player {%s}, padding=%04x", name, players[i].padding);
+            Utf8::free(name);
+
+            WORD idx = players[i].padding;
+            if (idx != 0)
+            {
+                DWORD faceSlot = 0, hairSlot = 0;
+                GetSlotsByPlayerIndex(idx, faceSlot, hairSlot);
+                if (faceSlot >= FIRST_FACE_SLOT && faceSlot < NUM_SLOTS)
+                {
+                    players[i].faceHairMask |= UNIQUE_FACE;
+                    players[i].faceHairMask &= CLEAR_SCAN_FACE;
+                }
+                if (hairSlot >= FIRST_FACE_SLOT && hairSlot < NUM_SLOTS)
+                    players[i].faceHairMask |= UNIQUE_HAIR;
+            }
+        }
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x377f80 - 0x100);
     }
 
     return result;
