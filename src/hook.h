@@ -21,8 +21,8 @@ enum HOOKS {
 
 #define KDT_BOLD 0x01
 #define KDT_ITALIC 0x02
-KEXPORT void KDrawTextAbsolute(wchar_t* str, UINT x, UINT y, D3DCOLOR color = 0xff000000, float fontSize = 16.0f, BYTE attr = KDT_BOLD, DWORD format = DT_LEFT);
-KEXPORT void KDrawText(wchar_t* str, UINT x, UINT y, D3DCOLOR color = 0xff000000, float fontSize = 16.0f, BYTE attr = KDT_BOLD, DWORD format = DT_LEFT);
+KEXPORT void KDrawTextAbsolute(const wchar_t* str, UINT x, UINT y, D3DCOLOR color = 0xff000000, float fontSize = 16.0f, BYTE attr = KDT_BOLD, DWORD format = DT_LEFT);
+KEXPORT void KDrawText(const wchar_t* str, UINT x, UINT y, D3DCOLOR color = 0xff000000, float fontSize = 16.0f, BYTE attr = KDT_BOLD, DWORD format = DT_LEFT);
 
 KEXPORT void hookFunction(HOOKS h, void* addr);
 KEXPORT void unhookFunction(HOOKS h, void* addr);

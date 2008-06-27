@@ -358,7 +358,7 @@ KEXPORT IDirect3DDevice9* getActiveDevice()
 	return g_device;
 }
 
-KEXPORT void KDrawTextAbsolute(wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontSize, BYTE attr, DWORD format) {
+KEXPORT void KDrawTextAbsolute(const wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontSize, BYTE attr, DWORD format) {
 	RECT rect = {x, y, 0xffff, 0xffff};
 	
 	if (!myFonts[attr%4][BYTE(2*fontSize)])
@@ -377,7 +377,7 @@ KEXPORT void KDrawTextAbsolute(wchar_t* str, UINT x, UINT y, D3DCOLOR color, flo
 	return;
 }
 
-KEXPORT void KDrawText(wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontSize, BYTE attr, DWORD format) {
+KEXPORT void KDrawText(const wchar_t* str, UINT x, UINT y, D3DCOLOR color, float fontSize, BYTE attr, DWORD format) {
 	KDrawTextAbsolute(str, x*g_pesinfo.stretchX, y*g_pesinfo.stretchY, color, fontSize, attr, format);
 	return;
 }

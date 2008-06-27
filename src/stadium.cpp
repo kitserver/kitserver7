@@ -13,6 +13,13 @@
 #include "gdb.h"
 #include "pngdib.h"
 #include "utf8.h"
+#include "configs.h"
+
+#define COLOR_BLACK D3DCOLOR_RGBA(0,0,0,128)
+#define COLOR_AUTO D3DCOLOR_RGBA(135,135,135,255)
+#define COLOR_AUTO2 D3DCOLOR_RGBA(170,170,170,255)
+#define COLOR_CHOSEN D3DCOLOR_RGBA(210,210,210,255)
+#define COLOR_INFO D3DCOLOR_RGBA(0xb0,0xff,0xb0,0xff)
 
 #define lang(s) getTransl("stadium",s)
 
@@ -67,6 +74,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
     IDirect3DDevice9** ppReturnedDeviceInterface);
 
+void stadInfo(char* pName, const void* pValue, DWORD a);
 void stadConfig(char* pName, const void* pValue, DWORD a);
 bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool IsStadiumFile(DWORD binId);
@@ -82,7 +90,6 @@ bool _stadium_bins[726];
 
 static int _myPage = -1;
 static bool g_presentHooked = false;
-static bool g_beginShowKitSelection = false;
 
 class stadium_t
 {
@@ -156,6 +163,17 @@ public:
 
     void _parseInfoFile()
     {
+        wstring infoFile(getPesInfo()->gdbDir);
+        infoFile += L"GDB\\stadiums\\" + _dir + L"\\info.txt";
+
+        LOG1S(L"readConfig(%s)...", infoFile.c_str());
+        if (readConfig(infoFile.c_str()))
+        {
+            LOG(L"readConfig() SUCCEEDED.");
+            _getConfig("", "name", DT_STRING, (DWORD)this, stadInfo);
+            _getConfig("", "built", DT_DWORD, (DWORD)this, stadInfo);
+            _getConfig("", "capacity", DT_DWORD, (DWORD)this, stadInfo);
+        }
     }
 };
 
@@ -166,6 +184,8 @@ map<wstring,stadium_t> _stadiums;
 typedef map<wstring,stadium_t>::iterator stadium_iter_t;
 map<WORD,stadium_iter_t> _home_stadiums;
 
+// iterators
+stadium_iter_t _stadium_iter;
 
 static void InitMaps()
 {
@@ -198,6 +218,9 @@ static void InitMaps()
 
     LOG1N(L"total stadiums: %d", _stadiums.size());
     LOG1N(L"home stadiums assigned: %d", _home_stadiums.size());
+
+    // reset the iterator
+    _stadium_iter = _stadiums.end();
 }
 
 
@@ -243,6 +266,17 @@ void stadConfig(char* pName, const void* pValue, DWORD a)
 			break;
 	}
 	return;
+}
+
+void stadInfo(char* pName, const void* pValue, DWORD a)
+{
+    stadium_t* stadium = (stadium_t*)a;
+    if (strcmp(pName,"[]name")==0)
+        stadium->_name = (wchar_t*)pValue;
+    else if (strcmp(pName,"[]built")==0)
+        stadium->_built = *(DWORD*)pValue;
+    else if (strcmp(pName,"[]capacity")==0)
+        stadium->_capacity = *(DWORD*)pValue;
 }
 
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -353,14 +387,26 @@ bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
     if (afsId != 4 || !IsStadiumFile(binId)) // fast check
         return false;
 
-    LOG1N(L"binId = %d", binId);
+    TRACE1N(L"binId = %d", binId);
 
-    wchar_t filename[1024] = {0};
-    swprintf(filename,L"%sGDB\\stadiums\\Wembley\\wembley_%d.bin", 
-            getPesInfo()->gdbDir,
-            (binId==40) ? 40 : (213+((binId-STAD_FIRST)%STAD_SPAN)));
+    if (_stadium_iter != _stadiums.end())
+    {
+        wstring& fname = _stadium_iter->second._files[GetBinType(binId)];
+        if (!fname.empty())
+        {
+            wchar_t filename[1024] = {0};
+            swprintf(filename,L"%sGDB\\stadiums\\%s\\%s", 
+                    getPesInfo()->gdbDir,
+                    _stadium_iter->first.c_str(),
+                    fname.c_str());
 
-    return OpenFileIfExists(filename, hfile, fsize);
+            if (k_stad.debug)
+                LOG1N1S(L"binId=%d: Loading {%s}", binId, filename);
+
+            return OpenFileIfExists(filename, hfile, fsize);
+        }
+    }
+    return false;
 }
 
 void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
@@ -373,7 +419,6 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
             setOverlayPageVisible(_myPage, true);
             TRACE(L"Showing kit selection");
             g_presentHooked = true;
-            g_beginShowKitSelection = true;
 
             //if (delta==1) 
             //    ResetIterators();
@@ -396,7 +441,6 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
             hookFunction(hk_D3D_Present, stadPresent);
             setOverlayPageVisible(_myPage, true);
             g_presentHooked = true;
-            g_beginShowKitSelection = true;
         }
         else 
         {
@@ -413,118 +457,61 @@ void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     if (getOverlayPage() != _myPage) // page-check
         return;
 
-    if (g_beginShowKitSelection)
-    {
-        g_beginShowKitSelection = false;
-    }
+	KDrawText(L"Stadium:", 202, 7, COLOR_BLACK, 26.0f);
+	KDrawText(L"Stadium:", 200, 5, COLOR_CHOSEN, 26.0f);
 
-	KDrawText(L"stadPresent", 0, 0, D3DCOLOR_RGBA(0xff,0xff,0xff,0xff), 20.0f);
-
-    /*
-    // display "home"/"away" helper for Master League games
-    if (pNextMatch->home->teamIdSpecial != pNextMatch->home->teamId)
+    if (_stadium_iter == _stadiums.end())
     {
-        KDrawText(L"Home", 7, 35, COLOR_BLACK, 26.0f);
-        KDrawText(L"Home", 5, 33, COLOR_INFO, 26.0f);
-    }
-    else if (pNextMatch->away->teamIdSpecial != pNextMatch->away->teamId)
-    {
-        KDrawText(L"Away", 7, 35, COLOR_BLACK, 26.0f);
-        KDrawText(L"Away", 5, 33, COLOR_INFO, 26.0f);
-    }
-
-    // display current kit selection
-
-    // Home PL
-    if (g_iterHomePL == g_iterHomePL_end)
-    {
-        KDrawText(L"P: auto", 200, 7, COLOR_BLACK, 30.0f);
-        KDrawText(L"P: auto", 202, 5, COLOR_BLACK, 30.0f);
-        KDrawText(L"P: auto", 202, 7, COLOR_BLACK, 30.0f);
-        KDrawText(L"P: auto", 200, 5, COLOR_AUTO, 30.0f);
+        KDrawText(L"game choice", 302, 7, COLOR_BLACK, 26.0f);
+        KDrawText(L"game choice", 300, 5, COLOR_AUTO, 26.0f);
     }
     else
     {
-        wchar_t wbuf[512] = {0};
-        swprintf(wbuf, L"P: %s", g_iterHomePL->first.c_str());
-        KDrawText(wbuf, 200, 7, COLOR_BLACK, 30.0f);
-        KDrawText(wbuf, 202, 5, COLOR_BLACK, 30.0f);
-        KDrawText(wbuf, 202, 7, COLOR_BLACK, 30.0f);
-        KDrawText(wbuf, 200, 5, COLOR_CHOSEN, 30.0f);
-        gdb->loadConfig(g_iterHomePL->second);
-        if (g_iterHomePL->second.attDefined & MAIN_COLOR)
+        if (_stadium_iter->second._name.empty())
         {
-            RGBAColor& c = g_iterHomePL->second.mainColor;
-            KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            // use directory name
+            KDrawText(_stadium_iter->first.c_str(), 302, 7, COLOR_BLACK, 26.0f);
+            KDrawText(_stadium_iter->first.c_str(), 300, 5, COLOR_INFO, 26.0f);
         }
-        else if (g_iterHomePL->second.foldername == L"")
+        else
         {
-            // non-GDB kit => get main color from attribute structures
-            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
-            if (pNM->home->teamIdSpecial != pNM->home->teamId)
-                tki = &pNM->home->tki;
+            // use name from info.txt
+            KDrawText(_stadium_iter->second._name.c_str(), 302, 7, COLOR_BLACK, 26.0f);
+            KDrawText(_stadium_iter->second._name.c_str(), 300, 5, COLOR_INFO, 26.0f);
+        }
 
-            KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.mainColor : tki->pb.mainColor;
-            RGBAColor c;
-            KCOLOR2RGBAColor(kc, c);
-            KDrawText(L"\x2580", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2580", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
-        }
-        if (g_iterHomePL->second.attDefined & SHORTS_MAIN_COLOR)
+        if (_stadium_iter->second._built)
         {
-            RGBAColor& c = g_iterHomePL->second.shortsFirstColor;
-            KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2584", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            wchar_t buf[20];
+            swprintf(buf,L"built: %d",_stadium_iter->second._built);
+            KDrawText(buf, 202, 35, COLOR_BLACK, 24.0f);
+            KDrawText(buf, 200, 33, COLOR_AUTO2, 24.0f);
         }
-        else if (g_iterHomePL->second.foldername == L"")
+        if (_stadium_iter->second._capacity)
         {
-            // non-GDB kit => get shorts color from attribute structures
-            NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-            TEAM_KIT_INFO* tki = GetTeamKitInfoById(pNM->home->teamId);
-            if (pNM->home->teamIdSpecial != pNM->home->teamId)
-                tki = &pNM->home->tki;
-
-            KCOLOR kc = (g_iterHomePL->first == L"pa") ? tki->pa.shortsFirstColor : tki->pb.shortsFirstColor;
-            RGBAColor c;
-            KCOLOR2RGBAColor(kc, c);
-            KDrawText(L"\x2584", 180, 7, COLOR_BLACK, 26.0f, KDT_BOLD);
-            KDrawText(L"\x2584", 178, 5, D3DCOLOR_RGBA(c.r,c.g,c.b,c.a), 26.0f, KDT_BOLD);
+            wchar_t buf[20];
+            swprintf(buf,L"capacity: %d",_stadium_iter->second._capacity);
+            KDrawText(buf, 352, 35, COLOR_BLACK, 26.0f);
+            KDrawText(buf, 350, 33, COLOR_AUTO2, 26.0f);
         }
     }
-    */
 }
 
 void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
-    /*
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
-        if (wParam == 0x31) { // home PL
-            if (g_iterHomePL == g_iterHomePL_end)
-                g_iterHomePL = g_iterHomePL_begin;
+        if (wParam == 0x39) { // 9 - left 
+            if (_stadium_iter == _stadiums.begin())
+                _stadium_iter = _stadiums.end();
             else
-                g_iterHomePL++;
+                _stadium_iter--;
         }
-        else if (wParam == 0x32) { // away PL
-            if (g_iterAwayPL == g_iterAwayPL_end)
-                g_iterAwayPL = g_iterAwayPL_begin;
+        else if (wParam == 0x30) { // 0 - right
+            if (_stadium_iter == _stadiums.end())
+                _stadium_iter = _stadiums.begin();
             else
-                g_iterAwayPL++;
-        }
-        else if (wParam == 0x33) { // home GK
-            if (g_iterHomeGK == g_iterHomeGK_end)
-                g_iterHomeGK = g_iterHomeGK_begin;
-            else
-                g_iterHomeGK++;
-        }
-        else if (wParam == 0x34) { // away GK
-            if (g_iterAwayGK == g_iterAwayGK_end)
-                g_iterAwayGK = g_iterAwayGK_begin;
-            else
-                g_iterAwayGK++;
+                _stadium_iter++;
         }
     }	
-    */
 }
 
