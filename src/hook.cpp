@@ -440,6 +440,7 @@ HRESULT RestoreDeviceObjects(IDirect3DDevice9* device)
             device->SetVertexShader( NULL );
             device->SetFVF( D3DFVF_CUSTOMVERTEX );
             device->SetPixelShader( NULL );
+            device->SetTexture(0, NULL);
             device->SetStreamSource( 0, g_pVB_shaded, 0, sizeof(CUSTOMVERTEX));
 
             if( which==0 )
@@ -549,6 +550,8 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 		NextCall(self, params);
 	}
 	
+    InvalidateDeviceObjects(self);
+
 	HRESULT res = g_orgReset(self, params);
 	TRACE(L"newReset: Reset() is done. About to return.");
 	
@@ -558,8 +561,6 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 		}
 	}
 
-    InvalidateDeviceObjects(self);
-    RestoreDeviceObjects(self);
 	return res;
 }
 

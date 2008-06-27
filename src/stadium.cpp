@@ -37,6 +37,17 @@ enum {
     NIGHT_WINTER_MESH, NIGHT_WINTER_TURF,
 };
 
+wstring _stad_names[] = {
+    L"stad_plackards.bin", L"stad_adboards1.bin", 
+    L"stad_adboards2.bin", L"stad_goals.bin",
+    L"day_summer_mesh.bin", L"day_summer_turf.bin",
+    L"day_winter_mesh.bin", L"day_winter_turf.bin",
+    L"evening_summer_mesh.bin", L"evening_summer_turf.bin",
+    L"evening_winter_mesh.bin", L"evening_winter_turf.bin",
+    L"night_summer_mesh.bin", L"night_summer_turf.bin",
+    L"night_winter_mesh.bin", L"night_winter_turf.bin",
+};
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -49,13 +60,6 @@ KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 #define STAD_ADBOARDS_1 38
 #define STAD_ADBOARDS_2 39
 #define STAD_GOALS      40
-
-// GLOBALS
-
-bool _stadium_bins[726];
-
-static bool g_presentHooked = false;
-static bool g_beginShowKitSelection = false;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -71,9 +75,131 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
 void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
 void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
 
-static int _myPage = -1;
 
-// FUNCTION POINTERS
+// GLOBALS
+
+bool _stadium_bins[726];
+
+static int _myPage = -1;
+static bool g_presentHooked = false;
+static bool g_beginShowKitSelection = false;
+
+class stadium_t
+{
+public:
+    wstring _files[16];
+    wstring _dir;
+    wstring _name;
+    int _capacity;
+    int _built;
+
+    stadium_t() : _capacity(0), _built(0) {}
+    bool init(const wstring& dir) 
+    {
+        _dir = dir;
+
+        // read the file names;
+        WIN32_FIND_DATA fData;
+        wstring pattern(getPesInfo()->gdbDir);
+        pattern += L"GDB\\stadiums\\" + dir + L"\\*";
+
+        HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
+        if (hff != INVALID_HANDLE_VALUE) 
+        {
+            while (true)
+            {
+                // check if this is a file
+                if (!(fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) 
+                {
+                    // Format A: check for BIN number
+                    int binId = -1;
+                    wchar_t* s = wcsrchr(fData.cFileName,'_');
+                    if (s && swscanf(s+1,L"%d",&binId)==1)
+                    {
+                        TRACE1S1N(L"folder={%s}, bin={%d}",dir.c_str(),binId);
+                        if (binId >= 0)
+                        {
+                            int t = GetBinType(binId);
+                            if (0 <= t && t < 16)
+                                _files[t] = fData.cFileName;
+                        }
+                    }
+
+                    // Format B: check for standard name
+                    if (binId == -1)
+                    {
+                        wstring name(fData.cFileName);
+                        for (int i=0; i<16; i++)
+                        {
+                            if (_stad_names[i] == name)
+                            {
+                                _files[i] = fData.cFileName;
+                                break;
+                            }
+                        }
+
+                    } // binId
+                }
+
+                // proceed to next file
+                if (!FindNextFile(hff, &fData)) break;
+            }
+            FindClose(hff);
+        }
+
+        // parse information file, if provided
+        this->_parseInfoFile();
+
+        LOG1S(L"initialized stadium: %s", _dir.c_str());
+        return true;
+    }
+
+    void _parseInfoFile()
+    {
+    }
+};
+
+// main map of stadiums
+map<wstring,stadium_t> _stadiums;
+
+// map of home stadiums
+typedef map<wstring,stadium_t>::iterator stadium_iter_t;
+map<WORD,stadium_iter_t> _home_stadiums;
+
+
+static void InitMaps()
+{
+	WIN32_FIND_DATA fData;
+    wstring pattern(getPesInfo()->gdbDir);
+    pattern += L"GDB\\stadiums\\*";
+
+	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
+    if (hff != INVALID_HANDLE_VALUE)
+    {
+        while(true)
+        {
+            // check if this is a directory
+            if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY 
+                    && wcscmp(fData.cFileName,L".")!=0 
+                    && wcscmp(fData.cFileName,L"..")!=0)
+            {
+                stadium_t stadium;
+                stadium.init(fData.cFileName);
+                _stadiums.insert(pair<wstring,stadium_t>(
+                            fData.cFileName, stadium
+                ));
+            }
+
+            // proceed to next file
+            if (!FindNextFile(hff, &fData)) break;
+        }
+        FindClose(hff);
+    }
+
+    LOG1N(L"total stadiums: %d", _stadiums.size());
+    LOG1N(L"home stadiums assigned: %d", _home_stadiums.size());
+}
+
 
 /*******************/
 /* DLL Entry Point */
@@ -139,6 +265,8 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     addKeyboardCallback(stadKeyboardEvent);
 
 	TRACE(L"Hooking done.");
+
+    InitMaps();
     return D3D_OK;
 }
 
@@ -228,7 +356,7 @@ bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
     LOG1N(L"binId = %d", binId);
 
     wchar_t filename[1024] = {0};
-    swprintf(filename,L"%sGDB\\stadiums\\wembley_%d.bin", 
+    swprintf(filename,L"%sGDB\\stadiums\\Wembley\\wembley_%d.bin", 
             getPesInfo()->gdbDir,
             (binId==40) ? 40 : (213+((binId-STAD_FIRST)%STAD_SPAN)));
 
