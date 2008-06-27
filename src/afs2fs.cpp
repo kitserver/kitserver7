@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include "kload_exp.h"
+#include "afsreader.h"
 #include "afsio.h"
 #include "afs2fs.h"
 #include "afs2fs_addr.h"
