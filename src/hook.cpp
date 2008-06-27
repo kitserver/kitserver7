@@ -11,6 +11,7 @@
 #include "kload.h"
 #include "hook_addr.h"
 #include "utf8.h"
+#include "crc32.h"
 #define lang(s) getTransl("kload",s)
 
 #include <vector>
@@ -66,6 +67,43 @@ void UnhookKeyboard();
 LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam);
 HRESULT InvalidateDeviceObjects(IDirect3DDevice9* device);
 HRESULT RestoreDeviceObjects(IDirect3DDevice9* device);
+
+typedef BOOL (WINAPI *WRITEFILE_PROC)(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+);
+typedef BOOL (WINAPI *READFILE_PROC)(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
+  LPOVERLAPPED lpOverlapped
+);
+WRITEFILE_PROC _writeFile = NULL;
+READFILE_PROC _readFile = NULL;
+
+BOOL WINAPI hookWriteFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+);
+BOOL WINAPI hookReadFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
+  LPOVERLAPPED lpOverlapped
+);
+
+list<READ_DATA_CALLBACK> _writeEditDataCallbacks;
+list<READ_DATA_CALLBACK> _writeReplayDataCallbacks;
+list<READ_DATA_CALLBACK> _readEditDataCallbacks;
+list<READ_DATA_CALLBACK> _readReplayDataCallbacks;
 
 ALLVOID g_orgBeginRender1 = NULL;
 ALLVOID g_orgBeginRender2 = NULL;
@@ -343,6 +381,11 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
     g_menuMode = data[MENU_MODE_IDX];
     HookCallPoint(code[C_ADD_MENUMODE], hookAddMenuModeCallPoint, 6, 2);
     HookCallPoint(code[C_SUB_MENUMODE], hookSubMenuModeCallPoint, 6, 2);
+
+    _writeFile = (WRITEFILE_PROC)HookIndirectCall(code[C_WRITE_FILE],
+            hookWriteFile);
+    _readFile = (READFILE_PROC)HookIndirectCall(code[C_READ_FILE],
+            hookReadFile);
 	
 	CALLCHAIN_BEGIN(hk_D3D_CreateDevice, it) {
 		PFNCREATEDEVICEPROC NextCall = (PFNCREATEDEVICEPROC)*it;
@@ -987,6 +1030,28 @@ DWORD hookedCopyString(DWORD dest, DWORD destLen, DWORD src, DWORD srcLen)
 	return MasterCallNext(dest, destLen, src, srcLen);
 }
 
+KEXPORT DWORD HookIndirectCall(DWORD addr, void* func)
+{
+    DWORD target = (DWORD)func;
+	if (addr && target)
+	{
+	    BYTE* bptr = (BYTE*)addr;
+        DWORD* orgTarget = *(DWORD**)(bptr + 2);
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
+	        bptr[0] = 0xe8;
+	        DWORD* ptr = (DWORD*)(addr + 1);
+	        ptr[0] = target - (DWORD)(addr + 5);
+            // padding with NOP
+            bptr[5] = 0x90;
+	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
+            return *orgTarget;
+	    }
+	}
+    return NULL;
+}
+
 KEXPORT void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops, bool addRetn)
 {
     DWORD target = (DWORD)func + codeShift;
@@ -1250,5 +1315,147 @@ LRESULT CALLBACK KeyboardProc(int code1, WPARAM wParam, LPARAM lParam)
     }	
 
 	return CallNextHookEx(g_hKeyboardHook, code1, wParam, lParam);
+}
+
+KEXPORT void addReadEditDataCallback(READ_DATA_CALLBACK callback)
+{
+    _readEditDataCallbacks.push_back(callback);
+}
+
+KEXPORT void addReadReplayDataCallback(READ_DATA_CALLBACK callback)
+{
+    _readReplayDataCallbacks.push_back(callback);
+}
+
+KEXPORT void addWriteEditDataCallback(WRITE_DATA_CALLBACK callback)
+{
+    _writeEditDataCallbacks.push_back(callback);
+}
+
+KEXPORT void addWriteReplayDataCallback(WRITE_DATA_CALLBACK callback)
+{
+    _writeReplayDataCallbacks.push_back(callback);
+}
+
+/**
+ * WriteFile interceptor
+ */
+BOOL WINAPI hookWriteFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToWrite,
+  LPDWORD lpNumberOfBytesWritten,
+  LPOVERLAPPED lpOverlapped
+)
+{
+    LOG1N(L"WriteFile: len=%d", nNumberOfBytesToWrite);
+    if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
+    {
+        LOG(L"Saving Edit Data...");
+
+        // call the callbacks
+        for (list<WRITE_DATA_CALLBACK>::iterator it = _writeEditDataCallbacks.begin();
+                it != _writeEditDataCallbacks.end();
+                it++)
+            (*it)(lpBuffer, nNumberOfBytesToWrite);
+
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x12aaec - 0x100);
+    }
+
+    else if (nNumberOfBytesToWrite == 0x377f80)  // replay data
+    {
+        LOG(L"Saving Replay Data...");
+
+        // call the callbacks
+        for (list<WRITE_DATA_CALLBACK>::iterator it = _writeReplayDataCallbacks.begin();
+                it != _writeReplayDataCallbacks.end();
+                it++)
+            (*it)(lpBuffer, nNumberOfBytesToWrite);
+
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x377f80 - 0x100);
+    }
+
+    BOOL result = _writeFile(
+            hFile,
+            lpBuffer,
+            nNumberOfBytesToWrite,
+            lpNumberOfBytesWritten,
+            lpOverlapped);
+
+    if (result && nNumberOfBytesToWrite == 0x12aaec)  // edit data
+        LOG(L"Edit Data SAVED.");
+    else if (result && nNumberOfBytesToWrite == 0x377f80)  // replay data
+        LOG(L"Replay Data SAVED.");
+
+    return result;
+}
+
+/**
+ * ReadFile interceptor
+ */
+BOOL WINAPI hookReadFile(
+  HANDLE hFile,
+  LPCVOID lpBuffer,
+  DWORD nNumberOfBytesToRead,
+  LPDWORD lpNumberOfBytesRead,
+  LPOVERLAPPED lpOverlapped
+)
+{
+    LOG1N(L"ReadFile: len=%d", nNumberOfBytesToRead);
+
+    BOOL result = _readFile(
+            hFile,
+            lpBuffer,
+            nNumberOfBytesToRead,
+            lpNumberOfBytesRead,
+            lpOverlapped);
+
+    if (!result)
+        return result;  // failed to read: return quickly.
+
+    if (nNumberOfBytesToRead == 0x12aaec)  // edit data
+    {
+        LOG(L"Loading Edit Data...");
+
+        // call the callbacks
+        for (list<READ_DATA_CALLBACK>::iterator it = _readEditDataCallbacks.begin();
+                it != _readEditDataCallbacks.end();
+                it++)
+            (*it)(lpBuffer, nNumberOfBytesToRead);
+
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x12aaec - 0x100);
+    }
+
+    else if (nNumberOfBytesToRead == 0x377f80)  // replay data
+    {
+        LOG(L"Loading Replay Data...");
+
+        // call the callbacks
+        for (list<READ_DATA_CALLBACK>::iterator it = _readReplayDataCallbacks.begin();
+                it != _readReplayDataCallbacks.end();
+                it++)
+            (*it)(lpBuffer, nNumberOfBytesToRead);
+
+        // adjust CRC32 checksum
+        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
+        *pChecksum = 0;
+        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x377f80 - 0x100);
+    }
+
+    if (result && nNumberOfBytesToRead == 0x12aaec)  // edit data
+        LOG(L"Edit Data LOADED.");
+    else if (result && nNumberOfBytesToRead == 0x377f80)  // replay data
+        LOG(L"Replay Data LOADED.");
+
+    return result;
 }
 

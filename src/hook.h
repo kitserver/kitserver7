@@ -106,6 +106,7 @@ void hookedBeginRenderPlayer();
 DWORD STDMETHODCALLTYPE hookedEditCopyPlayerName(DWORD p1, DWORD p2);
 DWORD hookedCopyString(DWORD dest, DWORD destLen, DWORD src, DWORD srcLen);
 
+KEXPORT DWORD HookIndirectCall(DWORD addr, void* func);
 KEXPORT void HookCallPoint(DWORD addr, void* func, int codeShift, int numNops, bool addRetn=false);
 KEXPORT DWORD GetTargetAddress(DWORD addr);
 
@@ -116,4 +117,10 @@ KEXPORT void setOverlayPageVisible(int page, bool flag);
 typedef void (*KEY_EVENT_CALLBACK)(int code, WPARAM wParam, LPARAM lParam);
 KEXPORT void addKeyboardCallback(KEY_EVENT_CALLBACK callback);
 
+typedef void (*WRITE_DATA_CALLBACK)(LPCVOID data, DWORD size);
+typedef void (*READ_DATA_CALLBACK)(LPCVOID data, DWORD size);
+KEXPORT void addWriteEditDataCallback(WRITE_DATA_CALLBACK callback);
+KEXPORT void addWriteReplayDataCallback(WRITE_DATA_CALLBACK callback);
+KEXPORT void addReadEditDataCallback(READ_DATA_CALLBACK callback);
+KEXPORT void addReadReplayDataCallback(READ_DATA_CALLBACK callback);
 #endif

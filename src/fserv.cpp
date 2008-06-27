@@ -83,7 +83,6 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src);
 KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size);
 DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len);
 
-DWORD HookIndirectCall(DWORD addr, void* func);
 void fservConfig(char* pName, const void* pValue, DWORD a);
 bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
@@ -91,37 +90,9 @@ bool ReplaceBinSizes();
 void InitMaps();
 void CopyPlayerData(PLAYER_INFO* players, bool writeList=true);
 
-typedef BOOL (WINAPI *WRITEFILE_PROC)(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToWrite,
-  LPDWORD lpNumberOfBytesWritten,
-  LPOVERLAPPED lpOverlapped
-);
-typedef BOOL (WINAPI *READFILE_PROC)(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToRead,
-  LPDWORD lpNumberOfBytesRead,
-  LPOVERLAPPED lpOverlapped
-);
-WRITEFILE_PROC _writeFile = NULL;
-READFILE_PROC _readFile = NULL;
-
-BOOL WINAPI fservWriteFile(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToWrite,
-  LPDWORD lpNumberOfBytesWritten,
-  LPOVERLAPPED lpOverlapped
-);
-BOOL WINAPI fservReadFile(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToRead,
-  LPDWORD lpNumberOfBytesRead,
-  LPOVERLAPPED lpOverlapped
-);
+void fservWriteEditData(LPCVOID data, DWORD size);
+void fservReadReplayData(LPCVOID data, DWORD size);
+void fservWriteReplayData(LPCVOID data, DWORD size);
 
 static void string_strip(wstring& s)
 {
@@ -171,28 +142,6 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	return true;
 }
 
-DWORD HookIndirectCall(DWORD addr, void* func)
-{
-    DWORD target = (DWORD)func;
-	if (addr && target)
-	{
-	    BYTE* bptr = (BYTE*)addr;
-        DWORD* orgTarget = *(DWORD**)(bptr + 2);
-	    DWORD protection = 0;
-	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
-	    if (VirtualProtect(bptr, 16, newProtection, &protection)) {
-	        bptr[0] = 0xe8;
-	        DWORD* ptr = (DWORD*)(addr + 1);
-	        ptr[0] = target - (DWORD)(addr + 5);
-            // padding with NOP
-            bptr[5] = 0x90;
-	        TRACE2N(L"Function (%08x) HOOKED at address (%08x)", target, addr);
-            return *orgTarget;
-	    }
-	}
-    return NULL;
-}
-
 void fservConfig(char* pName, const void* pValue, DWORD a)
 {
 	switch (a) {
@@ -226,13 +175,12 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_COPY_DATA2], 
             fservAtCopyEditData2, 0, 0);
 
-    _writeFile = (WRITEFILE_PROC)HookIndirectCall(code[C_WRITE_FILE],
-            fservWriteFile);
-    _readFile = (READFILE_PROC)HookIndirectCall(code[C_READ_FILE],
-            fservReadFile);
-
-    // register callback
+    // register callbacks
     afsioAddCallback(fservGetFileInfo);
+
+    addReadReplayDataCallback(fservReadReplayData);
+    addWriteReplayDataCallback(fservWriteReplayData);
+    addWriteEditDataCallback(fservWriteEditData);
 
     // initialize face/hair map
     InitMaps();
@@ -632,173 +580,114 @@ bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
 }
 
 /**
- * WriteFile interceptor
+ * write data callback
  */
-BOOL WINAPI fservWriteFile(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToWrite,
-  LPDWORD lpNumberOfBytesWritten,
-  LPOVERLAPPED lpOverlapped
-)
+void fservWriteEditData(LPCVOID data, DWORD size)
 {
-    LOG1N(L"WriteFile: len=%d", nNumberOfBytesToWrite);
-    if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
+    LOG(L"Restoring face/hair settings");
+
+    // restore face/hair settings
+    PLAYER_INFO* players = (PLAYER_INFO*)((BYTE*)data + 0x120);
+    for (list<DWORD>::iterator it = _non_unique_face.begin();
+            it != _non_unique_face.end();
+            it++)
     {
-        LOG(L"Saving Edit Data...");
-
-        // restore face/hair settings
-        PLAYER_INFO* players = (PLAYER_INFO*)((BYTE*)lpBuffer + 0x120);
-        for (list<DWORD>::iterator it = _non_unique_face.begin();
-                it != _non_unique_face.end();
-                it++)
-        {
-            LOG2N(L"Restoring face-type flags for %d (id=%d)", 
-                    *it, players[*it].id);
-            players[*it].faceHairMask &= CLEAR_UNIQUE_FACE;
-        }
-        for (list<DWORD>::iterator it = _non_unique_hair.begin();
-                it != _non_unique_hair.end();
-                it++)
-        {
-            LOG2N(L"Restoring hair-type flags for %d (id=%d)",
-                    *it, players[*it].id);
-            players[*it].faceHairMask &= CLEAR_UNIQUE_HAIR;
-        }
-        for (list<DWORD>::iterator it = _scan_face.begin();
-                it != _scan_face.end();
-                it++)
-        {
-            LOG2N(L"Restoring scan-type flags for %d (id=%d)",
-                    *it, players[*it].id);
-            players[*it].faceHairMask |= SCAN_FACE;
-        }
-        // adjust CRC32 checksum
-        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
-        *pChecksum = 0;
-        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x12aaec - 0x100);
+        //LOG2N(L"Restoring face-type flags for %d (id=%d)", 
+        //        *it, players[*it].id);
+        players[*it].faceHairMask &= CLEAR_UNIQUE_FACE;
     }
-
-    else if (nNumberOfBytesToWrite == 0x377f80)  // replay data
+    for (list<DWORD>::iterator it = _non_unique_hair.begin();
+            it != _non_unique_hair.end();
+            it++)
     {
-        LOG(L"Saving Replay Data...");
-
-        // restore face/hair settings
-        REPLAY_PLAYER_INFO* players = (REPLAY_PLAYER_INFO*)((BYTE*)lpBuffer + 0x1c0);
-        for (int i=0; i<22; i++)
-        {
-            wchar_t* name = Utf8::ansiToUnicode(players[i].name);
-            LOG1S1N(L"player {%s}, padding=%04x", name, players[i].padding);
-            Utf8::free(name);
-
-            WORD idx = players[i].padding;
-            if (idx != 0)
-            {
-                for (list<DWORD>::iterator it = _non_unique_face.begin();
-                        it != _non_unique_face.end();
-                        it++)
-                    if (*it == idx)
-                    {
-                        players[i].faceHairMask &= CLEAR_UNIQUE_FACE;
-                        break;
-                    }
-                for (list<DWORD>::iterator it = _non_unique_hair.begin();
-                        it != _non_unique_hair.end();
-                        it++)
-                    if (*it == idx)
-                    {
-                        players[i].faceHairMask &= CLEAR_UNIQUE_HAIR;
-                        break;
-                    }
-                for (list<DWORD>::iterator it = _scan_face.begin();
-                        it != _scan_face.end();
-                        it++)
-                    if (*it == idx)
-                    {
-                        players[i].faceHairMask |= SCAN_FACE;
-                        break;
-                    }
-            }
-        }
-        // adjust CRC32 checksum
-        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
-        *pChecksum = 0;
-        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x377f80 - 0x100);
+        //LOG2N(L"Restoring hair-type flags for %d (id=%d)",
+        //        *it, players[*it].id);
+        players[*it].faceHairMask &= CLEAR_UNIQUE_HAIR;
     }
-
-    BOOL result = _writeFile(
-            hFile,
-            lpBuffer,
-            nNumberOfBytesToWrite,
-            lpNumberOfBytesWritten,
-            lpOverlapped);
-
-    if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
+    for (list<DWORD>::iterator it = _scan_face.begin();
+            it != _scan_face.end();
+            it++)
     {
-        LOG(L"Edit Data SAVED.");
+        //LOG2N(L"Restoring scan-type flags for %d (id=%d)",
+        //        *it, players[*it].id);
+        players[*it].faceHairMask |= SCAN_FACE;
     }
-
-    return result;
 }
 
 /**
- * ReadFile interceptor
+ * write data callback
  */
-BOOL WINAPI fservReadFile(
-  HANDLE hFile,
-  LPCVOID lpBuffer,
-  DWORD nNumberOfBytesToRead,
-  LPDWORD lpNumberOfBytesRead,
-  LPOVERLAPPED lpOverlapped
-)
+void fservWriteReplayData(LPCVOID data, DWORD size)
 {
-    LOG1N(L"ReadFile: len=%d", nNumberOfBytesToRead);
+    LOG(L"Restoring face/hair settings");
 
-    BOOL result = _readFile(
-            hFile,
-            lpBuffer,
-            nNumberOfBytesToRead,
-            lpNumberOfBytesRead,
-            lpOverlapped);
-
-    if (nNumberOfBytesToRead == 0x12aaec)  // edit data
+    // restore face/hair settings
+    REPLAY_PLAYER_INFO* players = (REPLAY_PLAYER_INFO*)((BYTE*)data + 0x1c0);
+    for (int i=0; i<22; i++)
     {
-        LOG(L"Loading Edit Data...");
-        // maybe do something here
-    }
+        wchar_t* name = Utf8::ansiToUnicode(players[i].name);
+        LOG1S1N(L"player {%s}, padding=%04x", name, players[i].padding);
+        Utf8::free(name);
 
-    else if (nNumberOfBytesToRead == 0x377f80)  // replay data
-    {
-        LOG(L"Loading Replay Data...");
-
-        // set face/hair settings
-        REPLAY_PLAYER_INFO* players = (REPLAY_PLAYER_INFO*)((BYTE*)lpBuffer + 0x1c0);
-        for (int i=0; i<22; i++)
+        WORD idx = players[i].padding;
+        if (idx != 0)
         {
-            wchar_t* name = Utf8::ansiToUnicode(players[i].name);
-            LOG1S1N(L"player {%s}, padding=%04x", name, players[i].padding);
-            Utf8::free(name);
-
-            WORD idx = players[i].padding;
-            if (idx != 0)
-            {
-                DWORD faceSlot = 0, hairSlot = 0;
-                GetSlotsByPlayerIndex(idx, faceSlot, hairSlot);
-                if (faceSlot >= FIRST_FACE_SLOT && faceSlot < NUM_SLOTS)
+            for (list<DWORD>::iterator it = _non_unique_face.begin();
+                    it != _non_unique_face.end();
+                    it++)
+                if (*it == idx)
                 {
-                    players[i].faceHairMask |= UNIQUE_FACE;
-                    players[i].faceHairMask &= CLEAR_SCAN_FACE;
+                    players[i].faceHairMask &= CLEAR_UNIQUE_FACE;
+                    break;
                 }
-                if (hairSlot >= FIRST_FACE_SLOT && hairSlot < NUM_SLOTS)
-                    players[i].faceHairMask |= UNIQUE_HAIR;
-            }
+            for (list<DWORD>::iterator it = _non_unique_hair.begin();
+                    it != _non_unique_hair.end();
+                    it++)
+                if (*it == idx)
+                {
+                    players[i].faceHairMask &= CLEAR_UNIQUE_HAIR;
+                    break;
+                }
+            for (list<DWORD>::iterator it = _scan_face.begin();
+                    it != _scan_face.end();
+                    it++)
+                if (*it == idx)
+                {
+                    players[i].faceHairMask |= SCAN_FACE;
+                    break;
+                }
         }
-        // adjust CRC32 checksum
-        DWORD* pChecksum = (DWORD*)((BYTE*)lpBuffer + 0x108);
-        *pChecksum = 0;
-        *pChecksum = GetCRC((BYTE*)lpBuffer + 0x100, 0x377f80 - 0x100);
     }
+}
 
-    return result;
+/**
+ * read data callback
+ */
+void fservReadReplayData(LPCVOID data, DWORD size)
+{
+    LOG(L"Setting face/hair settings");
+
+    // set face/hair settings
+    REPLAY_PLAYER_INFO* players = (REPLAY_PLAYER_INFO*)((BYTE*)data + 0x1c0);
+    for (int i=0; i<22; i++)
+    {
+        wchar_t* name = Utf8::ansiToUnicode(players[i].name);
+        LOG1S1N(L"player {%s}, padding=%04x", name, players[i].padding);
+        Utf8::free(name);
+
+        WORD idx = players[i].padding;
+        if (idx != 0)
+        {
+            DWORD faceSlot = 0, hairSlot = 0;
+            GetSlotsByPlayerIndex(idx, faceSlot, hairSlot);
+            if (faceSlot >= FIRST_FACE_SLOT && faceSlot < NUM_SLOTS)
+            {
+                players[i].faceHairMask |= UNIQUE_FACE;
+                players[i].faceHairMask &= CLEAR_SCAN_FACE;
+            }
+            if (hairSlot >= FIRST_FACE_SLOT && hairSlot < NUM_SLOTS)
+                players[i].faceHairMask |= UNIQUE_HAIR;
+        }
+    }
 }
 

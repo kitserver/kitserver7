@@ -1,14 +1,15 @@
 // ADDRESSES for hook.cpp
-#define CODELEN 9
+#define CODELEN 11
 enum {
 	C_D3DCREATE_CS,
 	C_LOADTEXTUREFORPLAYER_CS, C_LOADTEXTUREFORPLAYER,
 	TBL_BEGINRENDER1,	TBL_BEGINRENDER2,
 	C_EDITCOPYPLAYERNAME_CS, C_COPYSTRING_CS,
     C_SUB_MENUMODE, C_ADD_MENUMODE,
+    C_READ_FILE, C_WRITE_FILE,
 };
 
-#define NOCODEADDR {0,0,0,0,0,0,0,0,0},
+#define NOCODEADDR {0,0,0,0,0,0,0,0,0,0,0},
 DWORD codeArray[][CODELEN] = { 
   // PES2008 DEMO
 	{
@@ -16,6 +17,7 @@ DWORD codeArray[][CODELEN] = {
 		0x435f28, 0x83c3e0,
 		0xa84a9c, 0xa7decc,
 		0, 0,	//TODO
+        0, 0,
         0, 0,
 	},
 	// [Settings] PES2008 PC DEMO
@@ -27,6 +29,7 @@ DWORD codeArray[][CODELEN] = {
 		0xdad50c, 0xd98214,
 		0x8422c0, 0x401d1a,
         0x427f80, 0xb2ce3d,
+        0xa84240, 0xa83ddc,
 	},
 	// [Settings] PES2008 PC
   NOCODEADDR
@@ -38,6 +41,7 @@ DWORD codeArray[][CODELEN] = {
 		0xdae53c, 0xd99224,
 		0x842c10, 0x401d2a,
         0x427e20, 0xb2cc5d,
+        0xa83a80, 0xa8361c,
 	},
   NOCODEADDR
   // PES2008 1.20
@@ -47,6 +51,7 @@ DWORD codeArray[][CODELEN] = {
 		0, 0, //TODO
 		0, 0, //TODO
         0x427a20, 0xb32d0d,
+        0xa85e80, 0xa85a1c, 
   },
 };
 
