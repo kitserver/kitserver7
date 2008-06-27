@@ -12,6 +12,7 @@
 #include "pngdib.h"
 #include "utf8.h"
 #include "commctrl.h"
+#include "afsio.h"
 
 #if _CPPLIB_VER < 503
 #define  __in
@@ -35,6 +36,8 @@
 #define COLOR_AUTO D3DCOLOR_RGBA(135,135,135,255)
 #define COLOR_CHOSEN D3DCOLOR_RGBA(210,210,210,255)
 #define COLOR_INFO D3DCOLOR_RGBA(0xb0,0xff,0xb0,0xff)
+
+#define GLOVES_BIN 5703
 
 typedef struct _UNPACK_INFO 
 {
@@ -68,14 +71,6 @@ typedef struct _LOAD_BIN_STRUCT
     DWORD afsId;
     DWORD binId;
 } LOAD_BIN_STRUCT;
-
-typedef struct _BIN_SIZE_INFO
-{
-    BYTE unknown1[0x10];
-    char relativePathName[0x108];
-    DWORD unknown2;
-    DWORD sizes[1];
-} BIN_SIZE_INFO;
 
 enum
 {
@@ -235,6 +230,9 @@ KEXPORT DWORD kservAtLoadAwayKeeper(DWORD teamId);
 bool IsKitBin(DWORD afsId, DWORD binId);
 void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
 void kservKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
+void kservReadReplayData(LPCVOID data, DWORD size);
+void kservWriteReplayData(LPCVOID data, DWORD size);
+bool kservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 
 // FUNCTION POINTERS
 
@@ -683,6 +681,8 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
 
     // add callbacks
     addKeyboardCallback(kservKeyboardEvent);
+    addReadReplayDataCallback(kservReadReplayData);
+    addWriteReplayDataCallback(kservWriteReplayData);
 
     // hook mode enter/exit points
     g_cupModeInd = data[CUP_MODE_PTR];
@@ -2467,4 +2467,126 @@ KEXPORT void kservAtWriteTeamId(TEAM_MATCH_DATA_INFO* addr)
     }
 }
 */
+
+
+/**
+ * data read callback
+ */
+void kservReadReplayData(LPCVOID data, DWORD size)
+{
+    // read kit keys, if available
+    string homeKeyPL((char*)data+0x377de0);
+    string homeKeyGK((char*)data+0x377e10);
+    string awayKeyPL((char*)data+0x377ed0);
+    string awayKeyGK((char*)data+0x377f00);
+
+    WORD homeTeamId = *(WORD*)((BYTE*)data+0x128);
+    WORD awayTeamId = *(WORD*)((BYTE*)data+0x174);
+    LOG1N(L"homeTeamId = %d", homeTeamId);
+    LOG1N(L"awayTeamId = %d", awayTeamId);
+
+    hash_map<WORD,KitCollection>::iterator it;
+    it = gdb->uni.find(homeTeamId);
+    if (it != gdb->uni.end())
+    {
+        if (!homeKeyPL.empty())
+        {
+            wchar_t* key = Utf8::ansiToUnicode(homeKeyPL.c_str());
+            LOG1S(L"key = {%s}",key);
+            map<wstring,Kit>::iterator kit = it->second.players.find(key);
+            if (kit != it->second.players.end())
+            {
+                g_iterHomePL = kit;
+                g_iterHomePL_begin = it->second.players.begin();
+                g_iterHomePL_end = it->second.players.end();
+            }
+            Utf8::free(key);
+        }
+        if (!homeKeyGK.empty())
+        {
+            wchar_t* key = Utf8::ansiToUnicode(homeKeyGK.c_str());
+            LOG1S(L"key = {%s}",key);
+            map<wstring,Kit>::iterator kit = it->second.goalkeepers.find(key);
+            if (kit != it->second.goalkeepers.end())
+            {
+                g_iterHomeGK = kit;
+                g_iterHomeGK_begin = it->second.goalkeepers.begin();
+                g_iterHomeGK_end = it->second.goalkeepers.end();
+            }
+            Utf8::free(key);
+        }
+    }
+
+    it = gdb->uni.find(awayTeamId);
+    if (it != gdb->uni.end())
+    {
+        if (!awayKeyPL.empty())
+        {
+            wchar_t* key = Utf8::ansiToUnicode(awayKeyPL.c_str());
+            LOG1S(L"key = {%s}",key);
+            map<wstring,Kit>::iterator kit = it->second.players.find(key);
+            if (kit != it->second.players.end())
+            {
+                g_iterAwayPL = kit;
+                g_iterAwayPL_begin = it->second.players.begin();
+                g_iterAwayPL_end = it->second.players.end();
+            }
+            Utf8::free(key);
+        }
+        if (!awayKeyGK.empty())
+        {
+            wchar_t* key = Utf8::ansiToUnicode(awayKeyGK.c_str());
+            LOG1S(L"key = {%s}",key);
+            map<wstring,Kit>::iterator kit = it->second.goalkeepers.find(key);
+            if (kit != it->second.goalkeepers.end())
+            {
+                g_iterAwayGK = kit;
+                g_iterAwayGK_begin = it->second.goalkeepers.begin();
+                g_iterAwayGK_end = it->second.goalkeepers.end();
+            }
+            Utf8::free(key);
+        }
+    }
+
+    //memset((char*)data+0x377de0, 0, 0x30);
+    //memset((char*)data+0x377e10, 0, 0x30);
+    //memset((char*)data+0x377ed0, 0, 0x30);
+    //memset((char*)data+0x377f00, 0, 0x30);
+}
+
+/**
+ * data write callback
+ */
+void kservWriteReplayData(LPCVOID data, DWORD size)
+{
+    // save kit keys
+    if (g_iterHomePL != g_iterHomePL_end)
+    {
+        LOG1S(L"home PL: %s", g_iterHomePL->first.c_str());
+        char* key = Utf8::unicodeToAnsi(g_iterHomePL->first.c_str());
+        strncpy((char*)data+0x377de0, key, 0x30);
+        Utf8::free(key);
+    }
+    if (g_iterHomeGK != g_iterHomeGK_end)
+    {
+        LOG1S(L"home GK: %s", g_iterHomeGK->first.c_str());
+        char* key = Utf8::unicodeToAnsi(g_iterHomeGK->first.c_str());
+        strncpy((char*)data+0x377e10, key, 0x30);
+        Utf8::free(key);
+    }
+    if (g_iterAwayPL != g_iterAwayPL_end)
+    {
+        LOG1S(L"away PL: %s", g_iterAwayPL->first.c_str());
+        char* key = Utf8::unicodeToAnsi(g_iterAwayPL->first.c_str());
+        strncpy((char*)data+0x377ed0, key, 0x30);
+        Utf8::free(key);
+    }
+    if (g_iterAwayGK != g_iterAwayGK_end)
+    {
+        LOG1S(L"away GK: %s", g_iterAwayGK->first.c_str());
+        char* key = Utf8::unicodeToAnsi(g_iterAwayGK->first.c_str());
+        strncpy((char*)data+0x377f00, key, 0x30);
+        Utf8::free(key);
+    }
+}
 
