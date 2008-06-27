@@ -2,8 +2,6 @@
 #ifndef _AFSIO_H
 #define _AFSIO_H
 
-#include "afsreader.h"
-
 #pragma pack(4)
 
 // CALLBACK PROTOTYPES
