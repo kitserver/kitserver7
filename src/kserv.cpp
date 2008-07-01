@@ -1675,8 +1675,8 @@ KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
 
         // apply attributes
         // GK
-        NEXT_MATCH_DATA_INFO* pNextMatch = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-        if (pNextMatch && pNextMatch->home->teamId == teamId)
+        NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+        if (pNM && pNM->home->teamId == teamId)
         {
             if (g_iterHomeGK != g_iterHomeGK_end) 
             {
@@ -1689,7 +1689,7 @@ KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
                 ApplyKitAttributes(it->second.goalkeepers,L"gb",dest->gb);
             }
         }
-        else if (pNextMatch && pNextMatch->away->teamId == teamId)
+        else if (pNM && pNM->away->teamId == teamId)
         {
             if (g_iterAwayGK != g_iterAwayGK_end) 
             {
@@ -1708,7 +1708,7 @@ KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
             ApplyKitAttributes(it->second.goalkeepers,L"gb",dest->gb);
         }
         // PL
-        if (pNextMatch && pNextMatch->home->teamId == teamId)
+        if (pNM && pNM->home->teamId == teamId)
         {
             if (g_iterHomePL != g_iterHomePL_end)
             {
@@ -1721,7 +1721,7 @@ KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
                 ApplyKitAttributes(it->second.players,L"pb",dest->pb);
             }
         }
-        else if (pNextMatch && pNextMatch->away->teamId == teamId)
+        else if (pNM && pNM->away->teamId == teamId)
         {
             if (g_iterAwayPL != g_iterAwayPL_end)
             {
@@ -1881,8 +1881,8 @@ void kservKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 void ResetIterators()
 {
     // reset kit iterators
-    NEXT_MATCH_DATA_INFO* pNextMatch = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-    //TRACE2N(L"Teams: %d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
+    NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    //TRACE2N(L"Teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
     
     g_iterHomePL_begin = gdb->dummyHome.players.begin();
     g_iterHomeGK_begin = gdb->dummyHome.goalkeepers.begin();
@@ -1894,9 +1894,9 @@ void ResetIterators()
     g_iterAwayPL_end = gdb->dummyAway.players.end();
     g_iterAwayGK_end = gdb->dummyAway.goalkeepers.end();
 
-    if (pNextMatch && pNextMatch->home)
+    if (pNM && pNM->home)
     {
-        hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->home->teamId);
+        hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNM->home->teamId);
         if (it != gdb->uni.end())
         {
             if (it->second.players.begin() != it->second.players.end())
@@ -1915,9 +1915,9 @@ void ResetIterators()
             // choose a/b, even if no kits are in GDB folder
         }
     }
-    if (pNextMatch && pNextMatch->away)
+    if (pNM && pNM->away)
     {
-        hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNextMatch->away->teamId);
+        hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNM->away->teamId);
         if (it != gdb->uni.end())
         {
             if (it->second.players.begin() != it->second.players.end())
@@ -1959,7 +1959,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 
     if (g_beginShowKitSelection)
     {
-        // may need to reset iterators, if the teams have changed since last time
+        // may need to reset iterators, if the teams changed since last time
         WORD home = 0xffff, away = 0xffff;
         GetCurrentTeams(home,away);
         if (home == 0xffff || away == 0xffff || home != g_lastHome || away != g_lastAway)
@@ -1977,27 +1977,27 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     */
 	//KDrawText(L"kservPresent", 0, 0, D3DCOLOR_RGBA(0xff,0xff,0xff,0xff), 20.0f);
 
-    NEXT_MATCH_DATA_INFO* pNextMatch = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
     // safety checks
-    if (!pNextMatch || !pNextMatch->home || !pNextMatch->away)
+    if (!pNM || !pNM->home || !pNM->away)
         return;
-    if (pNextMatch->home->teamId == 0xffff || pNextMatch->away->teamId == 0xffff)
+    if (pNM->home->teamId == 0xffff || pNM->away->teamId == 0xffff)
         return;
 
     char buf[20] = {0};
-    sprintf(buf, "%d vs %d", pNextMatch->home->teamId, pNextMatch->away->teamId);
+    sprintf(buf, "%d vs %d", pNM->home->teamId, pNM->away->teamId);
 	wchar_t* rp = Utf8::ansiToUnicode(buf);
 	KDrawText(rp, 7, 7, COLOR_BLACK, 26.0f);
 	KDrawText(rp, 5, 5, COLOR_INFO, 26.0f);
 	Utf8::free(rp);
 
     // display "home"/"away" helper for Master League games
-    if (pNextMatch->home->teamIdSpecial != pNextMatch->home->teamId)
+    if (pNM->home->teamIdSpecial != pNM->home->teamId)
     {
         KDrawText(L"Home", 7, 35, COLOR_BLACK, 26.0f);
         KDrawText(L"Home", 5, 33, COLOR_INFO, 26.0f);
     }
-    else if (pNextMatch->away->teamIdSpecial != pNextMatch->away->teamId)
+    else if (pNM->away->teamIdSpecial != pNM->away->teamId)
     {
         KDrawText(L"Away", 7, 35, COLOR_BLACK, 26.0f);
         KDrawText(L"Away", 5, 33, COLOR_INFO, 26.0f);
@@ -2242,45 +2242,24 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 
 void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
 {
-    if (isExhibitionMode)
+    if (overlayOn && !g_presentHooked)
     {
-        if (overlayOn)
-        {
-            hookFunction(hk_D3D_Present, kservPresent);
-            setOverlayPageVisible(_myPage, true);
-            TRACE(L"Showing kit selection");
-            g_presentHooked = true;
-            g_beginShowKitSelection = true;
+        if (isExhibitionMode && delta==1)
+            ResetIterators();
 
-            //if (delta==1) 
-            //    ResetIterators();
-        }
-        else
-        {
-            setOverlayPageVisible(_myPage, false);
-            unhookFunction(hk_D3D_Present, kservPresent);
-            TRACE(L"Hiding kit selection");
-            g_presentHooked = false;
-
-            //if (delta==1 && menuMode == 0x0a)
-            //    ResetIterators();
-        }
+        hookFunction(hk_D3D_Present, kservPresent);
+        setOverlayPageVisible(_myPage, true);
+        g_presentHooked = true;
+        g_beginShowKitSelection = true;
     }
-    else
+    else if (!overlayOn && g_presentHooked)
     {
-        if (overlayOn)
-        {
-            hookFunction(hk_D3D_Present, kservPresent);
-            setOverlayPageVisible(_myPage, true);
-            g_presentHooked = true;
-            g_beginShowKitSelection = true;
-        }
-        else 
-        {
-            setOverlayPageVisible(_myPage, false);
-            unhookFunction(hk_D3D_Present, kservPresent);
-            g_presentHooked = false;
-        }
+        if (isExhibitionMode && delta==-1)
+            ResetIterators();
+
+        setOverlayPageVisible(_myPage, false);
+        unhookFunction(hk_D3D_Present, kservPresent);
+        g_presentHooked = false;
     }
 }
 
@@ -2534,6 +2513,10 @@ void kservAtReadKitSelectionCallPoint()
 
 KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi)
 {
+    DWORD* cupModePtr = *(DWORD**)data[CUP_MODE_PTR];
+    if (cupModePtr)
+        return;  // don't need reloads in cup modes
+
     NEXT_MATCH_DATA_INFO* pNM = 
         *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
     if (pNM && pNM->home == tmdi)
@@ -2561,12 +2544,12 @@ KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi)
 void kservMenuEvent(int delta, DWORD menuMode, DWORD ind, 
         DWORD inGameInd, DWORD cupModeInd)
 {
-    LOG2N(L"kservMenuEvent: menuMode=%02x, delta=%d", menuMode, delta);
+    //LOG2N(L"kservMenuEvent: menuMode=%02x, delta=%d", menuMode, delta);
 
     if (menuMode == 0x1e && delta == -1 && inGameInd==0)
     {
         DWORD menuMode2 = *(DWORD*)(data[MENU_MODE_IDX]+8);
-        if (menuMode2 == 0x24)
+        if (menuMode2 == 0x24)// || menuMode2 == 0x0a)
         {
             LOG3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
                     menuMode, menuMode2, delta);

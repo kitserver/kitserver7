@@ -1127,6 +1127,7 @@ KEXPORT void addMenuCallback(MENU_EVENT_CALLBACK callback)
 void hookTriggerSelectionOverlay(int delta)
 {
     DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+    DWORD menuMode2 = *(DWORD*)(data[MENU_MODE_IDX]+8);
     DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
     DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
     DWORD cupModeInd = *(DWORD*)data[CUP_MODE_PTR];
@@ -1143,6 +1144,7 @@ void hookTriggerSelectionOverlay(int delta)
         if (!g_overlayOn)
         {
             g_overlayOn = true;
+            LOG(L"overlay ON (CUPS)");
             HookKeyboard();
             // reset overlay page
             ResetOverlayPage();
@@ -1157,6 +1159,7 @@ void hookTriggerSelectionOverlay(int delta)
     {
         if (g_overlayOn)
         {
+            LOG(L"overlay OFF (CUPS)");
             g_overlayOn = false;
             UnhookKeyboard();
             // call the callbacks
@@ -1168,12 +1171,14 @@ void hookTriggerSelectionOverlay(int delta)
     }
 
     // Exhibition mode
-    TRACE2N(L"menuMode = %x (delta=%d)",menuMode,delta);
-    if (menuMode == 0x21 || menuMode == 0x0d)
+    LOG2N(L"menuMode = %x (delta=%d)",menuMode,delta);
+    if ((menuMode == 0x21 && menuMode2 == 0x2a) 
+            || (menuMode == 0x0d && menuMode2 == 0x0a))
     {
         if (!g_overlayOn)
         {
             g_overlayOn = true;
+            LOG(L"overlay ON");
             HookKeyboard();
             // reset overlay page
             ResetOverlayPage();
@@ -1182,13 +1187,18 @@ void hookTriggerSelectionOverlay(int delta)
                     it != _overlay_callbacks.end();
                     it++)
                 (*it)(g_overlayOn, true, delta, menuMode);
+            //if (menuMode == 0x21) __asm { int 3 }
         }
     }
-    else if (menuMode == 0x28 || menuMode == 0x1e 
-            || menuMode == 0x0a || menuMode == 0x11)
+    else if ((menuMode == 0x22 && delta == 1) 
+            || (menuMode == 0x20 && delta == -1 && menuMode2 == 0x28)
+            || (menuMode == 0x0a && menuMode2 == 0x04) 
+            || (menuMode == 0xe && delta == 1)
+            || (menuMode == 0xc && delta == -1))
     {
         if (g_overlayOn)
         {
+            LOG(L"overlay OFF");
             g_overlayOn = false;
             UnhookKeyboard();
             // call the callbacks
@@ -1196,6 +1206,7 @@ void hookTriggerSelectionOverlay(int delta)
                     it != _overlay_callbacks.end();
                     it++)
                 (*it)(g_overlayOn, true, delta, menuMode);
+            //if (menuMode == 0x20) __asm { int 3 }
         }
     }
 }

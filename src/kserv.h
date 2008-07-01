@@ -93,7 +93,7 @@ typedef struct _TEAM_MATCH_DATA_INFO
     WORD teamId;
     BYTE unknown2[0x2d30];
     BYTE kitSelection;
-    BYTE unknown3[7];
+    BYTE unknown3[11];
     TEAM_KIT_INFO tki;
 } TEAM_MATCH_DATA_INFO;
 
