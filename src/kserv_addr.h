@@ -6,7 +6,7 @@ BYTE allowedGames[] = {
 	gvPES2008v120,
 };
 
-#define CODELEN 24
+#define CODELEN 25
 enum {
 	C_CONTROLLERFIX1, C_CONTROLLERFIX2, C_QUALITYCHECK1, C_QUALITYCHECK2,
     C_SETFILEPOINTEREX, C_UNPACK_BIN, C_AFTER_UNPACK_BIN, 
@@ -17,13 +17,14 @@ enum {
     C_BEFORE_LOAD_BIN,
     C_AT_LOAD_KEEPER_HOME, C_AT_LOAD_KEEPER_AWAY,
     C_AT_READ_KIT_CHOICE,
+    C_PTR_CHECK,
     //C_AT_WRITE_TEAM_ID,
 
     //C_GET_BINSIZE, C_READFILE_CS, C_READFILE_LOC,
     //C_PROCESS_BIN, C_ALLOC_MEMORY, C_UNPACK,
 };
 
-#define NOCODEADDR {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+#define NOCODEADDR {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 DWORD codeArray[][CODELEN] = { 
     // PES2008 DEMO
     {
@@ -51,6 +52,7 @@ DWORD codeArray[][CODELEN] = {
         0xa883c6,
         0xac750f, 0xac753c,
         0,
+        0,
         //0,
     },
     // [Settings] PES2008 PC
@@ -67,6 +69,7 @@ DWORD codeArray[][CODELEN] = {
         0xa87fbe,
         0xabd18f, 0xabd1bc,
         0, 
+        0,
         //0,
     },
     NOCODEADDR
@@ -81,6 +84,7 @@ DWORD codeArray[][CODELEN] = {
         0xa8a664,
         0xac31bf, 0xac31ec, 
         0x9b504a,
+        0x46c2db,
         //0xba48d3,
 
         //0xa5ffeb, 0x496bd9, 0xcdc094,

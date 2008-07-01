@@ -234,6 +234,8 @@ bool kservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 void kservAtReadKitSelectionCallPoint();
 KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi);
 void kservMenuEvent(int delta, DWORD menuMode, DWORD ind, DWORD inGameInd, DWORD cupModeInd);
+void kservPtrCheckCallPoint();
+KEXPORT void kservPtrCheck(DWORD** pptr);
 
 // FUNCTION POINTERS
 
@@ -698,6 +700,8 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     // hook team selection point
     //HookCallPoint(code[C_AT_WRITE_TEAM_ID], 
     //        kservAtWriteTeamIdCallPoint, 6, 0);
+
+    HookCallPoint(code[C_PTR_CHECK], kservPtrCheckCallPoint, 6, 0);
 
     // hook bin loading interceptor
     switch (getPesInfo()->gameVersion)
@@ -2577,4 +2581,41 @@ void kservMenuEvent(int delta, DWORD menuMode, DWORD ind,
     }
 }
 
+void kservPtrCheckCallPoint()
+{
+    __asm {
+        pushfd 
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        add edi,8
+        push edi // param
+        call kservPtrCheck
+        add esp,4     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        mov ecx, dword ptr ds:[edi+8] // execute replaced code
+        test ecx,ecx                  // ...
+        retn
+    }
+}
+
+KEXPORT void kservPtrCheck(DWORD** pptr)
+{
+    if (pptr && *pptr!=0)
+    {
+        *pptr = 0;
+        LOG(L"pointer fixed.");
+    }
+}
 
