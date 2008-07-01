@@ -82,6 +82,9 @@ int GetBinType(DWORD binId);
 void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
 void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
 void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND hWnd, LPVOID unused);
+void stadReadReplayData(LPCVOID data, DWORD size);
+void stadWriteReplayData(LPCVOID data, DWORD size);
+void stadInitMaps();
 
 
 // GLOBALS
@@ -166,10 +169,10 @@ public:
         wstring infoFile(getPesInfo()->gdbDir);
         infoFile += L"GDB\\stadiums\\" + _dir + L"\\info.txt";
 
-        LOG1S(L"readConfig(%s)...", infoFile.c_str());
+        //LOG1S(L"readConfig(%s)...", infoFile.c_str());
         if (readConfig(infoFile.c_str()))
         {
-            LOG(L"readConfig() SUCCEEDED.");
+            //LOG(L"readConfig() SUCCEEDED.");
             _getConfig("", "name", DT_STRING, (DWORD)this, stadInfo);
             _getConfig("", "built", DT_DWORD, (DWORD)this, stadInfo);
             _getConfig("", "capacity", DT_DWORD, (DWORD)this, stadInfo);
@@ -185,9 +188,9 @@ typedef map<wstring,stadium_t>::iterator stadium_iter_t;
 map<WORD,stadium_iter_t> _home_stadiums;
 
 // iterators
-stadium_iter_t _stadium_iter;
+stadium_iter_t _stadium_iter = _stadiums.end();
 
-static void InitMaps()
+void stadInitMaps()
 {
 	WIN32_FIND_DATA fData;
     wstring pattern(getPesInfo()->gdbDir);
@@ -287,6 +290,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     getConfig("stadium", "debug", DT_DWORD, 1, stadConfig);
 
 	unhookFunction(hk_D3D_CreateDevice, initModule);
+    stadInitMaps();
 
     // fill in BINs map
     ZeroMemory(_stadium_bins, sizeof(_stadium_bins));
@@ -294,13 +298,13 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
         if (GetBinType(i)!=-1)
             _stadium_bins[i] = true;
 
+
     // register callbacks
     afsioAddCallback(stadGetFileInfo);
     addKeyboardCallback(stadKeyboardEvent);
+    addReadReplayDataCallback(stadReadReplayData);
+    addWriteReplayDataCallback(stadWriteReplayData);
 
-	TRACE(L"Hooking done.");
-
-    InitMaps();
     return D3D_OK;
 }
 
@@ -387,7 +391,7 @@ bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
     if (afsId != 4 || !IsStadiumFile(binId)) // fast check
         return false;
 
-    TRACE1N(L"binId = %d", binId);
+    LOG1N(L"binId = %d", binId);
 
     if (_stadium_iter != _stadiums.end())
     {
@@ -515,3 +519,29 @@ void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
     }	
 }
 
+/**
+ * read data callback
+ */
+void stadReadReplayData(LPCVOID data, DWORD size)
+{
+    wstring stadKey((wchar_t*)((BYTE*)data+0x377cf0));
+    if (!stadKey.empty())
+    {
+        stadium_iter_t it = _stadiums.find(stadKey);
+        if (it != _stadiums.end())
+            _stadium_iter = it;
+    }
+}
+
+/**
+ * write data callback
+ */
+void stadWriteReplayData(LPCVOID data, DWORD size)
+{
+    if (_stadium_iter != _stadiums.end())
+    {
+        wcsncpy((wchar_t*)((BYTE*)data+0x377cf0), 
+                _stadium_iter->first.c_str(),
+                0x30);
+    }
+}
