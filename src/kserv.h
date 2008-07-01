@@ -91,7 +91,9 @@ typedef struct _TEAM_MATCH_DATA_INFO
     BYTE unknown1[4];
     WORD teamIdSpecial;
     WORD teamId;
-    BYTE unknown2[0x2d3c];
+    BYTE unknown2[0x2d30];
+    BYTE kitSelection;
+    BYTE unknown3[7];
     TEAM_KIT_INFO tki;
 } TEAM_MATCH_DATA_INFO;
 

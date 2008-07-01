@@ -56,6 +56,8 @@ bool _activeOverlayPages[MAX_OVERLAYS];
 int _numOverlayPages = 0;
 
 DWORD g_menuMode = 0;
+list<MENU_EVENT_CALLBACK> _menu_callbacks;
+
 void hookAddMenuModeCallPoint();
 void hookSubMenuModeCallPoint();
 void hookTriggerSelectionOverlay(int delta);
@@ -1114,6 +1116,11 @@ KEXPORT void addKeyboardCallback(KEY_EVENT_CALLBACK callback)
     _key_callbacks.push_back(callback);
 }
 
+KEXPORT void addMenuCallback(MENU_EVENT_CALLBACK callback)
+{
+    _menu_callbacks.push_back(callback);
+}
+
 /**
  * @param delta: either 1 (if menuMode increased), or -1 (if menuMode decreased)
  */
@@ -1123,6 +1130,14 @@ void hookTriggerSelectionOverlay(int delta)
     DWORD ind = *(DWORD*)data[MAIN_SCREEN_INDICATOR];
     DWORD inGameInd = *(DWORD*)data[INGAME_INDICATOR];
     DWORD cupModeInd = *(DWORD*)data[CUP_MODE_PTR];
+
+    // call the menu-mode change callbacks
+    for (list<MENU_EVENT_CALLBACK>::iterator it = _menu_callbacks.begin();
+            it != _menu_callbacks.end();
+            it++)
+        (*it)(delta, menuMode, ind, inGameInd, cupModeInd);
+
+    // overlay triggering
     if (ind == 0 && inGameInd == 0 && menuMode == 2 && cupModeInd != 0)
     {
         if (!g_overlayOn)

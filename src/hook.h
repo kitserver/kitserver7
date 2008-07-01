@@ -123,4 +123,7 @@ KEXPORT void addWriteEditDataCallback(WRITE_DATA_CALLBACK callback);
 KEXPORT void addWriteReplayDataCallback(WRITE_DATA_CALLBACK callback);
 KEXPORT void addReadEditDataCallback(READ_DATA_CALLBACK callback);
 KEXPORT void addReadReplayDataCallback(READ_DATA_CALLBACK callback);
+
+typedef void (*MENU_EVENT_CALLBACK)(int delta, DWORD menuMode, DWORD ind, DWORD inGameInd, DWORD cupModeInd);
+KEXPORT void addMenuCallback(MENU_EVENT_CALLBACK callback);
 #endif

@@ -180,8 +180,6 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2);
 void kservUnpackBinCallPoint();
 KEXPORT DWORD kservUnpackBin(UNPACK_INFO* pUnpackInfo, DWORD p2);
 DWORD kservGetBinSize(DWORD afsId, DWORD binId);
-void HookSetFilePointerEx();
-void HookReadFile();
 void HookAt(DWORD addr, void* func);
 PACKED_BIN* LoadBinFromAFS(DWORD id);
 KEXPORT bool LoadBinFromAFS2(DWORD afsId, DWORD binId, PACKED_BIN* bin);
@@ -233,6 +231,9 @@ void kservKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam);
 void kservReadReplayData(LPCVOID data, DWORD size);
 void kservWriteReplayData(LPCVOID data, DWORD size);
 bool kservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
+void kservAtReadKitSelectionCallPoint();
+KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi);
+void kservMenuEvent(int delta, DWORD menuMode, DWORD ind, DWORD inGameInd, DWORD cupModeInd);
 
 // FUNCTION POINTERS
 
@@ -683,6 +684,7 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     addKeyboardCallback(kservKeyboardEvent);
     addReadReplayDataCallback(kservReadReplayData);
     addWriteReplayDataCallback(kservWriteReplayData);
+    addMenuCallback(kservMenuEvent);
 
     // hook mode enter/exit points
     g_cupModeInd = data[CUP_MODE_PTR];
@@ -690,11 +692,8 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_ON_LEAVE_CUPS], kservOnLeaveCupsCallPoint, 6, 1);
     HookCallPoint(code[C_ON_LEAVE_CUPS_2], kservOnLeaveCupsCallPoint2, 6, 0);
 
-    // hook keeper-loading routines for Exhibition mode
-    HookCallPoint(code[C_AT_LOAD_KEEPER_HOME], 
-            kservAtLoadHomeKeeperCallPoint, 6, 5);
-    HookCallPoint(code[C_AT_LOAD_KEEPER_AWAY], 
-            kservAtLoadAwayKeeperCallPoint, 6, 5);
+    HookCallPoint(code[C_AT_READ_KIT_CHOICE],
+            kservAtReadKitSelectionCallPoint, 6, 1);
 
     // hook team selection point
     //HookCallPoint(code[C_AT_WRITE_TEAM_ID], 
@@ -857,7 +856,7 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
 
     if (IsKitBin(s1->afsId,s1->binId))
     {
-        TRACE2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
+        LOG2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
         EnterCriticalSection(&g_csRead);
         DWORD threadId = GetCurrentThreadId();
         hash_map<DWORD,READ_BIN_STRUCT>::iterator it = g_read_bins.find(threadId);
@@ -892,10 +891,10 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
             WORD teamId = ksit->second;
 
             // set iterators
-            map<wstring,Kit>::iterator iterPL;
-            map<wstring,Kit>::iterator iterGK;
-            map<wstring,Kit>::iterator iterPL_end;
-            map<wstring,Kit>::iterator iterGK_end;
+            map<wstring,Kit>::iterator iterPL = g_iterHomePL_end;
+            map<wstring,Kit>::iterator iterGK = g_iterHomeGK_end;
+            map<wstring,Kit>::iterator iterPL_end = g_iterHomePL_end;
+            map<wstring,Kit>::iterator iterGK_end = g_iterHomeGK_end;
             NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
             if (pNM && pNM->home && pNM->away)
             {
@@ -903,7 +902,7 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
                 iterGK = (pNM->home->teamId == teamId) ? g_iterHomeGK : g_iterAwayGK;
                 iterPL_end = (pNM->home->teamId == teamId) ? g_iterHomePL_end : g_iterAwayPL_end;
                 iterGK_end = (pNM->home->teamId == teamId) ? g_iterHomeGK_end : g_iterAwayGK_end;
-            } 
+            }
 
             int shiftGK[] = {0,0};
             if (iterGK != iterGK_end)
@@ -1754,6 +1753,8 @@ KEXPORT void ApplyKitAttributes(const map<wstring,Kit>::iterator kiter, KIT_INFO
 {
     // load kit attributes from config.txt, if needed
     gdb->loadConfig(kiter->second);
+
+    //LOG1S(L"applying attributes for {%s}", kiter->first.c_str());
     
     // apply attributes
     if (kiter->second.attDefined & MODEL)
@@ -1940,7 +1941,7 @@ void ResetIterators()
     g_iterHomeGK = g_iterHomeGK_end;
     g_iterAwayPL = g_iterAwayPL_end;
     g_iterAwayGK = g_iterAwayGK_end;
-    TRACE(L"Iterators reset");
+    LOG(L"Iterators reset");
 }
 
 void GetCurrentTeams(WORD& home, WORD& away)
@@ -2251,8 +2252,8 @@ void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD m
             g_presentHooked = true;
             g_beginShowKitSelection = true;
 
-            if (delta==1) 
-                ResetIterators();
+            //if (delta==1) 
+            //    ResetIterators();
         }
         else
         {
@@ -2261,8 +2262,8 @@ void kservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD m
             TRACE(L"Hiding kit selection");
             g_presentHooked = false;
 
-            if (delta==1 && menuMode == 0x0a)
-                ResetIterators();
+            //if (delta==1 && menuMode == 0x0a)
+            //    ResetIterators();
         }
     }
     else
@@ -2288,14 +2289,15 @@ void SetAttributes(TEAM_KIT_INFO* src, WORD teamId)
     // save orginals
     TEAM_KIT_INFO tki;
     memcpy(&tki, src, sizeof(TEAM_KIT_INFO));
+    EnterCriticalSection(&_cs_savedTki);
     hash_map<DWORD,TEAM_KIT_INFO>::iterator it = g_savedTki.find((DWORD)src);
     if (it == g_savedTki.end()) 
     {
         // not found: save
-        EnterCriticalSection(&_cs_savedTki);
         g_savedTki.insert(pair<DWORD,TEAM_KIT_INFO>((DWORD)src,tki));
-        LeaveCriticalSection(&_cs_savedTki);
+        TRACE1N(L"Saved attributes for %08x", (DWORD)src);
     }
+    LeaveCriticalSection(&_cs_savedTki);
     kservAfterReadTeamKitInfo(src, src);
 }
 
@@ -2332,101 +2334,15 @@ void kservEndReadKitInfo()
 void kservOnEnterCups()
 {
     // need to make sure iterators are reset
-    TRACE(L"Entering cup/league/ml mode");
+    LOG(L"Entering cup/league/ml mode");
     ResetIterators();
 }
 
 void kservOnLeaveCups()
 {
     // need to make sure iterators are reset
-    TRACE(L"Exiting cup/league/ml mode");
+    LOG(L"Exiting cup/league/ml mode");
     ResetIterators();
-}
-
-void kservAtLoadHomeKeeperCallPoint()
-{
-    __asm 
-    {
-        mov cl, byte ptr ds:[eax+0x2d38]
-        movzx eax, word ptr ds:[eax+4]
-        pushfd
-        push ebp
-        push ebx
-        push ecx
-        push edx
-        push esi
-        push edi
-        push eax  // parameter: org value
-        call kservAtLoadHomeKeeper
-        add esp,4     // pop parameters
-        pop edi
-        pop esi
-        pop edx
-        pop ecx
-        pop ebx
-        pop ebp
-        popfd
-        retn
-    }
-}
-
-void kservAtLoadAwayKeeperCallPoint()
-{
-    __asm 
-    {
-        mov cl, byte ptr ds:[eax+0x2d38]
-        movzx eax, word ptr ds:[eax+4]
-        pushfd
-        push ebp
-        push ebx
-        push ecx
-        push edx
-        push esi
-        push edi
-        push eax  // parameter: org value
-        call kservAtLoadAwayKeeper
-        add esp,4     // pop parameters
-        pop edi
-        pop esi
-        pop edx
-        pop ecx
-        pop ebx
-        pop ebp
-        popfd
-        retn
-    }
-}
-
-void GetTeamSpecialIds(WORD& home, WORD& away)
-{
-    home = away = 0xffff;
-    NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-    if (pNM && pNM->home)
-        home = pNM->home->teamIdSpecial;
-    if (pNM && pNM->away)
-        away = pNM->away->teamIdSpecial;
-}
-
-KEXPORT DWORD kservAtLoadHomeKeeper(DWORD teamId)
-{
-    WORD home, away;
-    DWORD SUB_HOME[3] = {4,6,8};
-    GetTeamSpecialIds(home,away);
-    for (int i=0; i<3; i++)
-        if (home!=SUB_HOME[i] && away!=SUB_HOME[i])
-            return SUB_HOME[i];
-    return teamId;
-}
-
-KEXPORT DWORD kservAtLoadAwayKeeper(DWORD teamId)
-{
-    WORD home, away;
-    DWORD SUB_AWAY[3] = {0x0e,0x0f,0x1a};
-    GetTeamSpecialIds(home,away);
-    for (int i=0; i<3; i++)
-        if (home!=SUB_AWAY[i] && away!=SUB_AWAY[i])
-            return SUB_AWAY[i];
-    return teamId;
 }
 
 /*
@@ -2467,7 +2383,6 @@ KEXPORT void kservAtWriteTeamId(TEAM_MATCH_DATA_INFO* addr)
     }
 }
 */
-
 
 /**
  * data read callback
@@ -2589,4 +2504,94 @@ void kservWriteReplayData(LPCVOID data, DWORD size)
         Utf8::free(key);
     }
 }
+
+void kservAtReadKitSelectionCallPoint()
+{
+    __asm {
+        pushfd 
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push edi // param: TEAM_MATCH_DATA_INFO
+        call kservAtReadKitSelection
+        add esp,4     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        mov dl,byte ptr ds:[edi+0x2d38] // execute replaced code
+        retn
+    }
+}
+
+KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi)
+{
+    NEXT_MATCH_DATA_INFO* pNM = 
+        *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    if (pNM && pNM->home == tmdi)
+    {
+        LOG1N(L"Reading selection for home team: %02x", tmdi->kitSelection);
+        if (g_iterHomePL != g_iterHomePL_end)
+        {
+            // force reload
+            BYTE val = tmdi->kitSelection;
+            tmdi->kitSelection = (~val & 0x07) | (val & 0xf8);
+        }
+    }
+    else if (pNM && pNM->away == tmdi)
+    {
+        LOG1N(L"Reading selection for away team: %02x", tmdi->kitSelection);
+        if (g_iterAwayPL != g_iterAwayPL_end)
+        {
+            // force reload
+            BYTE val = tmdi->kitSelection;
+            tmdi->kitSelection = (~val & 0x07) | (val & 0xf8);
+        }
+    }
+}
+
+void kservMenuEvent(int delta, DWORD menuMode, DWORD ind, 
+        DWORD inGameInd, DWORD cupModeInd)
+{
+    LOG2N(L"kservMenuEvent: menuMode=%02x, delta=%d", menuMode, delta);
+
+    if (menuMode == 0x1e && delta == -1 && inGameInd==0)
+    {
+        DWORD menuMode2 = *(DWORD*)(data[MENU_MODE_IDX]+8);
+        if (menuMode2 == 0x24)
+        {
+            LOG3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
+                    menuMode, menuMode2, delta);
+            ResetIterators();
+        }
+        //__asm { int 3 }
+    }
+    else if (menuMode == 0x0a && delta == 1 && inGameInd==0)
+    {
+        LOG3N(L"menuMode=%02x, delta=%d, inGameInd=%d",
+                menuMode, delta, inGameInd);
+        ResetIterators();
+        //__asm { int 3 }
+    }
+    else if (menuMode == 0x0a && delta == -1 && inGameInd==0)
+    {
+        DWORD menuMode2 = *(DWORD*)(data[MENU_MODE_IDX]+8);
+        if (menuMode2 == 0x04)
+        {
+            LOG3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
+                    menuMode, menuMode2, delta);
+            ResetIterators();
+        }
+        //__asm { int 3 }
+    }
+}
+
 
