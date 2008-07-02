@@ -1144,7 +1144,7 @@ void hookTriggerSelectionOverlay(int delta)
         if (!g_overlayOn)
         {
             g_overlayOn = true;
-            LOG(L"overlay ON (CUPS)");
+            TRACE(L"overlay ON (CUPS)");
             HookKeyboard();
             // reset overlay page
             ResetOverlayPage();
@@ -1159,7 +1159,7 @@ void hookTriggerSelectionOverlay(int delta)
     {
         if (g_overlayOn)
         {
-            LOG(L"overlay OFF (CUPS)");
+            TRACE(L"overlay OFF (CUPS)");
             g_overlayOn = false;
             UnhookKeyboard();
             // call the callbacks
@@ -1171,14 +1171,14 @@ void hookTriggerSelectionOverlay(int delta)
     }
 
     // Exhibition mode
-    LOG2N(L"menuMode = %x (delta=%d)",menuMode,delta);
+    TRACE2N(L"menuMode = %x (delta=%d)",menuMode,delta);
     if ((menuMode == 0x21 && menuMode2 == 0x2a) 
             || (menuMode == 0x0d && menuMode2 == 0x0a))
     {
         if (!g_overlayOn)
         {
             g_overlayOn = true;
-            LOG(L"overlay ON");
+            TRACE(L"overlay ON");
             HookKeyboard();
             // reset overlay page
             ResetOverlayPage();
@@ -1198,7 +1198,7 @@ void hookTriggerSelectionOverlay(int delta)
     {
         if (g_overlayOn)
         {
-            LOG(L"overlay OFF");
+            TRACE(L"overlay OFF");
             g_overlayOn = false;
             UnhookKeyboard();
             // call the callbacks
@@ -1374,7 +1374,7 @@ BOOL WINAPI hookWriteFile(
   LPOVERLAPPED lpOverlapped
 )
 {
-    LOG1N(L"WriteFile: len=%d", nNumberOfBytesToWrite);
+    TRACE1N(L"WriteFile: len=%d", nNumberOfBytesToWrite);
     if (nNumberOfBytesToWrite == 0x12aaec)  // edit data
     {
         LOG(L"Saving Edit Data...");
@@ -1433,7 +1433,7 @@ BOOL WINAPI hookReadFile(
   LPOVERLAPPED lpOverlapped
 )
 {
-    LOG1N(L"ReadFile: len=%d", nNumberOfBytesToRead);
+    TRACE1N(L"ReadFile: len=%d", nNumberOfBytesToRead);
 
     BOOL result = _readFile(
             hFile,

@@ -16,7 +16,7 @@
 #include "configs.h"
 #include "configs.hpp"
 #include "utf8.h"
-#include "crc32.h"
+#include "replay.h"
 
 #define lang(s) getTransl("fserv",s)
 

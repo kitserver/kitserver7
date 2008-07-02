@@ -14,6 +14,7 @@
 #include "pngdib.h"
 #include "utf8.h"
 #include "configs.h"
+#include "replay.h"
 
 #define COLOR_BLACK D3DCOLOR_RGBA(0,0,0,128)
 #define COLOR_AUTO D3DCOLOR_RGBA(135,135,135,255)
@@ -524,6 +525,15 @@ void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
  */
 void stadReadReplayData(LPCVOID data, DWORD size)
 {
+    REPLAY_DATA* replay = (REPLAY_DATA*)data;
+    int bytes = 0;
+    for (int i=0; i<22; i++)
+    {
+        bytes += 0x2e - strlen(replay->payload.players[i].name) - 1;
+        bytes += 0x13 - strlen(replay->payload.players[i].nameOnShirt) - 1;
+    }
+    LOG1N(L"free wchars: %d", bytes/2);
+
     wstring stadKey((wchar_t*)((BYTE*)data+0x377cf0));
     if (!stadKey.empty())
     {
@@ -538,6 +548,15 @@ void stadReadReplayData(LPCVOID data, DWORD size)
  */
 void stadWriteReplayData(LPCVOID data, DWORD size)
 {
+    REPLAY_DATA* replay = (REPLAY_DATA*)data;
+    int bytes = 0;
+    for (int i=0; i<22; i++)
+    {
+        bytes += 0x2e - strlen(replay->payload.players[i].name) - 1;
+        bytes += 0x13 - strlen(replay->payload.players[i].nameOnShirt) - 1;
+    }
+    LOG1N(L"free wchars: %d", bytes/2);
+
     if (_stadium_iter != _stadiums.end())
     {
         wcsncpy((wchar_t*)((BYTE*)data+0x377cf0), 
@@ -545,3 +564,4 @@ void stadWriteReplayData(LPCVOID data, DWORD size)
                 0x30);
     }
 }
+
