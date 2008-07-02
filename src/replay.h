@@ -14,7 +14,8 @@ typedef struct _REPLAY_PLAYER_INFO
     WORD padding;
     BYTE unknown5[3];
     char name[0x2e];
-    char nameOnShirt[0x13];
+    char nameOnShirt[0x10];
+    BYTE unknown6[3];
 } REPLAY_PLAYER_INFO;
 
 typedef struct _REPLAY_DATA_PAYLOAD

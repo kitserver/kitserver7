@@ -538,22 +538,22 @@ void stadReadReplayData(LPCVOID data, DWORD size)
     //wstring stadKey((wchar_t*)((BYTE*)data+0x377cf0));
     wstring stadKey;
     char* start;
-    int j = 0, k = 0, capacity = 0;
+    int capacity = 0;
     for (int i=0; i<22; i++)
     {
-        capacity = (0x2e-strlen(replay->payload.players[i].name)-4)/2;
+        int taken1 = strlen(replay->payload.players[i].name);
+        capacity = (0x2e-taken1-4)/2;
         if (capacity > 0)
         {
-            start = replay->payload.players[i].name +
-                strlen(replay->payload.players[i].name) + 2;
+            start = replay->payload.players[i].name + taken1 + 2;
             wstring frag((wchar_t*)start);
             stadKey += frag;
         }
-        capacity = (0x13-strlen(replay->payload.players[i].nameOnShirt)-4)/2;
+        int taken2 = strlen(replay->payload.players[i].nameOnShirt);
+        capacity = (0x10-taken2-4)/2;
         if (capacity > 0)
         {
-            start = replay->payload.players[i].nameOnShirt +
-                strlen(replay->payload.players[i].nameOnShirt) + 2;
+            start = replay->payload.players[i].nameOnShirt + taken2 + 2;
             wstring frag((wchar_t*)start);
             stadKey += frag;
         }
@@ -574,16 +574,22 @@ void stadReadReplayData(LPCVOID data, DWORD size)
 void stadWriteReplayData(LPCVOID data, DWORD size)
 {
     REPLAY_DATA* replay = (REPLAY_DATA*)data;
-    int wchars = 0;
-    for (int i=0; i<22; i++)
-    {
-        wchars += (0x2e-strlen(replay->payload.players[i].name)-4)/2;
-        wchars += (0x13-strlen(replay->payload.players[i].nameOnShirt)-4)/2;
-    }
-    LOG1N(L"free wchars: %d", wchars);
-
     if (_stadium_iter != _stadiums.end())
     {
+        int wchars = 0, capacity = 0;
+        for (int i=0; i<22; i++)
+        {
+            int taken1 = strlen(replay->payload.players[i].name);
+            capacity = (0x2e-taken1-4)/2;
+            if (capacity > 0)
+                wchars += capacity;
+
+            int taken2 = strlen(replay->payload.players[i].nameOnShirt);
+            capacity = (0x10-taken1-4)/2;
+            if (capacity > 0)
+                wchars += capacity;
+        }
+
         if (_stadium_iter->first.size() <= wchars)
         {
             //wcsncpy((wchar_t*)((BYTE*)data+0x377cf0), 
@@ -591,15 +597,15 @@ void stadWriteReplayData(LPCVOID data, DWORD size)
             //        0x30);
 
             char* start;
-            int j = 0, k = 0, capacity = 0;
+            int j = 0, k = 0;
             for (int i=0; i<22; i++)
             {
                 if (j >= _stadium_iter->first.size())
                     break;
 
-                start = replay->payload.players[i].name +
-                    strlen(replay->payload.players[i].name) + 2;
-                capacity = (0x2e-strlen(replay->payload.players[i].name)-4)/2;
+                int taken1 = strlen(replay->payload.players[i].name);
+                start = replay->payload.players[i].name + taken1 + 2;
+                capacity = (0x2e-taken1-4)/2;
                 if (capacity > 0)
                 {
                     wstring frag = _stadium_iter->first.substr(j,capacity);
@@ -610,9 +616,9 @@ void stadWriteReplayData(LPCVOID data, DWORD size)
                 if (j >= _stadium_iter->first.size())
                     break;
 
-                start = replay->payload.players[i].nameOnShirt +
-                    strlen(replay->payload.players[i].nameOnShirt) + 2;
-                capacity = (0x13-strlen(replay->payload.players[i].nameOnShirt)-4)/2;
+                int taken2 = strlen(replay->payload.players[i].nameOnShirt);
+                start = replay->payload.players[i].nameOnShirt + taken2 + 2;
+                capacity = (0x10-taken2-4)/2;
                 if (capacity > 0)
                 {
                     wstring frag = _stadium_iter->first.substr(j,capacity);
@@ -623,7 +629,7 @@ void stadWriteReplayData(LPCVOID data, DWORD size)
             LOG1S(L"written stadKey = {%s}", _stadium_iter->first.c_str());
         }
         else
-            LOG(L"WARNING: Not enough free space in replay data. STADIUM info will not be saved.");
+            LOG2N(L"WARNING: Not enough capacity to write STADIUM info in the replay data. Stadium key size: %d chars (Capacity: %d)", _stadium_iter->first.size(), wchars);
     }
 }
 
