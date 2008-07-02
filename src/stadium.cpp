@@ -526,15 +526,32 @@ void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 void stadReadReplayData(LPCVOID data, DWORD size)
 {
     REPLAY_DATA* replay = (REPLAY_DATA*)data;
-    int bytes = 0;
+
+    //wstring stadKey((wchar_t*)((BYTE*)data+0x377cf0));
+    wstring stadKey;
+    char* start;
+    int j = 0, k = 0, capacity = 0;
     for (int i=0; i<22; i++)
     {
-        bytes += 0x2e - strlen(replay->payload.players[i].name) - 1;
-        bytes += 0x13 - strlen(replay->payload.players[i].nameOnShirt) - 1;
+        capacity = (0x2e-strlen(replay->payload.players[i].name)-4)/2;
+        if (capacity > 0)
+        {
+            start = replay->payload.players[i].name +
+                strlen(replay->payload.players[i].name) + 2;
+            wstring frag((wchar_t*)start);
+            stadKey += frag;
+        }
+        capacity = (0x13-strlen(replay->payload.players[i].nameOnShirt)-4)/2;
+        if (capacity > 0)
+        {
+            start = replay->payload.players[i].nameOnShirt +
+                strlen(replay->payload.players[i].nameOnShirt) + 2;
+            wstring frag((wchar_t*)start);
+            stadKey += frag;
+        }
     }
-    LOG1N(L"free wchars: %d", bytes/2);
+    LOG1S(L"read stadKey = {%s}", stadKey.c_str());
 
-    wstring stadKey((wchar_t*)((BYTE*)data+0x377cf0));
     if (!stadKey.empty())
     {
         stadium_iter_t it = _stadiums.find(stadKey);
@@ -549,19 +566,56 @@ void stadReadReplayData(LPCVOID data, DWORD size)
 void stadWriteReplayData(LPCVOID data, DWORD size)
 {
     REPLAY_DATA* replay = (REPLAY_DATA*)data;
-    int bytes = 0;
+    int wchars = 0;
     for (int i=0; i<22; i++)
     {
-        bytes += 0x2e - strlen(replay->payload.players[i].name) - 1;
-        bytes += 0x13 - strlen(replay->payload.players[i].nameOnShirt) - 1;
+        wchars += (0x2e-strlen(replay->payload.players[i].name)-4)/2;
+        wchars += (0x13-strlen(replay->payload.players[i].nameOnShirt)-4)/2;
     }
-    LOG1N(L"free wchars: %d", bytes/2);
+    LOG1N(L"free wchars: %d", wchars);
 
     if (_stadium_iter != _stadiums.end())
     {
-        wcsncpy((wchar_t*)((BYTE*)data+0x377cf0), 
-                _stadium_iter->first.c_str(),
-                0x30);
+        if (_stadium_iter->first.size() <= wchars)
+        {
+            //wcsncpy((wchar_t*)((BYTE*)data+0x377cf0), 
+            //        _stadium_iter->first.c_str(),
+            //        0x30);
+
+            char* start;
+            int j = 0, k = 0, capacity = 0;
+            for (int i=0; i<22; i++)
+            {
+                if (j >= _stadium_iter->first.size())
+                    break;
+
+                start = replay->payload.players[i].name +
+                    strlen(replay->payload.players[i].name) + 2;
+                capacity = (0x2e-strlen(replay->payload.players[i].name)-4)/2;
+                if (capacity > 0)
+                {
+                    wstring frag = _stadium_iter->first.substr(j,capacity);
+                    wcsncpy((wchar_t*)start, frag.c_str(), capacity);
+                    j += capacity;
+                }
+
+                if (j >= _stadium_iter->first.size())
+                    break;
+
+                start = replay->payload.players[i].nameOnShirt +
+                    strlen(replay->payload.players[i].nameOnShirt) + 2;
+                capacity = (0x13-strlen(replay->payload.players[i].nameOnShirt)-4)/2;
+                if (capacity > 0)
+                {
+                    wstring frag = _stadium_iter->first.substr(j,capacity);
+                    wcsncpy((wchar_t*)start, frag.c_str(), capacity);
+                    j += capacity;
+                }               
+            }
+            LOG1S(L"written stadKey = {%s}", _stadium_iter->first.c_str());
+        }
+        else
+            LOG(L"WARNING: Not enough free space in replay data. STADIUM info will not be saved.");
     }
 }
 
