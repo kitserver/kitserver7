@@ -60,6 +60,8 @@ wstring _stad_names[] = {
 HINSTANCE hInst = NULL;
 KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
+#define NUM_STADIUMS 16
+
 #define STAD_FIRST  45
 #define STAD_LAST   712
 #define STAD_SPAN   42
@@ -86,9 +88,12 @@ void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest, HWND
 void stadReadReplayData(LPCVOID data, DWORD size);
 void stadWriteReplayData(LPCVOID data, DWORD size);
 void stadInitMaps();
+void stadGetStadiumNameCallPoint();
+KEXPORT char* stadGetStadiumName(char* orgName);
 
 
 // GLOBALS
+char _stadium_name[1024];
 
 bool _stadium_bins[726];
 
@@ -305,6 +310,9 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     addKeyboardCallback(stadKeyboardEvent);
     addReadReplayDataCallback(stadReadReplayData);
     addWriteReplayDataCallback(stadWriteReplayData);
+
+    HookCallPoint(code[C_GET_STADIUM_NAME], 
+            stadGetStadiumNameCallPoint, 6, 0, true);
 
     return D3D_OK;
 }
@@ -617,5 +625,46 @@ void stadWriteReplayData(LPCVOID data, DWORD size)
         else
             LOG(L"WARNING: Not enough free space in replay data. STADIUM info will not be saved.");
     }
+}
+
+void stadGetStadiumNameCallPoint()
+{
+    __asm {
+        pushfd 
+        push ebp
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push eax // parameter: stadium name ptr
+        call stadGetStadiumName
+        add esp,4     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop ebp
+        popfd
+        retn
+    }
+}
+
+KEXPORT char* stadGetStadiumName(char* orgName)
+{
+    if (_stadium_iter != _stadiums.end())
+    {
+        // convert stadium dir(or name) to ascii
+        if (_stadium_iter->second._name.empty())
+            Utf8::fUnicodeToAnsi(_stadium_name, 
+                    (wchar_t*)_stadium_iter->second._dir.c_str());
+        else
+            Utf8::fUnicodeToAnsi(_stadium_name, 
+                    (wchar_t*)_stadium_iter->second._name.c_str());
+
+        return _stadium_name;
+    }
+    return orgName;
 }
 

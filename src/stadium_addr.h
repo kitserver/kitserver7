@@ -7,7 +7,7 @@ BYTE allowedGames[] = {
 };
 
 #define CODELEN 1
-enum { DUMMY };
+enum { C_GET_STADIUM_NAME };
 
 #define NOCODEADDR {0}
 DWORD codeArray[][CODELEN] = { 
@@ -16,23 +16,30 @@ DWORD codeArray[][CODELEN] = {
     // [Settings] PES2008 PC DEMO
     NOCODEADDR,
     // PES2008
-    NOCODEADDR,
+    {
+        0xb91ba1,
+    },
     // [Settings] PES2008 PC
     NOCODEADDR,
     NOCODEADDR,
     // PES2008 1.10
-    NOCODEADDR,
+    {
+        0xb919c1,
+    },
     NOCODEADDR,
     // PES2008 1.20
-    NOCODEADDR,
+    {
+        0xb96cb1,
+    },
 };
 
-#define DATALEN 3 
+#define DATALEN 4 
 enum {
     BIN_SIZES_TABLE, SONGS_INFO_TABLE, BALLS_INFO_TABLE,
+    STADIUM_NAMES_TABLE,
 };
 
-#define NODATAADDR {0,0,0},
+#define NODATAADDR {0,0,0,0},
 DWORD dataArray[][DATALEN] = {
     // PES2008 DEMO
     NODATAADDR
@@ -41,6 +48,7 @@ DWORD dataArray[][DATALEN] = {
     // PES2008
     { 
         0x1316b60, 0xd7ab78, 0xd15268,
+        0xffab20,
     },
     // [Settings] PES2008 PC
     NODATAADDR
@@ -48,11 +56,13 @@ DWORD dataArray[][DATALEN] = {
     // PES2008 1.10
     { 
         0x1317b80, 0xd7bb80, 0xd16258,
+        0xffbb20,
     },
     NODATAADDR
     // PES2008 1.20
     {
         0x1318b80, 0xd7cc78, 0xd17240,
+        0xffcb58,
     },
 };
 
