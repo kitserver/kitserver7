@@ -30,6 +30,7 @@ typedef struct _REPLAY_DATA
     DWORD size;
     DWORD checksum;
     DWORD unknown;
+    DWORD unknown1[4];
     REPLAY_DATA_PAYLOAD payload;
 } REPLAY_DATA;
 
