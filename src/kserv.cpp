@@ -101,7 +101,8 @@ HINSTANCE hInst = NULL;
 KMOD k_kserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 bool allQualities = true;
 
-#define NUM_REGULAR_TEAMS 219
+#define TOTAL_TEAMS 288
+#define NUM_REGULAR_TEAMS 220
 #define NUM_SLOTS 256
 #define FIRST_KIT_BIN  7523
 #define FIRST_FONT_BIN 2401
@@ -860,7 +861,7 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
 
     if (IsKitBin(s1->afsId,s1->binId))
     {
-        LOG2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
+        TRACE2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
         EnterCriticalSection(&g_csRead);
         DWORD threadId = GetCurrentThreadId();
         hash_map<DWORD,READ_BIN_STRUCT>::iterator it = g_read_bins.find(threadId);
@@ -1573,14 +1574,37 @@ WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
     }
 
     // check normal area
-    TEAM_KIT_INFO* teamKitInfoBase = (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
-    return ((DWORD)src - (DWORD)teamKitInfoBase) >> 9;
+    TEAM_KIT_INFO* teamKitInfoBase = 
+        (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
+    WORD teamId = ((DWORD)src - (DWORD)teamKitInfoBase) >> 9;
+    if (teamId < NUM_REGULAR_TEAMS)
+        return teamId;
+
+    // check special teams area
+    TEAM_KIT_INFO* base = 
+        (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12e910);
+    teamId = ((DWORD)src - (DWORD)base) >> 9;
+    if (teamId < TOTAL_TEAMS - NUM_REGULAR_TEAMS)
+        return teamId + NUM_REGULAR_TEAMS;
+    
+    return 0xffff;
 }
 
 TEAM_KIT_INFO* GetTeamKitInfoById(WORD id)
 {
-    TEAM_KIT_INFO* teamKitInfoBase = (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
-    return &teamKitInfoBase[id];
+    if (id < NUM_REGULAR_TEAMS)
+    {
+        TEAM_KIT_INFO* teamKitInfoBase = 
+            (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
+        return &teamKitInfoBase[id];
+    }
+    else if (id >= NUM_REGULAR_TEAMS && id < TOTAL_TEAMS)
+    {
+        TEAM_KIT_INFO* teamKitInfoBase = 
+            (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12e910);
+        return &teamKitInfoBase[id - NUM_REGULAR_TEAMS];
+    }
+    return NULL;
 }
 
 KEXPORT void kservAfterReadTeamKitInfo(TEAM_KIT_INFO* dest, TEAM_KIT_INFO* src)
@@ -1945,7 +1969,7 @@ void ResetIterators()
     g_iterHomeGK = g_iterHomeGK_end;
     g_iterAwayPL = g_iterAwayPL_end;
     g_iterAwayGK = g_iterAwayGK_end;
-    LOG(L"Iterators reset");
+    TRACE(L"Iterators reset");
 }
 
 void GetCurrentTeams(WORD& home, WORD& away)
@@ -2317,14 +2341,14 @@ void kservEndReadKitInfo()
 void kservOnEnterCups()
 {
     // need to make sure iterators are reset
-    LOG(L"Entering cup/league/ml mode");
+    TRACE(L"Entering cup/league/ml mode");
     ResetIterators();
 }
 
 void kservOnLeaveCups()
 {
     // need to make sure iterators are reset
-    LOG(L"Exiting cup/league/ml mode");
+    TRACE(L"Exiting cup/league/ml mode");
     ResetIterators();
 }
 
@@ -2383,6 +2407,14 @@ void kservReadReplayData(LPCVOID data, DWORD size)
     LOG1N(L"homeTeamId = %d", homeTeamId);
     LOG1N(L"awayTeamId = %d", awayTeamId);
 
+    /*
+    if (!g_slotMapsInitialized)
+    {
+        InitSlotMap();
+        g_slotMapsInitialized = true;
+    }
+    */
+
     hash_map<WORD,KitCollection>::iterator it;
     it = gdb->uni.find(homeTeamId);
     if (it != gdb->uni.end())
@@ -2390,7 +2422,7 @@ void kservReadReplayData(LPCVOID data, DWORD size)
         if (!homeKeyPL.empty())
         {
             wchar_t* key = Utf8::ansiToUnicode(homeKeyPL.c_str());
-            LOG1S(L"key = {%s}",key);
+            TRACE1S(L"key = {%s}",key);
             map<wstring,Kit>::iterator kit = it->second.players.find(key);
             if (kit != it->second.players.end())
             {
@@ -2403,7 +2435,7 @@ void kservReadReplayData(LPCVOID data, DWORD size)
         if (!homeKeyGK.empty())
         {
             wchar_t* key = Utf8::ansiToUnicode(homeKeyGK.c_str());
-            LOG1S(L"key = {%s}",key);
+            TRACE1S(L"key = {%s}",key);
             map<wstring,Kit>::iterator kit = it->second.goalkeepers.find(key);
             if (kit != it->second.goalkeepers.end())
             {
@@ -2421,7 +2453,7 @@ void kservReadReplayData(LPCVOID data, DWORD size)
         if (!awayKeyPL.empty())
         {
             wchar_t* key = Utf8::ansiToUnicode(awayKeyPL.c_str());
-            LOG1S(L"key = {%s}",key);
+            TRACE1S(L"key = {%s}",key);
             map<wstring,Kit>::iterator kit = it->second.players.find(key);
             if (kit != it->second.players.end())
             {
@@ -2434,7 +2466,7 @@ void kservReadReplayData(LPCVOID data, DWORD size)
         if (!awayKeyGK.empty())
         {
             wchar_t* key = Utf8::ansiToUnicode(awayKeyGK.c_str());
-            LOG1S(L"key = {%s}",key);
+            TRACE1S(L"key = {%s}",key);
             map<wstring,Kit>::iterator kit = it->second.goalkeepers.find(key);
             if (kit != it->second.goalkeepers.end())
             {
@@ -2555,7 +2587,7 @@ void kservMenuEvent(int delta, DWORD menuMode, DWORD ind,
         DWORD menuMode2 = *(DWORD*)(data[MENU_MODE_IDX]+8);
         if (menuMode2 == 0x24)// || menuMode2 == 0x0a)
         {
-            LOG3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
+            TRACE3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
                     menuMode, menuMode2, delta);
             ResetIterators();
         }
@@ -2563,7 +2595,7 @@ void kservMenuEvent(int delta, DWORD menuMode, DWORD ind,
     }
     else if (menuMode == 0x0a && delta == 1 && inGameInd==0)
     {
-        LOG3N(L"menuMode=%02x, delta=%d, inGameInd=%d",
+        TRACE3N(L"menuMode=%02x, delta=%d, inGameInd=%d",
                 menuMode, delta, inGameInd);
         ResetIterators();
         //__asm { int 3 }
@@ -2573,7 +2605,7 @@ void kservMenuEvent(int delta, DWORD menuMode, DWORD ind,
         DWORD menuMode2 = *(DWORD*)(data[MENU_MODE_IDX]+8);
         if (menuMode2 == 0x04)
         {
-            LOG3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
+            TRACE3N(L"menuMode=%02x, menuMode2=%08x, delta=%d",
                     menuMode, menuMode2, delta);
             ResetIterators();
         }
@@ -2615,7 +2647,8 @@ KEXPORT void kservPtrCheck(DWORD** pptr)
     if (pptr && *pptr!=0)
     {
         *pptr = 0;
-        LOG(L"pointer fixed.");
+        if (k_kserv.debug)
+            LOG(L"pointer fixed.");
     }
 }
 
