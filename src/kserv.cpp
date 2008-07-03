@@ -1992,7 +1992,6 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 
     if (g_beginShowKitSelection)
     {
-        LOG(L"checking for iterators reset...");
         // may need to reset iterators, if the teams changed since last time
         WORD home = 0xffff, away = 0xffff;
         GetCurrentTeams(home,away);
