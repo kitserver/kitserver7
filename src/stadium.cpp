@@ -90,11 +90,32 @@ void stadWriteReplayData(LPCVOID data, DWORD size);
 void stadInitMaps();
 void stadGetStadiumNameCallPoint();
 KEXPORT char* stadGetStadiumName(char* orgName);
+void ResetIterator();
+void GetCurrentTeams(WORD& home, WORD& away);
 
+static void string_strip(wstring& s)
+{
+    static const wchar_t* empties = L" \t\n\r";
+    int e = s.find_last_not_of(empties);
+    s.erase(e + 1);
+    int b = s.find_first_not_of(empties);
+    s.erase(0,b);
+}
+
+static void string_strip_quotes(wstring& s)
+{
+    static const wchar_t* empties = L" \t\n\r";
+    if (s[s.length()-1]=='"')
+        s.erase(s.length()-1);
+    if (s[0]=='"')
+        s.erase(0,1);
+}
 
 // GLOBALS
-char _stadium_name[1024];
+WORD _home = 0xffff;
+WORD _away = 0xffff;
 
+char _stadium_name[1024];
 bool _stadium_bins[726];
 
 static int _myPage = -1;
@@ -223,6 +244,30 @@ void stadInitMaps()
             if (!FindNextFile(hff, &fData)) break;
         }
         FindClose(hff);
+    }
+
+    // read home-stadium map
+    hash_map<WORD,wstring> entries;
+    wstring mapFile(getPesInfo()->gdbDir);
+    mapFile += L"GDB\\stadiums\\map.txt";
+    if (readMap(mapFile.c_str(), entries))
+    {
+        for (hash_map<WORD,wstring>::iterator it = entries.begin();
+                it != entries.end();
+                it++)
+        {
+            wstring dir(it->second);
+            string_strip(dir);
+            string_strip_quotes(dir);
+
+            // find this stadium in the normal map
+            stadium_iter_t sit = _stadiums.find(dir);
+            if (sit != _stadiums.end())
+                _home_stadiums.insert(pair<WORD,stadium_iter_t>(
+                            it->first, sit));
+            else
+                LOG1S(L"ERROR in home-stadiums map: stadium {%s} not found. Skipping.", dir.c_str());
+        }
     }
 
     LOG1N(L"total stadiums: %d", _stadiums.size());
@@ -422,6 +467,12 @@ bool stadGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
     return false;
 }
 
+void ResetIterator()
+{
+    _stadium_iter = _stadiums.end();
+    GetCurrentTeams(_home,_away);
+}
+
 void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
 {
     if (isExhibitionMode)
@@ -430,21 +481,21 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
         {
             hookFunction(hk_D3D_Present, stadPresent);
             setOverlayPageVisible(_myPage, true);
-            TRACE(L"Showing kit selection");
+            TRACE(L"Showing stadium selection");
             g_presentHooked = true;
 
-            //if (delta==1) 
-            //    ResetIterators();
+            if (delta==1) 
+                ResetIterator();
         }
         else
         {
             setOverlayPageVisible(_myPage, false);
             unhookFunction(hk_D3D_Present, stadPresent);
-            TRACE(L"Hiding kit selection");
+            TRACE(L"Hiding stadium selection");
             g_presentHooked = false;
 
-            //if (delta==1 && menuMode == 0x0a)
-            //    ResetIterators();
+            if (delta==-1)
+                ResetIterator();
         }
     }
     else
@@ -454,6 +505,13 @@ void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD me
             hookFunction(hk_D3D_Present, stadPresent);
             setOverlayPageVisible(_myPage, true);
             g_presentHooked = true;
+
+            WORD home,away;
+            GetCurrentTeams(home,away);
+            if (home != _home || away != _away)
+                ResetIterator();
+            _home = home;
+            _away = away;
         }
         else 
         {
@@ -497,21 +555,24 @@ void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         {
             wchar_t buf[20];
             swprintf(buf,L"built: %d",_stadium_iter->second._built);
-            KDrawText(buf, 202, 35, COLOR_BLACK, 24.0f);
-            KDrawText(buf, 200, 33, COLOR_AUTO2, 24.0f);
+            KDrawText(buf, 302, 35, COLOR_BLACK, 26.0f);
+            KDrawText(buf, 300, 33, COLOR_AUTO2, 26.0f);
         }
         if (_stadium_iter->second._capacity)
         {
             wchar_t buf[20];
             swprintf(buf,L"capacity: %d",_stadium_iter->second._capacity);
-            KDrawText(buf, 352, 35, COLOR_BLACK, 26.0f);
-            KDrawText(buf, 350, 33, COLOR_AUTO2, 26.0f);
+            KDrawText(buf, 442, 35, COLOR_BLACK, 26.0f);
+            KDrawText(buf, 440, 33, COLOR_AUTO2, 26.0f);
         }
     }
 }
 
 void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
+    if (getOverlayPage() != _myPage)
+        return;
+
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
         if (wParam == 0x39) { // 9 - left 
             if (_stadium_iter == _stadiums.begin())
@@ -672,5 +733,13 @@ KEXPORT char* stadGetStadiumName(char* orgName)
         return _stadium_name;
     }
     return orgName;
+}
+
+void GetCurrentTeams(WORD& home, WORD& away)
+{
+    NEXT_MATCH_DATA_INFO* pNM = 
+        *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    if (pNM && pNM->home) home = pNM->home->teamId;
+    if (pNM && pNM->away) away = pNM->away->teamId;
 }
 

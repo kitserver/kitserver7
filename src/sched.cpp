@@ -486,6 +486,9 @@ void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 
 void schedKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
+    if (getOverlayPage() != _myPage)
+        return;
+
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) 
     {
 		if (0)//(wParam == 0x70) 

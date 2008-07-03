@@ -5,6 +5,8 @@
 #define NAMESHORT L"STADIUM"
 #define DEFAULT_DEBUG 0
 
+#include "teaminfo.h"
+
 typedef struct _STADIUM_INFO
 {
     char* name;

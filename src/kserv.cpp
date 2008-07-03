@@ -1878,6 +1878,9 @@ WORD FindFreeKitSlot()
 
 void kservKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
 {
+    if (getOverlayPage() != _myPage)
+        return;
+
 	if (code1 >= 0 && code1==HC_ACTION && lParam & 0x80000000) {
         if (wParam == 0x31) { // home PL
             if (g_iterHomePL == g_iterHomePL_end)
@@ -1910,8 +1913,6 @@ void ResetIterators()
 {
     // reset kit iterators
     NEXT_MATCH_DATA_INFO* pNM = *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
-    //TRACE2N(L"Teams: %d vs %d", pNM->home->teamId, pNM->away->teamId);
-    
     g_iterHomePL_begin = gdb->dummyHome.players.begin();
     g_iterHomeGK_begin = gdb->dummyHome.goalkeepers.begin();
     g_iterHomePL_end = gdb->dummyHome.players.end();
@@ -1924,6 +1925,8 @@ void ResetIterators()
 
     if (pNM && pNM->home)
     {
+        g_lastHome = pNM->home->teamId;
+        TRACE1N(L"ResetIterators: home team: %d", pNM->home->teamId);
         hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNM->home->teamId);
         if (it != gdb->uni.end())
         {
@@ -1945,6 +1948,8 @@ void ResetIterators()
     }
     if (pNM && pNM->away)
     {
+        g_lastAway = pNM->away->teamId;
+        TRACE1N(L"ResetIterators: away team: %d", pNM->away->teamId);
         hash_map<WORD,KitCollection>::iterator it = gdb->uni.find(pNM->away->teamId);
         if (it != gdb->uni.end())
         {
@@ -1987,6 +1992,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 
     if (g_beginShowKitSelection)
     {
+        LOG(L"checking for iterators reset...");
         // may need to reset iterators, if the teams changed since last time
         WORD home = 0xffff, away = 0xffff;
         GetCurrentTeams(home,away);
