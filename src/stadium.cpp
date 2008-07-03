@@ -123,6 +123,15 @@ bool _stadium_bins[726];
 static int _myPage = -1;
 static bool g_presentHooked = false;
 
+class stadium_config_t
+{
+public:
+    stadium_config_t() : _home_stadiums_enabled(true) {}
+    bool _home_stadiums_enabled;
+};
+
+stadium_config_t _stadium_config;
+
 class stadium_t
 {
 public:
@@ -322,6 +331,9 @@ void stadConfig(char* pName, const void* pValue, DWORD a)
 		case 1: // debug
 			k_stad.debug = *(DWORD*)pValue;
 			break;
+        case 2: // home.enabled
+            _stadium_config._home_stadiums_enabled = *(DWORD*)pValue == 1;
+            break;
 	}
 	return;
 }
@@ -343,6 +355,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     IDirect3DDevice9** ppReturnedDeviceInterface) {
 
     getConfig("stadium", "debug", DT_DWORD, 1, stadConfig);
+    getConfig("stadium", "home.enabled", DT_DWORD, 2, stadConfig);
 
 	unhookFunction(hk_D3D_CreateDevice, initModule);
     stadInitMaps();
@@ -475,6 +488,15 @@ void ResetIterator()
 {
     _stadium_iter = _stadiums.end();
     GetCurrentTeams(_home,_away);
+
+    // check for home stadium
+    if (_stadium_config._home_stadiums_enabled)
+    {
+        map<WORD,stadium_iter_t>::iterator iter = 
+            _home_stadiums.find(_home);
+        if (iter != _home_stadiums.end())
+            _stadium_iter = iter->second;
+    }
 }
 
 void stadOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
