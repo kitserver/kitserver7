@@ -140,8 +140,9 @@ public:
     wstring _name;
     int _capacity;
     int _built;
+    bool _infoLoaded;
 
-    stadium_t() : _capacity(0), _built(0) {}
+    stadium_t() : _capacity(0), _built(0), _infoLoaded(false) {}
     bool init(const wstring& dir) 
     {
         _dir = dir;
@@ -195,8 +196,8 @@ public:
             FindClose(hff);
         }
 
-        // parse information file, if provided
-        this->_parseInfoFile();
+        // we'll parse the info file later, when needed
+        //this->_parseInfoFile();
 
         LOG1S(L"initialized stadium: %s", _dir.c_str());
         return true;
@@ -210,11 +211,18 @@ public:
         //LOG1S(L"readConfig(%s)...", infoFile.c_str());
         if (readConfig(infoFile.c_str()))
         {
-            //LOG(L"readConfig() SUCCEEDED.");
+            LOG1S(L"info.txt successfully loaded for {%s}", _dir.c_str());
             _getConfig("", "name", DT_STRING, (DWORD)this, stadInfo);
             _getConfig("", "built", DT_DWORD, (DWORD)this, stadInfo);
             _getConfig("", "capacity", DT_DWORD, (DWORD)this, stadInfo);
         }
+    }
+
+    void loadInfo()
+    {
+        if (!_infoLoaded)
+            _parseInfoFile();
+        _infoLoaded = true;
     }
 };
 
@@ -568,6 +576,7 @@ void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         KDrawText(_stadium_iter->first.c_str(), 302, 7, COLOR_BLACK, 26.0f);
         KDrawText(_stadium_iter->first.c_str(), 300, 5, COLOR_INFO, 26.0f);
 
+        _stadium_iter->second.loadInfo();
         if (_stadium_iter->second._built)
         {
             wchar_t buf[20];
@@ -794,6 +803,8 @@ KEXPORT char* stadGetStadiumName(char* orgName)
 {
     if (_stadium_iter != _stadiums.end())
     {
+        _stadium_iter->second.loadInfo();
+
         // convert stadium dir(or name) to ascii
         if (_stadium_iter->second._name.empty())
             Utf8::fUnicodeToAnsi(_stadium_name, 
