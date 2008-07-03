@@ -35,6 +35,8 @@
 //#define CREATE_FLAGS FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING
 #define CREATE_FLAGS 0
 
+#define MAX_ITERATIONS 5000
+
 enum {
     PLACKARDS, ADBOARDS_1, ADBOARDS_2, GOALS,
     DAY_SUMMER_MESH, DAY_SUMMER_TURF,
@@ -216,6 +218,8 @@ map<WORD,stadium_iter_t> _home_stadiums;
 
 // iterators
 stadium_iter_t _stadium_iter = _stadiums.end();
+
+const wchar_t GetFirstLetter(stadium_iter_t iter);
 
 void stadInitMaps()
 {
@@ -538,18 +542,9 @@ void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     }
     else
     {
-        if (_stadium_iter->second._name.empty())
-        {
-            // use directory name
-            KDrawText(_stadium_iter->first.c_str(), 302, 7, COLOR_BLACK, 26.0f);
-            KDrawText(_stadium_iter->first.c_str(), 300, 5, COLOR_INFO, 26.0f);
-        }
-        else
-        {
-            // use name from info.txt
-            KDrawText(_stadium_iter->second._name.c_str(), 302, 7, COLOR_BLACK, 26.0f);
-            KDrawText(_stadium_iter->second._name.c_str(), 300, 5, COLOR_INFO, 26.0f);
-        }
+        // use directory name
+        KDrawText(_stadium_iter->first.c_str(), 302, 7, COLOR_BLACK, 26.0f);
+        KDrawText(_stadium_iter->first.c_str(), 300, 5, COLOR_INFO, 26.0f);
 
         if (_stadium_iter->second._built)
         {
@@ -566,6 +561,11 @@ void stadPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
             KDrawText(buf, 440, 33, COLOR_AUTO2, 26.0f);
         }
     }
+}
+
+const wchar_t GetFirstLetter(stadium_iter_t iter)
+{
+    return iter->first[0];
 }
 
 void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
@@ -585,6 +585,56 @@ void stadKeyboardEvent(int code1, WPARAM wParam, LPARAM lParam)
                 _stadium_iter = _stadiums.begin();
             else
                 _stadium_iter++;
+        }
+        else if (wParam == 0x37) { // 7 - reset to game choice
+            _stadium_iter = _stadiums.end();
+        }
+        else if (wParam == 0x38) { // 8 - random
+            LARGE_INTEGER num;
+            QueryPerformanceCounter(&num);
+            int iterations = num.LowPart % MAX_ITERATIONS;
+            stadium_iter_t iter = _stadium_iter;
+            for (int j=0;j<iterations;j++) {
+                if (iter == _stadiums.end()) 
+                    iter = _stadiums.begin();
+                else
+                    iter++;
+                if (iter == _stadiums.end()) 
+                    iter = _stadiums.begin();
+            }
+            _stadium_iter = iter;
+        }
+        else if (wParam == 0xbd) { // "-"
+            // go to previous letter
+            wchar_t currLetter = L'\0';
+            stadium_iter_t iter = _stadium_iter;
+            if (iter != _stadiums.end())
+                currLetter = GetFirstLetter(iter);
+            do {
+                if (iter == _stadiums.begin())
+                    iter = _stadiums.end();
+                else
+                    iter--;
+                if (iter == _stadiums.end())
+                    break;
+            } while (currLetter == GetFirstLetter(iter));
+            _stadium_iter = iter;
+        }
+        else if (wParam == 0xbb) { // "="
+            // go to next letter
+            wchar_t currLetter = L'\0';
+            stadium_iter_t iter = _stadium_iter;
+            if (iter != _stadiums.end())
+                currLetter = GetFirstLetter(iter);
+            do {
+                if (iter == _stadiums.end())
+                    iter = _stadiums.begin();
+                else
+                    iter++;
+                if (iter == _stadiums.end())
+                    break;
+            } while (currLetter == GetFirstLetter(iter));
+            _stadium_iter = iter;
         }
     }	
 }
