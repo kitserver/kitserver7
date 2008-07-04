@@ -44,7 +44,7 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-June 19, 2008 - <b>Kitserver 7.2.0</b><br />
+July 3, 2008 - <b>Kitserver 7.3.0</b><br />
 
 </div>
 
@@ -55,7 +55,7 @@ Below is a quck summary of the available features. Follow the link in the left c
 </p>
 
 <table>
-    <tr><td><a href="#kserv">Kserv 7.2.0</a></td>
+    <tr><td><a href="#kserv">Kserv 7.3.0</a></td>
         <th><b>kserv.dll</b></th>
         <td>Assign kits to all teams (no re-linking needed), Extra (3rd,4th,etc.) kits. Allows selection of kits in all game modes: Exhbition, Cup, League, Master League.</td>
     </tr>
@@ -73,17 +73,29 @@ friend to play for the opposition team.
         <th><b>afs2fs.dll</b></th>
         <td>Manage AFS (.img) game content using files and folders: much easier and quicker to install/remove patches, without the need modify *.img files</td>
     </tr>
-    <tr><td><a href="#fserv">Faceserver 7.2.0</a></td>
+    <tr><td><a href="#fserv">Faceserver 7.3.0</a></td>
         <th><b>fserv.dll</b></th>
         <td>Assign special face/hair to any player you want.</td>
     </tr>
-    <tr><td><a href="#sched">Scheduler 7.2.0</a></td>
+    <tr><td><a href="#sched">Scheduler 7.3.0</a></td>
         <th><b>sched.dll</b></th>
         <td>Make changes to Konami Cup tournaments: now possible to play Home/Away matches in the groups, and also have Home/Away knock-out stages - ala UEFA Champions League</td>
     </tr>
     <tr><td><a href="#rwdata">Read/Write data 7.2.0</a></td>
         <th><b>rwdata.dll</b></th>
         <td>Manage your edit and system data. Useful for patchmakers - to keep all things in one place and have the ability to keep the original PES2008_EDIT01.bin and PES2008_OPTION01.bin unchanged.</td>
+    </tr>
+    <tr><td><a href="#camera">Camera module 7.3.0</a></td>
+        <th><b>camera.dll</b></th>
+        <td>Increase the camera viewing angle for Normal and Wide cameras, and enjoy new playing experience.</td>
+    </tr>
+    <tr><td><a href="#time">Time expander 7.3.0</a></td>
+        <th><b>time.dll</b></th>
+        <td>Set the match time to any number of minutes you want between 1 and 255.</td>
+    </tr>
+    <tr><td><a href="#stadium">Stadium server 7.3.0</a></td>
+        <th><b>stadium.dll</b></th>
+        <td>Organize your stadiums in the GDB.</td>
     </tr>
 </table>
 
@@ -702,6 +714,143 @@ system.data = "option01.bin"
 <p class="devnote" style="font-weight:normal">The Edit Data file (PES2008_EDIT01.bin) is also often called "option file", because historically that's how it was named in previous versions of PES. However, with PES2008, it's a little bit confusing terminology, because now another file - PES2008_OPTION01.bin - has the word "option" in its name, even though it doesn't actually contain the data, typically associated with option file, such as: player names and attributes, team, stadium names, and so for, but instead it holds things like: sound settings, camera settings, etc.
 </p>
 
+<a name="camera"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>10. Camera module (camera.dll)</h3>
+
+<p>
+With a separate (standalone) tool <b>CameraTweak</b> you can choose the camera angle from 1 to 9 - as in older PES versions - something that is not available in PES2008 interface. This module allows to take it one step further: make the angle even wider - choose any value from 0 to 2^32. Angles like 50, 100, 200 give quite a different perspective of play. More fun :)
+</p>
+
+<p>Put the angle into <b>config.txt</b>:
+
+<pre>
+[camera]
+angle = 100
+</pre>
+</p>
+
+<a name="time"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>11. Time expander (time.dll)</h3>
+
+<p>
+This tiny module allows to stretch the length of the match to normal 90 minutes, if you want, or even beyond that: making the seconds flow slower than normal. Also, another extreme is setting the match time to 1 minute. This is a whole new experience too: you have to really treasure the ball - keep posession, or you risk not getting it back at all, before the final whistle! Also, if you get a scoring chance, better put it away, because chances are it'll be the only one you get.
+</p>
+
+<p>
+Set the time for an Exhibition Match using <b>exhibition.time</b> setting. For any other matches (Cup/League/Master League), use <b>cup.time</b>:
+
+<pre>
+[time]
+exhibition.time = 90
+cup.time = 1
+</pre>
+</p>
+
+<a name="stadium"><br /></a>
+<p><a class="backlink" href="manual.html#">Top</a></p>
+<h3>12. Stadium server (stadium.dll)</h3>
+
+<p>
+With stadium server, you can have a virtually unlimited number of stadiums, which you can choose before any game - Exhibition, Cup, League, or Master League match. You need to organize them in the GDB: i kept the format of stadium servers for previous PES versions, since people are already familiar with it. But just a quick summary of how things are put together:
+</p>
+
+<p>In your GDB, you create a new folder, called <b>stadiums</b>, alongside uni and faces. Like this:
+
+<img src="gdb.png"/>
+</p>
+
+<p>Then, inside <b>stadiums</b> you put each stadium into its own folder. The name of the folder serves as unique key for the stadium. You can call the folders whichever way you want - as long as the operating system permits you. Keep in mind that in the game, the stadiums will be browsed through in alphabetical order, so it is useful to have some sort of system of how you name the stadiums. For instance, this is one way:
+
+<img src="stadfolder.png"/>
+</p>
+
+<p>
+Stadium folders are all together in one directory - there is no hierarchy possible, but by having the stadiums named systematically, you can make it easy to quickly find the stadium you want.
+</p>
+
+<h5>12.1. Stadium folder format</h5>
+
+<p>
+There are two ways to name the stadium files:
+<ul>
+    <li>Using AFS2FS-style names</li>
+    <li>Using stadium server "reserved" names</li>
+</ul>
+</p>
+
+<p>
+The first way is probably simpler, and more convenient, because stadium makers can distribute their stadiums the same way as they been doing so far: just naming the files like <b>unnamed_213.bin</b> or <b>dekuip_381.bin</b>. Also, in this form, stadium can be used both with AFS2FS module (or inserted directly into the cv_1.img file, using traditional tools like AFS Explorer or DKZ Studio), and also with the stadium server, without any need to rename the files.
+</p>
+
+<p>Here's an example of De Kuip stadium files put into a stadium server folder. Notice the <b>nets_40.bin</b> - this allows your stadium to have unique goal nets. Also you can have a *<b>_38</b>* and *<b>_39</b>* files - those are adboards. I don't have them in this example, but they are supported:
+
+<img src="dekuip.png"/>
+</p>
+
+<p>
+The second way to name the stadium files relies on a set of predefined - "reserved" names. There are 12 stadium files - 4 for each day time: day, evening, night, and they are named like in the screenshot below. The other 3 files that are supported are - 2 for the adboards, and one for goal nets. See how they must be named:
+
+<img src="wembley.png"/>
+</p>
+
+<h5>12.2. Stadium selection</h5>
+
+<p>
+You select the stadium before the match, using the same screen as you would do the kit selection. The trick is to switch to the stadium selection <b>page</b> first, by using [<b>PgUp</b>] or [<b>PgDn</b>] keys. (Most of the time, there will only be 2 pages available: kit selection and stadium selection. The only exception is the Cup mode, when you had chosen "Group League" format - in that case there will be 3 pages: kit selection, stadium selection and cup format tweaks.
+</p>
+
+<img src="stadselect.png"/>
+
+<p>So, once you're on the stadium selection page, you can press the following keys:
+<ul>
+   <li>[<b>7</b>] - reset stadium back to "game choice"</li>
+   <li>[<b>8</b>] - select random stadium</li>
+   <li>[<b>9</b>] - go to previous stadium in the list</li>
+   <li>[<b>0</b>] - go to next stadium in the list</li>
+   <li>[<b>-</b>] - go to previous stadium, which first letter is different from currently selected one</li>
+   <li>[<b>=</b>] - go to next stadium, which first letter is different from currently selected one</li>
+</ul>
+</p>
+
+<p>
+The last two keys are useful for quick browsing through big collection of stadiums, if you had organized them well. For example, if you prefix all stadium folder names with the country name, then it's easy to quickly skip over all the stadiums from the same country, using either [<b>-</b>] or [<b>=</b>] keys.
+</p>
+
+<h5>12.3. Stadium information file: info.txt</h5>
+
+<p>
+One other file, which you can place in every stadium folder - is a text file, called <b>info.txt</b>. There you can define one of these 3 properties: <b>name</b>, <b>built</b>, and <b>capacity</b>.
+</p>
+
+<p>
+Example:
+<pre>
+name = "De Kuip"
+built = 1994
+capacity = 51100
+</pre>
+</p>
+
+<p class="devnote">The "name" property is really optional. It is used, when the cut-scene at the beginning of the match shows the stadium name, or in the Exhibition mode, when the stadium selection screen comes up (after you had already chosen your stadium from GDB, on the stadium selection page). If you don't define "name" property, then the stadium folder will be used as the name.
+</p>
+
+<h5>12.4. Home stadium map</h5>
+
+<p>
+The <b>GDB\stadiums</b> folder may contain a map.txt file. It is not necessary to have it, to actually use the stadium server, but it can come handy, if you want to assign particular stadiums to certain teams. If you do that, then whenever a team plays at home, the stadium server will automatically select a stadium, which is mapped to this team in the map.txt:
+</p>
+
+<p>
+Here is an example of a really small home-stadiums map:
+
+<pre>
+6,  "ENGLAND - Wembley Stadium, Wembley, London"
+15, "HOLLAND - De Kuip, Rotterdam"
+</pre>
+</p>
+
 <div style="height:20px"></div>
 
 <h2>Credits</h2>
@@ -716,6 +865,7 @@ sample GDB: kits taken from <span style="color:#060"><b>Evo-Web GDB Folder 3.4</
 Kit artwork by: [Members] evo-web.co.uk / pesbrasil.org / gammingaccess.com<br />
 Black nets (stadium_40.bin): <b>poloplo</b><br />
 Arshavin's face and hair: <b>Pro</b><br />
+De Kuip stadium: <b>PES 2008 Editing Blog</b>
 </p>
 
 <p>

@@ -2,6 +2,19 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2008-07-03
+----------
+v7.3.0
+- kserv: crash fixes, kit selection is now saved in replays.
+- fserv: fixed a bug, when GDB face wasn't working with scanned face.
+New modules:
+- time: set match time to any number of minutes you want from 1 to 255.
+- camera: adjust the viewing angle beyond the value of 9
+- stadium: stadium server. Home stadiums map, random stadium selection. 
+           Stadium info saved in replays also. 
+           Goal nets can be specific to a particular stadium.
+
+
 2008-06-19
 ----------
 v7.2.0
