@@ -38,24 +38,47 @@
 #define MAX_ITERATIONS 5000
 
 enum {
-    PLACKARDS, ADBOARDS_1, ADBOARDS_2, GOALS,
-    DAY_SUMMER_MESH, DAY_SUMMER_TURF,
-    DAY_WINTER_MESH, DAY_WINTER_TURF,
-    EVENING_SUMMER_MESH, EVENING_SUMMER_TURF, 
-    EVENING_WINTER_MESH, EVENING_WINTER_TURF,
-    NIGHT_SUMMER_MESH, NIGHT_SUMMER_TURF,
-    NIGHT_WINTER_MESH, NIGHT_WINTER_TURF,
+    ADBOARDS_1, ADBOARDS_2, GOALS,
+    DAY_SUMMER_0, DAY_SUMMER_1,
+    DAY_SUMMER_2, DAY_SUMMER_3,
+    DAY_SUMMER_MESH, DAY_SUMMER_5, DAY_SUMMER_TURF,
+    DAY_WINTER_0, DAY_WINTER_1,
+    DAY_WINTER_2, DAY_WINTER_3,
+    DAY_WINTER_MESH, DAY_WINTER_5, DAY_WINTER_TURF,
+    EVENING_SUMMER_0, EVENING_SUMMER_1,
+    EVENING_SUMMER_2, EVENING_SUMMER_3,
+    EVENING_SUMMER_MESH, EVENING_SUMMER_5, EVENING_SUMMER_TURF, 
+    EVENING_WINTER_0, EVENING_WINTER_1,
+    EVENING_WINTER_2, EVENING_WINTER_3,
+    EVENING_WINTER_MESH, EVENING_WINTER_5, EVENING_WINTER_TURF,
+    NIGHT_SUMMER_0, NIGHT_SUMMER_1,
+    NIGHT_SUMMER_2, NIGHT_SUMMER_3,
+    NIGHT_SUMMER_MESH, NIGHT_SUMMER_5, NIGHT_SUMMER_TURF,
+    NIGHT_WINTER_0, NIGHT_WINTER_1,
+    NIGHT_WINTER_2, NIGHT_WINTER_3,
+    NIGHT_WINTER_MESH, NIGHT_WINTER_5, NIGHT_WINTER_TURF,
 };
 
 wstring _stad_names[] = {
-    L"stad_plackards.bin", L"stad_adboards1.bin", 
-    L"stad_adboards2.bin", L"stad_goals.bin",
-    L"day_summer_mesh.bin", L"day_summer_turf.bin",
-    L"day_winter_mesh.bin", L"day_winter_turf.bin",
-    L"evening_summer_mesh.bin", L"evening_summer_turf.bin",
-    L"evening_winter_mesh.bin", L"evening_winter_turf.bin",
-    L"night_summer_mesh.bin", L"night_summer_turf.bin",
-    L"night_winter_mesh.bin", L"night_winter_turf.bin",
+    L"stad_adboards1.bin", L"stad_adboards2.bin", L"stad_goals.bin",
+    L"day_summer_0.bin", L"day_summer_1.bin",
+    L"day_summer_2.bin", L"day_summer_3.bin",
+    L"day_summer_mesh.bin", L"day_summer_5.bin", L"day_summer_turf.bin",
+    L"day_winter_0.bin", L"day_winter_1.bin",
+    L"day_winter_2.bin", L"day_winter_3.bin",
+    L"day_winter_mesh.bin", L"day_winter_5.bin", L"day_winter_turf.bin",
+    L"evening_summer_0.bin", L"evening_summer_1.bin",
+    L"evening_summer_2.bin", L"evening_summer_3.bin",
+    L"evening_summer_mesh.bin", L"evening_summer_5.bin", L"evening_summer_turf.bin",
+    L"evening_winter_0.bin", L"evening_winter_2.bin",
+    L"evening_winter_1.bin", L"evening_winter_3.bin",
+    L"evening_winter_mesh.bin", L"evening_winter_5.bin", L"evening_winter_turf.bin",
+    L"night_summer_0.bin", L"night_summer_1.bin",
+    L"night_summer_2.bin", L"night_summer_3.bin",
+    L"night_summer_mesh.bin", L"night_summer_5.bin", L"night_summer_turf.bin",
+    L"night_winter_0.bin", L"night_winter_1.bin",
+    L"night_winter_2.bin", L"night_winter_3.bin",
+    L"night_winter_mesh.bin", L"night_winter_5.bin", L"night_winter_turf.bin",
 };
 
 // VARIABLES
@@ -63,12 +86,12 @@ HINSTANCE hInst = NULL;
 KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
 #define NUM_STADIUMS 16
+#define NUM_STAD_FILES 45
 
-#define STAD_FIRST  45
+#define STAD_FIRST  41
 #define STAD_LAST   712
 #define STAD_SPAN   42
 
-#define STAD_PLACKARDS  37
 #define STAD_ADBOARDS_1 38
 #define STAD_ADBOARDS_2 39
 #define STAD_GOALS      40
@@ -135,7 +158,7 @@ stadium_config_t _stadium_config;
 class stadium_t
 {
 public:
-    wstring _files[16];
+    wstring _files[NUM_STAD_FILES];
     wstring _dir;
     wstring _name;
     int _capacity;
@@ -169,7 +192,7 @@ public:
                         if (binId >= 0)
                         {
                             int t = GetBinType(binId);
-                            if (0 <= t && t < 16)
+                            if (0 <= t && t < NUM_STAD_FILES)
                                 _files[t] = fData.cFileName;
                         }
                     }
@@ -178,7 +201,7 @@ public:
                     if (binId == -1)
                     {
                         wstring name(fData.cFileName);
-                        for (int i=0; i<16; i++)
+                        for (int i=0; i<NUM_STAD_FILES; i++)
                         {
                             if (_stad_names[i] == name)
                             {
@@ -396,8 +419,6 @@ int GetBinType(DWORD binId)
 {
     switch (binId)
     {
-        case STAD_PLACKARDS:
-            return PLACKARDS;
         case STAD_ADBOARDS_1:
             return ADBOARDS_1;
         case STAD_ADBOARDS_2:
@@ -411,30 +432,53 @@ int GetBinType(DWORD binId)
 
     switch ((binId - STAD_FIRST) % STAD_SPAN)
     {
-        case 0: 
-            return DAY_SUMMER_MESH;
-        case 2:
-            return DAY_SUMMER_TURF; 
-        case 7: 
-            return DAY_WINTER_MESH;
-        case 9:
-            return DAY_WINTER_TURF; 
-        case 14: 
-            return EVENING_SUMMER_MESH;
-        case 16:
-            return EVENING_SUMMER_TURF; 
-        case 21: 
-            return EVENING_WINTER_MESH;
-        case 23:
-            return EVENING_WINTER_TURF; 
-        case 28: 
-            return NIGHT_SUMMER_MESH;
-        case 30:
-            return NIGHT_SUMMER_TURF; 
-        case 35: 
-            return NIGHT_WINTER_MESH;
-        case 37:
-            return NIGHT_WINTER_TURF; 
+        case 0:  return DAY_SUMMER_0;
+        case 1:  return DAY_SUMMER_1;
+        case 2:  return DAY_SUMMER_2;
+        case 3:  return DAY_SUMMER_3;
+        case 4:  return DAY_SUMMER_MESH;
+        case 5:  return DAY_SUMMER_5;
+        case 6:  return DAY_SUMMER_TURF; 
+
+        case 7:  return DAY_WINTER_0;
+        case 8:  return DAY_WINTER_1;
+        case 9:  return DAY_WINTER_2;
+        case 10: return DAY_WINTER_3;
+        case 11: return DAY_WINTER_MESH;
+        case 12: return DAY_WINTER_5; 
+        case 13: return DAY_WINTER_TURF; 
+
+        case 14: return EVENING_SUMMER_0;
+        case 15: return EVENING_SUMMER_1;
+        case 16: return EVENING_SUMMER_2;
+        case 17: return EVENING_SUMMER_3;
+        case 18: return EVENING_SUMMER_MESH;
+        case 19: return EVENING_SUMMER_5;
+        case 20: return EVENING_SUMMER_TURF; 
+
+        case 21: return EVENING_WINTER_0;
+        case 22: return EVENING_WINTER_1;
+        case 23: return EVENING_WINTER_2;
+        case 24: return EVENING_WINTER_3;
+        case 25: return EVENING_WINTER_MESH;
+        case 26: return EVENING_WINTER_5;
+        case 27: return EVENING_WINTER_TURF; 
+
+        case 28: return NIGHT_SUMMER_0;
+        case 29: return NIGHT_SUMMER_1;
+        case 30: return NIGHT_SUMMER_2;
+        case 31: return NIGHT_SUMMER_3;
+        case 32: return NIGHT_SUMMER_MESH;
+        case 33: return NIGHT_SUMMER_5;
+        case 34: return NIGHT_SUMMER_TURF; 
+
+        case 35: return NIGHT_WINTER_0;
+        case 36: return NIGHT_WINTER_1;
+        case 37: return NIGHT_WINTER_2;
+        case 38: return NIGHT_WINTER_3;
+        case 39: return NIGHT_WINTER_MESH;
+        case 40: return NIGHT_WINTER_5;
+        case 41: return NIGHT_WINTER_TURF; 
     }
 
     return -1; // not a stadium file
