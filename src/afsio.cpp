@@ -227,7 +227,7 @@ KEXPORT DWORD afsioAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSiz
 
         // modify buffer size
         result = (fsize + 0x7ff) & 0xfffff800;
-        //LOG4N(L"afsId=%d, binId=%d, orgSize=%0x, newSize=%0x", gbss->afsId, gbss->binId, orgSize, newSize);
+        //LOG4N(L"afsId=%d, binId=%d, orgSize=%0x, newSize=%0x", gbss->afsId, gbss->binId, orgSize, fsize);
     }
     return result;
 }
