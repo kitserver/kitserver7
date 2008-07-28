@@ -133,6 +133,8 @@ hash_map<DWORD,TEAM_KIT_INFO> g_savedTki;
 
 WORD g_lastHome = 0xffff;
 WORD g_lastAway = 0xffff;
+bool _home_forced = false;
+bool _away_forced = false;
 
 GDB* gdb = NULL;
 DWORD g_return_addr = 0;
@@ -233,6 +235,7 @@ void kservReadReplayData(LPCVOID data, DWORD size);
 void kservWriteReplayData(LPCVOID data, DWORD size);
 bool kservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 void kservAtReadKitSelectionCallPoint();
+void kservAtReadKitSelectionCallPoint2();
 KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi);
 void kservMenuEvent(int delta, DWORD menuMode, DWORD ind, DWORD inGameInd, DWORD cupModeInd);
 void kservPtrCheckCallPoint();
@@ -697,6 +700,8 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
 
     HookCallPoint(code[C_AT_READ_KIT_CHOICE],
             kservAtReadKitSelectionCallPoint, 6, 1);
+    HookCallPoint(code[C_AT_READ_KIT_CHOICE_2],
+            kservAtReadKitSelectionCallPoint2, 6, 1);
 
     // hook team selection point
     //HookCallPoint(code[C_AT_WRITE_TEAM_ID], 
@@ -1974,6 +1979,11 @@ void ResetIterators()
     g_iterHomeGK = g_iterHomeGK_end;
     g_iterAwayPL = g_iterAwayPL_end;
     g_iterAwayGK = g_iterAwayGK_end;
+
+    // reset kit-enforcers
+    _home_forced = false;
+    _away_forced = false;
+
     TRACE(L"Iterators reset");
 }
 
@@ -2552,6 +2562,33 @@ void kservAtReadKitSelectionCallPoint()
     }
 }
 
+void kservAtReadKitSelectionCallPoint2()
+{
+    __asm {
+        pushfd 
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push eax // param: TEAM_MATCH_DATA_INFO
+        call kservAtReadKitSelection
+        add esp,4     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        mov dl,byte ptr ds:[eax+0x2d38] // execute replaced code
+        retn
+    }
+}
+
 KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi)
 {
     DWORD* cupModePtr = *(DWORD**)data[CUP_MODE_PTR];
@@ -2563,21 +2600,25 @@ KEXPORT void kservAtReadKitSelection(TEAM_MATCH_DATA_INFO* tmdi)
     if (pNM && pNM->home == tmdi)
     {
         LOG1N(L"Reading selection for home team: %02x", tmdi->kitSelection);
-        if (g_iterHomePL != g_iterHomePL_end)
+        if (g_iterHomePL != g_iterHomePL_end && !_home_forced)
         {
             // force reload
             BYTE val = tmdi->kitSelection;
             tmdi->kitSelection = (~val & 0x07) | (val & 0xf8);
+            _home_forced = true;
+            LOG(L"Kit reload forced for home team");
         }
     }
     else if (pNM && pNM->away == tmdi)
     {
         LOG1N(L"Reading selection for away team: %02x", tmdi->kitSelection);
-        if (g_iterAwayPL != g_iterAwayPL_end)
+        if (g_iterAwayPL != g_iterAwayPL_end && !_away_forced)
         {
             // force reload
             BYTE val = tmdi->kitSelection;
             tmdi->kitSelection = (~val & 0x07) | (val & 0xf8);
+            _away_forced = true;
+            LOG(L"Kit reload forced for away team");
         }
     }
 }
