@@ -103,6 +103,7 @@ bool allQualities = true;
 
 #define TOTAL_TEAMS 288
 #define NUM_REGULAR_TEAMS 220
+#define NUM_ADDITIONAL_TEAMS 272
 #define NUM_SLOTS 256
 #define FIRST_KIT_BIN  7523
 #define FIRST_FONT_BIN 2401
@@ -1587,8 +1588,15 @@ WORD GetTeamIdBySrc(TEAM_KIT_INFO* src)
 
     // check special teams area
     TEAM_KIT_INFO* base = 
-        (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12e910);
+        (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12a9d0);
     teamId = ((DWORD)src - (DWORD)base) >> 9;
+    if (teamId < TOTAL_TEAMS - NUM_ADDITIONAL_TEAMS)
+        return teamId + NUM_ADDITIONAL_TEAMS;
+
+    // check additional teams area
+    TEAM_KIT_INFO* base2 = 
+        (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12e910);
+    teamId = ((DWORD)src - (DWORD)base2) >> 9;
     if (teamId < TOTAL_TEAMS - NUM_REGULAR_TEAMS)
         return teamId + NUM_REGULAR_TEAMS;
     
@@ -1603,11 +1611,17 @@ TEAM_KIT_INFO* GetTeamKitInfoById(WORD id)
             (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0xe8bc4);
         return &teamKitInfoBase[id];
     }
-    else if (id >= NUM_REGULAR_TEAMS && id < TOTAL_TEAMS)
+    else if (id >= NUM_REGULAR_TEAMS && id < NUM_ADDITIONAL_TEAMS)
     {
         TEAM_KIT_INFO* teamKitInfoBase = 
             (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12e910);
         return &teamKitInfoBase[id - NUM_REGULAR_TEAMS];
+    }
+    else if (id >= NUM_ADDITIONAL_TEAMS && id < TOTAL_TEAMS)
+    {
+        TEAM_KIT_INFO* teamKitInfoBase = 
+            (TEAM_KIT_INFO*)(*(DWORD*)data[TEAM_KIT_INFO_BASE] + 0x12a9d0);
+        return &teamKitInfoBase[id - NUM_ADDITIONAL_TEAMS];
     }
     return NULL;
 }
