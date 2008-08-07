@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     BYTE* dest;
     char outname[256] = {0};
     if (argc<3) {
-        destLen = st.st_size*2;
+        destLen = st.st_size*5;
         dest = (BYTE*)malloc(destLen); // big buffer just in case;
         int retval = compress(dest,&destLen,src,st.st_size);
         if (retval != Z_OK) {
@@ -48,6 +48,19 @@ int main(int argc, char *argv[])
         dest = (BYTE*)malloc(destLen); // big enough buffer
 
         int retval = uncompress(dest,&destLen,src+0x10,st.st_size-0x10);
+        if (retval != Z_OK) {
+            fprintf(stderr,"decompression failed. retval=%d\n", retval);
+            free(src);
+            free(dest);
+            return 1;
+        }
+        sprintf(outname,"%s.unzlib",argv[1]);
+
+    } else if (strcmp(argv[2],"-draw")==0) {
+        destLen = st.st_size*5;
+        dest = (BYTE*)malloc(destLen); // big enough buffer
+
+        int retval = uncompress(dest,&destLen,src,st.st_size);
         if (retval != Z_OK) {
             fprintf(stderr,"decompression failed. retval=%d\n", retval);
             free(src);
