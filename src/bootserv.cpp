@@ -37,6 +37,7 @@
 
 #define FIRST_EXTRA_BOOT_SLOT 9000
 #define MAX_PLAYERS 5460
+#define MAX_BOOTS MAX_PLAYERS
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -53,13 +54,12 @@ bootserv_config_t _bootserv_config;
 
 // GLOBALS
 hash_map<DWORD,WORD> _boot_slots;
-wstring* _fast_bin_table[MAX_PLAYERS+100];
+wstring* _fast_bin_table[MAX_BOOTS+100];
 
 typedef DWORD (*COPYDATA_PROC)(DWORD dest, DWORD src, DWORD len);
 COPYDATA_PROC _org_copyData2 = NULL;
 
 DWORD _last_playerIndex = 0;
-DWORD _total_boot_count = 9;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -80,7 +80,6 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList=true);
 void bootservAtGetBootIdCallPointA();
 void bootservAtGetBootIdCallPointB();
 void bootservAtGetBootIdCallPointC();
-void bootservAtAdvanceBootCounterCallPoint();
 DWORD GetIdByPlayerIndex(DWORD idx);
 void bootservAtProcessBootIdCallPoint();
 void bootservEntranceBootsCallPoint();
@@ -132,7 +131,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 	
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-        for (int i=0; i<MAX_PLAYERS; i++)
+        for (int i=0; i<MAX_BOOTS; i++)
             if (_fast_bin_table[i])
                 delete _fast_bin_table[i];
 	}
@@ -185,8 +184,6 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_GET_BOOT_ID6] + 4, 
             bootservAtGetBootIdCallPointA, 6, 14);
 
-    HookCallPoint(code[C_ADVANCE_BOOT_COUNTER],
-            bootservAtAdvanceBootCounterCallPoint, 6, 1);
     HookCallPoint(code[C_PROCESS_BOOT_ID],
             bootservAtProcessBootIdCallPoint, 3, 1);
     HookCallPoint(code[C_ENTRANCE_BOOTS],
@@ -236,6 +233,11 @@ void InitMaps()
                 if (OpenFileIfExists(filename.c_str(), handle, size))
                 {
                     CloseHandle(handle);
+                    if (slot >= MAX_BOOTS)
+                    {
+                        LOG2N(L"ERROR in bootserver map: Too many boots: %d (MAX supported = %d). Aborting map processing", slot, MAX_BOOTS);
+                        break;
+                    }
 
                     hash_map<wstring,WORD>::iterator wit = slots.find(boot);
                     if (wit != slots.end())
@@ -263,12 +265,13 @@ void InitMaps()
     for (hash_map<wstring,WORD>::iterator sit = slots.begin();
             sit != slots.end();
             sit++)
+    {
         _fast_bin_table[sit->second - FIRST_EXTRA_BOOT_SLOT] = 
             new wstring(sit->first);
+        LOG1N1S(L"slot %d <-- boot {%s}", sit->second, sit->first.c_str());
+    }
 
-    // initialize total number of BINs
-    _total_boot_count = slots.size() + 9;
-    LOG1N(L"_total_boot_count = %d",_total_boot_count);
+    LOG1N(L"Total GDB boots: %d", slots.size());
 }
 
 void CopyPlayerData(PLAYER_INFO* players, bool writeList)
@@ -393,7 +396,7 @@ bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
         return false;
 
     LOG1N(L"loading boot BIN: %d", binId);
-    if (binId >= FIRST_EXTRA_BOOT_SLOT)
+    if (binId >= FIRST_EXTRA_BOOT_SLOT && binId < 20000)
     {
         wstring* pws = _fast_bin_table[binId - FIRST_EXTRA_BOOT_SLOT];
         if (pws) 
@@ -405,17 +408,6 @@ bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
         }
     }
     return false;
-
-    /*
-    LOG1N(L"loading boot BIN: %d", binId);
-    if (binId >= FIRST_EXTRA_BOOT_SLOT)
-    {
-        wchar_t filename[1024] = {0};
-        swprintf(filename,L"%s\\extra_boot.bin",getPesInfo()->myDir);
-        return OpenFileIfExists(filename, hfile, fsize);
-    }
-    return false;
-    */
 }
 
 void bootservAtGetBootIdCallPointA()
@@ -546,28 +538,6 @@ DWORD GetIdByPlayerIndex(DWORD idx)
 
     PLAYER_INFO* players = (PLAYER_INFO*)(*(DWORD**)data[EDIT_DATA_PTR] + 1);
     return players[idx].id;
-}
-
-void bootservAtAdvanceBootCounterCallPoint()
-{
-    __asm {
-        push ebp
-        push eax
-        push ebx
-        push ecx
-        push edx
-        push edi
-        add esi,1    // execute replaced code
-        mov eax,_total_boot_count
-        cmp esi,eax
-        pop edi
-        pop edx
-        pop ecx
-        pop ebx
-        pop eax
-        pop ebp
-        retn
-    }
 }
 
 void bootservAtProcessBootIdCallPoint()
