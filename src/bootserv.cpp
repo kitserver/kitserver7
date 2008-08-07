@@ -58,6 +58,8 @@ bootserv_config_t _bootserv_config;
 hash_map<DWORD,WORD> _boot_slots;
 wstring* _fast_bin_table[MAX_BOOTS+100];
 
+bool _struct_replaced = false;
+int _num_slots = 8094;
 typedef DWORD (*COPYDATA_PROC)(DWORD dest, DWORD src, DWORD len);
 COPYDATA_PROC _org_copyData2 = NULL;
 
@@ -78,6 +80,7 @@ bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
 void InitMaps();
 void CopyPlayerData(PLAYER_INFO* players, bool writeList=true);
+bool ReplaceBinSizes();
 
 void bootservAtGetBootIdCallPointA();
 void bootservAtGetBootIdCallPointB();
@@ -166,13 +169,12 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     getConfig("bootserv", "debug", DT_DWORD, 1, bootservConfig);
     getConfig("bootserv", "online.enabled", DT_DWORD, 2, bootservConfig);
 
-    /*
     HookCallPoint(code[C_COPY_DATA], 
             bootservAtCopyEditDataCallPoint, 6, 1);
     _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
     HookCallPoint(code[C_COPY_DATA2], 
             bootservAtCopyEditData2, 0, 0);
-    */
+
     HookCallPoint(code[C_GET_BOOT_ID1] + 4, 
             bootservAtGetBootIdCallPointA, 6, 14);
     HookCallPoint(code[C_GET_BOOT_ID2] + 4, 
@@ -275,6 +277,32 @@ void InitMaps()
     }
 
     LOG1N(L"Total GDB boots: %d", slots.size());
+    if (slots.size() > 0)
+        _num_slots = FIRST_EXTRA_BOOT_SLOT + slots.size();
+    LOG1N(L"_num_slots = %d", _num_slots);
+}
+
+bool ReplaceBinSizes()
+{
+    // extend BIN-sizes table
+    BIN_SIZE_INFO** tabArray = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
+    if (!tabArray)
+        return false;
+    BIN_SIZE_INFO* table = tabArray[0];
+    if (!table)
+        return false;
+
+    int newSize = sizeof(DWORD)*(_num_slots)+0x120;
+    BIN_SIZE_INFO* newTable = (BIN_SIZE_INFO*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newSize);
+    memcpy(newTable, table, table->structSize);
+    for (int i=table->numItems; i<_num_slots; i++)
+        newTable->sizes[i] = 0x800; // back-fill with 1 page defaults
+
+    newTable->structSize = newSize;
+    newTable->numItems = _num_slots;
+    newTable->numItems2 = _num_slots;
+    tabArray[0] = newTable; // point to new structure
+    return true;
 }
 
 void CopyPlayerData(PLAYER_INFO* players, bool writeList)
@@ -367,6 +395,9 @@ DWORD bootservAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
         DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
         if (menuMode!=NETWORK_MODE || _bootserv_config._enable_online)
             CopyPlayerData((PLAYER_INFO*)dest);
+
+        if (!_struct_replaced)
+            _struct_replaced = ReplaceBinSizes();
     }
     return result;
 }
