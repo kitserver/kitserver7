@@ -42,6 +42,8 @@
 #define CLEAR_SCAN_FACE   0xdf
 #define CLEAR_UNIQUE_HAIR 0xbf
 
+#define NETWORK_MODE 4
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_fserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -533,7 +535,9 @@ DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
     DWORD *data_ptr = (DWORD*)data[EDIT_DATA_PTR];
     if (data_ptr && dest==(*data_ptr)+4) // player data being modified
     {
-        if (_fserv_config._enable_online)
+        LOG(L"data copy: default player data loaded");
+        DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+        if (menuMode!=NETWORK_MODE || _fserv_config._enable_online)
             CopyPlayerData((PLAYER_INFO*)dest);
     }
     return result;
