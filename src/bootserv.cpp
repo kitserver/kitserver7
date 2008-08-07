@@ -268,7 +268,8 @@ void InitMaps()
     {
         _fast_bin_table[sit->second - FIRST_EXTRA_BOOT_SLOT] = 
             new wstring(sit->first);
-        LOG1N1S(L"slot %d <-- boot {%s}", sit->second, sit->first.c_str());
+        if (k_bootserv.debug)
+            LOG1N1S(L"slot %d <-- boot {%s}", sit->second, sit->first.c_str());
     }
 
     LOG1N(L"Total GDB boots: %d", slots.size());
@@ -511,7 +512,9 @@ KEXPORT DWORD bootservGetBootId1(DWORD boot, BYTE* pPartialPlayerInfo)
 
 KEXPORT DWORD bootservGetBootId2(DWORD boot)
 {
-    LOG1N(L"GetBootId2: _last_playerIndex = %d", _last_playerIndex);
+    if (k_bootserv.debug)
+        LOG1N(L"GetBootId2: _last_playerIndex = %d", _last_playerIndex);
+
     WORD idx = _last_playerIndex;
     _last_playerIndex = 0; // reset
 
@@ -596,8 +599,15 @@ KEXPORT void bootservEntranceBoots(BYTE* pData)
         if (IsBadReadPtr(pId2,4) || id1 != *pId2)
             return;
         
-        LOG1N(L"entrance: playerIndex = %d", *pPlayerIndex);
-        _last_playerIndex = *pPlayerIndex;
+        if (k_bootserv.debug)
+        {
+            LOG1N(L"entrance: playerIndex = %d", *pPlayerIndex);
+            LOG1N(L"data: %08x", (DWORD)pData);
+            LOG1N(L"player.id = %d", *pId2);
+        }
+
+        if (id1!=0)
+            _last_playerIndex = *pPlayerIndex;
     }
 }
 
