@@ -39,6 +39,8 @@
 #define MAX_PLAYERS 5460
 #define MAX_BOOTS MAX_PLAYERS
 
+#define NETWORK_MODE 4
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_bootserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -361,7 +363,9 @@ DWORD bootservAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
     DWORD *data_ptr = (DWORD*)data[EDIT_DATA_PTR];
     if (data_ptr && dest==(*data_ptr)+4) // player data being modified
     {
-        if (_bootserv_config._enable_online)
+        LOG(L"data copy: default player data loaded");
+        DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+        if (menuMode!=NETWORK_MODE || _bootserv_config._enable_online)
             CopyPlayerData((PLAYER_INFO*)dest);
     }
     return result;
