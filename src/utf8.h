@@ -363,7 +363,7 @@ class Utf8 {
 			return;
 		}
 		
-		static void fUnicodeToAnsi(char* existingArray, wchar_t* unic) {
+		static void fUnicodeToAnsi(char* existingArray, const wchar_t* unic) {
 			char* temp = unicodeToAnsi(unic);
 			strcpy(existingArray, temp);
 			free(temp);

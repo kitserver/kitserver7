@@ -50,9 +50,11 @@ class config_t
 public:
     wstring _edit_data_file;
     wstring _system_data_file;
+    wstring _data_dir;
 };
 
 config_t _rwdata_config;
+char _save_dir[1024];
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -60,7 +62,6 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
     IDirect3DDevice9** ppReturnedDeviceInterface);
 
-bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
 DWORD HookIndirectCall(DWORD addr, void* func);
 void rwdataConfig(char* pName, const void* pValue, DWORD a);
 HANDLE WINAPI rwdataCreateFileW_r(
@@ -80,6 +81,7 @@ HANDLE WINAPI rwdataCreateFileW_w(
   DWORD dwFlagsAndAttributes,
   HANDLE hTemplateFile);
 
+void rwdataCalculateStringSize();
 
 static void string_strip(wstring& s)
 {
@@ -136,53 +138,9 @@ void fservConfig(char* pName, const void* pValue, DWORD a)
 		case 1: // debug
 			k_rwdata.debug = *(DWORD*)pValue;
 			break;
-        case 2: // edit.data
-            _rwdata_config._edit_data_file = (wchar_t*)pValue;
-            string_strip(_rwdata_config._edit_data_file);
-            // verify existence and readability of the file;
-            // expand relative name if needed.
-            if (!OpenFileIfExists(_rwdata_config._edit_data_file.c_str(),
-                        handle, fsize))
-            {
-                wstring fn(getPesInfo()->myDir);
-                fn += L"\\data\\" + _rwdata_config._edit_data_file;
-                if (OpenFileIfExists(fn.c_str(), handle, fsize))
-                {
-                    _rwdata_config._edit_data_file = fn;
-                    CloseHandle(handle);
-                }
-                else
-                {
-                    LOG1S(L"ERROR: Unable to {%s} for reading. Will use default EDIT DATA file instead.",_rwdata_config._edit_data_file.c_str());
-                    _rwdata_config._edit_data_file = L"";
-                }
-            }
-            else
-                CloseHandle(handle);
-            break;
-        case 3: // system.data
-            _rwdata_config._system_data_file = (wchar_t*)pValue;
-            string_strip(_rwdata_config._system_data_file);
-            // verify existence and readability of the file;
-            // expand relative name if needed.
-            if (!OpenFileIfExists(_rwdata_config._system_data_file.c_str(),
-                        handle, fsize))
-            {
-                wstring fn(getPesInfo()->myDir);
-                fn += L"\\data\\" + _rwdata_config._system_data_file;
-                if (OpenFileIfExists(fn.c_str(), handle, fsize))
-                {
-                    _rwdata_config._system_data_file = fn;
-                    CloseHandle(handle);
-                }
-                else
-                {
-                    LOG1S(L"ERROR: Unable to {%s} for reading. Will use default SYSTEM DATA file instead.",_rwdata_config._system_data_file.c_str());
-                    _rwdata_config._system_data_file = L"";
-                }
-            }
-            else
-                CloseHandle(handle);
+        case 2: // data.dir
+            _rwdata_config._data_dir = (wchar_t*)pValue;
+            string_strip(_rwdata_config._data_dir);
             break;
 	}
 	return;
@@ -198,20 +156,48 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     LOG(L"Initializing Read-Write Data Module");
 
     getConfig("rwdata", "debug", DT_DWORD, 1, fservConfig);
-    getConfig("rwdata", "edit.data", DT_STRING, 2, fservConfig);
-    getConfig("rwdata", "system.data", DT_STRING, 3, fservConfig);
+    getConfig("rwdata", "data.dir", DT_STRING, 2, fservConfig);
 
     LOG1N(L"debug = %d",k_rwdata.debug);
-    LOG1S(L"edit.data = {%s}",_rwdata_config._edit_data_file.c_str());
-    LOG1S(L"system.data = {%s}",_rwdata_config._system_data_file.c_str());
+    LOG1S(L"data.dir = {%s}",_rwdata_config._data_dir.c_str());
 
-    _createFileW_r = (CREATEFILEW_PROC)HookIndirectCall(code[C_CREATEFILEW_R],
-            rwdataCreateFileW_r);
-    _createFileW_w = (CREATEFILEW_PROC)HookIndirectCall(code[C_CREATEFILEW_W],
-            rwdataCreateFileW_w);
+    if (k_rwdata.debug)
+    {
+        // just for tracking read/writes
+        _createFileW_r = (CREATEFILEW_PROC)HookIndirectCall(
+                code[C_CREATEFILEW_R],
+                rwdataCreateFileW_r);
+        _createFileW_w = (CREATEFILEW_PROC)HookIndirectCall(
+                code[C_CREATEFILEW_W],
+                rwdataCreateFileW_w);
+    }
+
+    HookCallPoint(code[C_CALC_STRING_SIZE], rwdataCalculateStringSize, 6, 0);
+    if (!_rwdata_config._data_dir.empty())
+    {
+        ZeroMemory(_save_dir, sizeof(_save_dir));
+        Utf8::fUnicodeToAnsi(_save_dir,_rwdata_config._data_dir.c_str());
+
+	    DWORD protection = 0;
+	    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+        DWORD* dptr = (DWORD*)code[C_SET_DIRNAME];
+        if (VirtualProtect(dptr, 4, newProtection, &protection)) {
+            *dptr = (DWORD)_save_dir;
+            LOG1S(L"Save dir set to: %s", _rwdata_config._data_dir.c_str());
+        }
+    }
 
 	TRACE(L"Hooking done.");
     return D3D_OK;
+}
+
+void rwdataCalculateStringSize()
+{
+    __asm {
+        sub eax,edx  // execute replaced code
+        mov ebx,8192 // big enough buffer
+        retn
+    }
 }
 
 DWORD HookIndirectCall(DWORD addr, void* func)
@@ -246,18 +232,7 @@ HANDLE WINAPI rwdataCreateFileW_r(
   HANDLE hTemplateFile
 )
 {
-    int len = wcslen(lpFileName);
-    int elen = wcslen(L"EDIT01.bin");
-    int slen = wcslen(L"OPTION01.bin");
-    if (wcsncmp(lpFileName+len-elen, L"EDIT01.bin", elen)==0 &&
-            !_rwdata_config._edit_data_file.empty())
-        lpFileName = _rwdata_config._edit_data_file.c_str();
-    else if (wcsncmp(lpFileName+len-slen, L"OPTION01.bin", slen)==0 &&
-            !_rwdata_config._system_data_file.empty())
-        lpFileName = _rwdata_config._system_data_file.c_str();
-
-    if (k_rwdata.debug)
-        LOG1S(L"CreateFileW (READ) called for {%s}",lpFileName);
+    LOG1S(L"CreateFileW (READ) called for {%s}",lpFileName);
 
     // call original
     HANDLE result = _createFileW_r(
@@ -282,18 +257,7 @@ HANDLE WINAPI rwdataCreateFileW_w(
   HANDLE hTemplateFile
 )
 {
-    int len = wcslen(lpFileName);
-    int elen = wcslen(L"EDIT01.bin");
-    int slen = wcslen(L"OPTION01.bin");
-    if (wcsncmp(lpFileName+len-elen, L"EDIT01.bin", elen)==0 &&
-            !_rwdata_config._edit_data_file.empty())
-        lpFileName = _rwdata_config._edit_data_file.c_str();
-    else if (wcsncmp(lpFileName+len-slen, L"OPTION01.bin", slen)==0 &&
-            !_rwdata_config._system_data_file.empty())
-        lpFileName = _rwdata_config._system_data_file.c_str();
-
-    if (k_rwdata.debug)
-        LOG1S(L"CreateFileW (WRITE) called for {%s}",lpFileName);
+    LOG1S(L"CreateFileW (WRITE) called for {%s}",lpFileName);
 
     // call original
     HANDLE result = _createFileW_w(
@@ -306,24 +270,5 @@ HANDLE WINAPI rwdataCreateFileW_w(
             hTemplateFile);
 
     return result;
-}
-
-bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
-{
-    TRACE1S(L"OpenFileIfExists:: %s", filename);
-    handle = CreateFile(filename,             // file to open
-                       GENERIC_READ | GENERIC_WRITE, // open for read/write
-                       0,                     // no sharing
-                       NULL,                  // default security
-                       OPEN_EXISTING,         // existing file only
-                       FILE_ATTRIBUTE_NORMAL, // normal file
-                       NULL);                 // no attr. template
-
-    if (handle != INVALID_HANDLE_VALUE)
-    {
-        size = GetFileSize(handle,NULL);
-        return true;
-    }
-    return false;
 }
 
