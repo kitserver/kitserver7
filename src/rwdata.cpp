@@ -141,6 +141,8 @@ void fservConfig(char* pName, const void* pValue, DWORD a)
         case 2: // data.dir
             _rwdata_config._data_dir = (wchar_t*)pValue;
             string_strip(_rwdata_config._data_dir);
+            if (!_rwdata_config._data_dir.empty())
+                string_strip_quotes(_rwdata_config._data_dir);
             break;
 	}
 	return;
