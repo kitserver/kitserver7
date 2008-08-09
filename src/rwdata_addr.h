@@ -1,8 +1,8 @@
 // ADDRESSES for rwdata module
 BYTE allowedGames[] = {
     //gvPES2008demo,
-    //gvPES2008,
-    //gvPES2008v110,
+    gvPES2008,
+    gvPES2008v110,
     gvPES2008v120,
 };
 
