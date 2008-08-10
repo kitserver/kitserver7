@@ -397,17 +397,15 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
     _readFile = (READFILE_PROC)HookIndirectCall(code[C_READ_FILE],
             hookReadFile);
 
-    HookCallPoint(code[C_COPY_DATA], 
-            hookAtCopyEditDataCallPoint, 6, 1);
-    _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
-    HookCallPoint(code[C_COPY_DATA2], 
-            hookAtCopyEditData2, 0, 0);
-	
 	CALLCHAIN_BEGIN(hk_D3D_CreateDevice, it) {
 		PFNCREATEDEVICEPROC NextCall = (PFNCREATEDEVICEPROC)*it;
 		NextCall(self, Adapter, DeviceType, hFocusWindow,
            	BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 	} CALLCHAIN_END
+
+    HookCallPoint(code[C_COPY_DATA], hookAtCopyEditDataCallPoint, 6, 1);
+    _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
+    HookCallPoint(code[C_COPY_DATA2], hookAtCopyEditData2, 0, 0);
 
 	return result;
 }
