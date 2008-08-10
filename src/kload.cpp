@@ -58,7 +58,7 @@ KEXPORT DWORD GetLoaderVersion();
  */
 KEXPORT DWORD GetLoaderVersion()
 {
-    return MAKELONG(3,7); // 7.3.x
+    return MAKELONG(4,7); // 7.4.x
 }
 
 /*******************/

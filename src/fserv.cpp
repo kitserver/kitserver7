@@ -17,6 +17,7 @@
 #include "configs.hpp"
 #include "utf8.h"
 #include "replay.h"
+#include "player.h"
 
 #define lang(s) getTransl("fserv",s)
 
@@ -43,6 +44,7 @@
 #define CLEAR_UNIQUE_HAIR 0xbf
 
 #define NETWORK_MODE 4
+#define MAX_PLAYERS 5460
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -70,8 +72,6 @@ wstring* _fast_bin_table[NUM_SLOTS-FIRST_FACE_SLOT];
 
 bool _struct_replaced = false;
 int _num_slots = 8094;
-typedef DWORD (*COPYDATA_PROC)(DWORD dest, DWORD src, DWORD len);
-COPYDATA_PROC _org_copyData2 = NULL;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -82,15 +82,12 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 void fservAtFaceHairCallPoint();
 void fservAtCopyEditDataCallPoint();
 KEXPORT void fservAtFaceHair(DWORD dest, DWORD src);
-KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size);
-DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len);
 
 void fservConfig(char* pName, const void* pValue, DWORD a);
 bool fservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
-bool ReplaceBinSizes();
 void InitMaps();
-void CopyPlayerData(PLAYER_INFO* players, bool writeList=true);
+void fservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList);
 
 void fservWriteEditData(LPCVOID data, DWORD size);
 void fservReadReplayData(LPCVOID data, DWORD size);
@@ -131,7 +128,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 			return false;
 		}
 
-        CHECK_KLOAD(MAKELONG(3,7));
+        CHECK_KLOAD(MAKELONG(4,7));
 
 		copyAdresses();
 		hookFunction(hk_D3D_CreateDevice, initModule);
@@ -171,14 +168,10 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
     HookCallPoint(code[C_CHECK_FACE_AND_HAIR_ID], 
             fservAtFaceHairCallPoint, 6, 20);
-    HookCallPoint(code[C_COPY_DATA], 
-            fservAtCopyEditDataCallPoint, 6, 1);
-    _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
-    HookCallPoint(code[C_COPY_DATA2], 
-            fservAtCopyEditData2, 0, 0);
 
     // register callbacks
     afsioAddCallback(fservGetFileInfo);
+    addCopyPlayerDataCallback(fservCopyPlayerData);
 
     addReadReplayDataCallback(fservReadReplayData);
     addWriteReplayDataCallback(fservWriteReplayData);
@@ -325,37 +318,17 @@ void InitMaps()
     LOG1N(L"_num_slots = %d",_num_slots);
 }
 
-bool ReplaceBinSizes()
+void fservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
 {
-    // extend BIN-sizes table
-    BIN_SIZE_INFO** tabArray = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
-    if (!tabArray)
-        return false;
-    BIN_SIZE_INFO* table = tabArray[0];
-    if (!table)
-        return false;
-
-    int newSize = sizeof(DWORD)*(_num_slots)+0x120;
-    BIN_SIZE_INFO* newTable = (BIN_SIZE_INFO*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newSize);
-    memcpy(newTable, table, table->structSize);
-    for (int i=table->numItems; i<_num_slots; i++)
-        newTable->sizes[i] = 0x800; // back-fill with 1 page defaults
-
-    newTable->structSize = newSize;
-    newTable->numItems = _num_slots;
-    newTable->numItems2 = _num_slots;
-    tabArray[0] = newTable; // point to new structure
-    return true;
-}
-
-void CopyPlayerData(PLAYER_INFO* players, bool writeList)
-{
-    //_non_unique_face.clear();
-    //_non_unique_hair.clear();
-    //_scan_face.clear();
+    if (place==2)
+    {
+        DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
+        if (menuMode==NETWORK_MODE && !_fserv_config._enable_online)
+            return;
+    }
 
     multimap<string,DWORD> mm;
-    for (WORD i=0; i<5460; i++)
+    for (WORD i=0; i<MAX_PLAYERS; i++)
     {
         if (players[i].id == 0)
             continue;
@@ -416,44 +389,7 @@ void CopyPlayerData(PLAYER_INFO* players, bool writeList)
         }
     }
 
-    LOG(L"CopyPlayerData() done: players updated.");
-}
-
-KEXPORT void fservAtCopyEditData(PLAYER_INFO* players, DWORD size)
-{
-    if (size != 0x12a9cc)
-        return;  // not edit-data
-
-    CopyPlayerData(players);
-}
-
-void fservAtCopyEditDataCallPoint()
-{
-    __asm {
-        mov ecx,dword ptr ds:[esi+0xc] // execute replaced code
-        mov edx,dword ptr ds:[esi+8] // ...
-        pushfd 
-        push ebp
-        push eax
-        push ebx
-        push ecx
-        push edx
-        push esi
-        push edi
-        push ecx // param: size
-        push eax // param: src
-        call fservAtCopyEditData
-        add esp,0x08     // pop parameters
-        pop edi
-        pop esi
-        pop edx
-        pop ecx
-        pop ebx
-        pop eax
-        pop ebp
-        popfd
-        retn
-    }
+    LOG(L"fservCopyPlayerData() done: players updated.");
 }
 
 void fservAtFaceHairCallPoint()
@@ -485,7 +421,7 @@ void fservAtFaceHairCallPoint()
 
 void GetSlotsByPlayerIndex(DWORD idx, DWORD& faceSlot, DWORD& hairSlot)
 {
-    if (idx >= 5460)
+    if (idx >= MAX_PLAYERS)
         return;
 
     PLAYER_INFO* players = (PLAYER_INFO*)(*(DWORD**)data[EDIT_DATA_PTR] + 1);
@@ -501,7 +437,7 @@ void GetSlotsByPlayerIndex(DWORD idx, DWORD& faceSlot, DWORD& hairSlot)
 KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
 {
     if (!_struct_replaced)
-        _struct_replaced = ReplaceBinSizes();
+        _struct_replaced = afsioExtendSlots_cv0(_num_slots);
 
     BYTE faceHairMask = *(BYTE*)(src+3);
     WORD playerIdx = *(WORD*)(src+0x3a);
@@ -527,20 +463,6 @@ KEXPORT void fservAtFaceHair(DWORD dest, DWORD src)
         if (_fast_bin_table[hairSlot - FIRST_FACE_SLOT])
             *to = hairSlot-4449;
     }
-}
-
-DWORD fservAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
-{
-    DWORD result = _org_copyData2(dest, src, len);
-    DWORD *data_ptr = (DWORD*)data[EDIT_DATA_PTR];
-    if (data_ptr && dest==(*data_ptr)+4) // player data being modified
-    {
-        LOG(L"data copy: default player data loaded");
-        DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
-        if (menuMode!=NETWORK_MODE || _fserv_config._enable_online)
-            CopyPlayerData((PLAYER_INFO*)dest);
-    }
-    return result;
 }
 
 /**

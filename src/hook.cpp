@@ -102,6 +102,14 @@ BOOL WINAPI hookReadFile(
   LPOVERLAPPED lpOverlapped
 );
 
+typedef DWORD (*COPYDATA_PROC)(DWORD dest, DWORD src, DWORD len);
+COPYDATA_PROC _org_copyData2 = NULL;
+
+void hookAtCopyEditDataCallPoint();
+void hookCopyPlayerData(PLAYER_INFO* players, int place, bool writeList=true);
+DWORD hookAtCopyEditData2(DWORD dest, DWORD src, DWORD len);
+list<COPY_PLAYER_DATA_CALLBACK> _copyPlayerDataCallbacks;
+
 list<READ_DATA_CALLBACK> _writeEditDataCallbacks;
 list<READ_DATA_CALLBACK> _writeReplayDataCallbacks;
 list<READ_DATA_CALLBACK> _readEditDataCallbacks;
@@ -388,6 +396,12 @@ HRESULT STDMETHODCALLTYPE newCreateDevice(IDirect3D9* self, UINT Adapter,
             hookWriteFile);
     _readFile = (READFILE_PROC)HookIndirectCall(code[C_READ_FILE],
             hookReadFile);
+
+    HookCallPoint(code[C_COPY_DATA], 
+            hookAtCopyEditDataCallPoint, 6, 1);
+    _org_copyData2 = (COPYDATA_PROC)GetTargetAddress(code[C_COPY_DATA2]);
+    HookCallPoint(code[C_COPY_DATA2], 
+            hookAtCopyEditData2, 0, 0);
 	
 	CALLCHAIN_BEGIN(hk_D3D_CreateDevice, it) {
 		PFNCREATEDEVICEPROC NextCall = (PFNCREATEDEVICEPROC)*it;
@@ -1482,6 +1496,69 @@ BOOL WINAPI hookReadFile(
     else if (result && nNumberOfBytesToRead == 0x377f80)  // replay data
         LOG(L"Replay Data LOADED.");
 
+    return result;
+}
+
+KEXPORT void addCopyPlayerDataCallback(COPY_PLAYER_DATA_CALLBACK callback)
+{
+    _copyPlayerDataCallbacks.push_back(callback);
+}
+
+void hookCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
+{
+    // call the callbacks
+    for (list<COPY_PLAYER_DATA_CALLBACK>::iterator it = _copyPlayerDataCallbacks.begin();
+            it != _copyPlayerDataCallbacks.end();
+            it++)
+        (*it)(players, place, writeList);
+}
+
+void hookAtCopyEditData(PLAYER_INFO* players, DWORD size)
+{
+    if (size != 0x12a9cc)
+        return;  // not edit-data
+
+    hookCopyPlayerData(players, 1);
+}
+
+void hookAtCopyEditDataCallPoint()
+{
+    __asm {
+        mov ecx,dword ptr ds:[esi+0xc] // execute replaced code
+        mov edx,dword ptr ds:[esi+8] // ...
+        pushfd 
+        push ebp
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push esi
+        push edi
+        push ecx // param: size
+        push eax // param: src
+        call hookAtCopyEditData
+        add esp,0x08     // pop parameters
+        pop edi
+        pop esi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        pop ebp
+        popfd
+        retn
+    }
+}
+
+DWORD hookAtCopyEditData2(DWORD dest, DWORD src, DWORD len)
+{
+    DWORD result = _org_copyData2(dest, src, len);
+    DWORD *data_ptr = (DWORD*)data[EDIT_DATA_PTR];
+    if (data_ptr && dest==(*data_ptr)+4) // player data being modified
+    {
+        LOG(L"data copy: default player data loaded");
+        hookCopyPlayerData((PLAYER_INFO*)dest, 2);
+    }
     return result;
 }
 

@@ -6,7 +6,7 @@ BYTE allowedGames[] = {
     gvPES2008v120,
 };
 
-#define CODELEN 5
+#define CODELEN 3
 enum { 
     C_CHECK_FACE_AND_HAIR_ID, C_COPY_DATA, C_COPY_DATA2,
 };
@@ -35,13 +35,12 @@ DWORD codeArray[][CODELEN] = {
     },
 };
 
-#define DATALEN 3 
+#define DATALEN 2 
 enum {
-    EDIT_DATA_PTR, BIN_SIZES_TABLE,
-    MENU_MODE_IDX,
+    EDIT_DATA_PTR, MENU_MODE_IDX,
 };
 
-#define NODATAADDR {0,0,0},
+#define NODATAADDR {0,0},
 DWORD dataArray[][DATALEN] = {
     // PES2008 DEMO
     NODATAADDR
@@ -49,22 +48,19 @@ DWORD dataArray[][DATALEN] = {
     NODATAADDR
     // PES2008
     { 
-        0x1250d44, 0x1316b60,
-        0x1250fc8,
+        0x1250d44, 0x1250fc8,
     },
     // [Settings] PES2008 PC
     NODATAADDR
     NODATAADDR
     // PES2008 1.10
     { 
-        0x1251d6c, 0x1317b80,
-        0x1251ff0,
+        0x1251d6c, 0x1251ff0,
     },
     NODATAADDR
     // PES2008 1.20
     {
-        0x1252d68, 0x1318b80,
-        0x1252ff0,
+        0x1252d68, 0x1252ff0,
     },
 };
 

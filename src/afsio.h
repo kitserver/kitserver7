@@ -15,6 +15,8 @@ typedef bool (*CLBK_GET_FILE_INFO)(DWORD afsId, DWORD binId, HANDLE& hfile, DWOR
 KEXPORT bool afsioAddCallback(const CLBK_GET_FILE_INFO callback);
 KEXPORT bool afsioRemoveCallback(const CLBK_GET_FILE_INFO callback);
 
+KEXPORT bool afsioExtendSlots_cv0(int num_slots);
+
 // STRUCTURES
 ////////////////////////////////////////////////////////////////////////////////////
 

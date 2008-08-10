@@ -5,7 +5,7 @@
 #include "d3d9types.h"
 #include "d3d9.h"
 #include "d3dx9tex.h"
-
+#include "player.h"
 
 
 enum HOOKS {
@@ -126,4 +126,7 @@ KEXPORT void addReadReplayDataCallback(READ_DATA_CALLBACK callback);
 
 typedef void (*MENU_EVENT_CALLBACK)(int delta, DWORD menuMode, DWORD ind, DWORD inGameInd, DWORD cupModeInd);
 KEXPORT void addMenuCallback(MENU_EVENT_CALLBACK callback);
+
+typedef void (*COPY_PLAYER_DATA_CALLBACK)(PLAYER_INFO* players, int place, bool writeList);
+KEXPORT void addCopyPlayerDataCallback(COPY_PLAYER_DATA_CALLBACK callback);
 #endif
