@@ -10,7 +10,7 @@
 #define THISMOD &k_afsio
 
 #define MODID 123
-#define NAMELONG L"AFSIO Module 7.3.0.0"
+#define NAMELONG L"AFSIO Module 7.4.0.0"
 #define NAMESHORT L"AFSIO"
 #define DEFAULT_DEBUG 0
 
@@ -50,6 +50,8 @@ KMOD k_afsio = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 hash_map<DWORD,FILE_STRUCT> g_file_map;
 hash_map<DWORD,DWORD> g_offset_map;
 hash_map<DWORD,FILE_STRUCT> g_event_map;
+
+int _num_slots_cv0 = 8094;
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -589,4 +591,31 @@ KEXPORT void afsioAtCloseHandle(DWORD eventId)
     }
 }
 
+KEXPORT bool afsioExtendSlots_cv0(int num_slots)
+{
+    if (num_slots <= _num_slots_cv0)
+        return true;
+
+    // extend BIN-sizes table
+    BIN_SIZE_INFO** tabArray = (BIN_SIZE_INFO**)data[BIN_SIZES_TABLE];
+    if (!tabArray)
+        return false;
+    BIN_SIZE_INFO* table = tabArray[0];
+    if (!table)
+        return false;
+
+    int newSize = sizeof(DWORD)*(num_slots)+0x120;
+    BIN_SIZE_INFO* newTable = (BIN_SIZE_INFO*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newSize);
+    memcpy(newTable, table, table->structSize);
+    for (int i=table->numItems; i<num_slots; i++)
+        newTable->sizes[i] = 0x800; // back-fill with 1 page defaults
+
+    newTable->structSize = newSize;
+    newTable->numItems = num_slots;
+    newTable->numItems2 = num_slots;
+    tabArray[0] = newTable; // point to new structure
+
+    _num_slots_cv0 = num_slots;
+    return true;
+}
 

@@ -38,7 +38,7 @@
 #define MAX_ITERATIONS 5000
 
 enum {
-    SPECTATORS_SUMMER, SPECTATORS_WINTER,
+    SPECTATORS_SUMMER, SPECTATORS_WINTER, FLAGS,
     ADBOARDS_1, ADBOARDS_2, GOALS,
     DAY_SUMMER_0, DAY_SUMMER_1,
     DAY_SUMMER_2, DAY_SUMMER_3,
@@ -61,7 +61,7 @@ enum {
 };
 
 wstring _stad_names[] = {
-    L"spec_summer.bin", L"spec_winter.bin",
+    L"spec_summer.bin", L"spec_winter.bin", L"stad_flags.bin",
     L"stad_adboards1.bin", L"stad_adboards2.bin", L"stad_goals.bin",
     L"day_summer_0.bin", L"day_summer_1.bin",
     L"day_summer_2.bin", L"day_summer_3.bin",
@@ -88,7 +88,7 @@ HINSTANCE hInst = NULL;
 KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
 #define NUM_STADIUMS 16
-#define NUM_STAD_FILES 47
+#define NUM_STAD_FILES 48
 
 #define STAD_FIRST  41
 #define STAD_LAST   712
@@ -96,9 +96,10 @@ KMOD k_stad = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
 
 #define STAD_SPEC_SUMMER 35
 #define STAD_SPEC_WINTER 36
-#define STAD_ADBOARDS_1 38
-#define STAD_ADBOARDS_2 39
-#define STAD_GOALS      40
+#define STAD_ADBOARDS_1  38
+#define STAD_ADBOARDS_2  39
+#define STAD_GOALS       40
+#define STAD_FLAGS       713
 
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
@@ -433,6 +434,8 @@ int GetBinType(DWORD binId)
             return ADBOARDS_2;
         case STAD_GOALS:
             return GOALS;
+        case STAD_FLAGS:
+            return FLAGS;
     }
 
     if (binId < STAD_FIRST || binId > STAD_LAST)
