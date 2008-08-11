@@ -757,6 +757,7 @@ void stadReadReplayData(LPCVOID data, DWORD size)
     }
     LOG1S(L"read stadKey = {%s}", stadKey.c_str());
 
+    _stadium_iter = _stadiums.end();
     if (!stadKey.empty())
     {
         stadium_iter_t it = _stadiums.find(stadKey);
