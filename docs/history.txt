@@ -2,6 +2,16 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2008-08-11
+----------
+v7.4.0
+- bootserv: boot server
+- bserv: ball server
+- fserv: now works, even if PES2008_EDIT01.bin doesn't exist
+- rwdata: changed the functionality: now redirects to a different folder.
+- stadium: support for 35,36(spectators) and 713(corner flags, etc.) bins
+
+
 2008-07-03
 ----------
 v7.3.0

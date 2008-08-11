@@ -44,9 +44,11 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-July 3, 2008 - <b>Kitserver 7.3.0</b><br />
-
+August 11, 2008 - <b>Kitserver 7.4.0</b><br />
 </div>
+<p class="note">
+The most up-to-date version of this documentaion, and the translations to many languages, are located here: <a href="http://kitserver.ath.cx/docs">http://kitserver.ath.cx/docs/</a>
+</p>
 
 <h3>1. Introduction</h3>
 <p>
@@ -69,19 +71,23 @@ Disable controller check for Master League/League/Cup games: this allows your
 friend to play for the opposition team.
         </td>
     </tr>
-    <tr><td><a href="#afs2fs">AFS2FS 7.2.0</a></td>
+    <tr><td><a href="#afs2fs">AFS2FS 7.2.1</a></td>
         <th><b>afs2fs.dll</b></th>
         <td>Manage AFS (.img) game content using files and folders: much easier and quicker to install/remove patches, without the need modify *.img files</td>
     </tr>
-    <tr><td><a href="#fserv">Faceserver 7.3.0</a></td>
+    <tr><td><a href="#fserv">Faceserver 7.4.0</a></td>
         <th><b>fserv.dll</b></th>
         <td>Assign special face/hair to any player you want.</td>
+    </tr>
+    <tr><td><a href="#bootserv">Bootserver 7.4.0</a></td>
+        <th><b>bootserv.dll</b></th>
+        <td>Assign unique boots to any player you want.</td>
     </tr>
     <tr><td><a href="#sched">Scheduler 7.3.0</a></td>
         <th><b>sched.dll</b></th>
         <td>Make changes to Konami Cup tournaments: now possible to play Home/Away matches in the groups, and also have Home/Away knock-out stages - ala UEFA Champions League</td>
     </tr>
-    <tr><td><a href="#rwdata">Read/Write data 7.2.0</a></td>
+    <tr><td><a href="#rwdata">Read/Write data 7.4.0.1</a></td>
         <th><b>rwdata.dll</b></th>
         <td>Manage your edit and system data. Useful for patchmakers - to keep all things in one place and have the ability to keep the original PES2008_EDIT01.bin and PES2008_OPTION01.bin unchanged.</td>
     </tr>
@@ -93,9 +99,13 @@ friend to play for the opposition team.
         <th><b>time.dll</b></th>
         <td>Set the match time to any number of minutes you want between 1 and 255.</td>
     </tr>
-    <tr><td><a href="#stadium">Stadium server 7.3.0</a></td>
+    <tr><td><a href="#stadium">Stadium server 7.3.2.1</a></td>
         <th><b>stadium.dll</b></th>
         <td>Organize your stadiums in the GDB.</td>
+    </tr>
+    <tr><td><a href="#bserv">Ball server 7.4.0</a></td>
+        <th><b>bserv.dll</b></th>
+        <td>Organize your balls in the GDB.</td>
     </tr>
 </table>
 
@@ -213,7 +223,7 @@ gdb.dir = "c:\mypesfiles\"
 </p>
 
 <a name="kserv"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
+<p><a class="backlink" href="#">Top</a></p>
 <h3>4. Kserv Module (kserv.dll)</h3>
 
 <p>
@@ -444,7 +454,7 @@ However, once the match starts, the kitsever will make sure the teams are wearin
 </p>
 
 <a name="lodmixer"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
+<p><a class="backlink" href="#">Top</a></p>
 <h3>5. LOD Mixer (lodmixer.dll)</h3>
 
 <p>
@@ -541,7 +551,7 @@ You can also now choose a "Spectator" mode for in tournaments.
 </p>
 
 <a name="afs2fs"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
+<p><a class="backlink" href="#">Top</a></p>
 <h3>6. AFS2FS Module (afs2fs.dll)</h3>
 
 <p>
@@ -622,7 +632,7 @@ Similarly with balls, it is often desirable to specify names which are longer th
 </pre>
 
 <a name="fserv"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
+<p><a class="backlink" href="#">Top</a></p>
 <h3>7. Faceserver (fserv.dll)</h3>
 
 <p>
@@ -633,7 +643,7 @@ Faceserver makes it possible to load as many faces and hair from the GDB as you 
 
 <h5>7.1. How to find out ID for a player</h5>
 <p>
-If you have faceserver enabled (which it is by default), just run the game, make sure the Edit Data is loaded (game EXEs prior to 1.20 didn't do that automatically), and then in the <b>kitserver</b> folder, there should appear a text file called <span style="color:#060"><b>playerlist.txt</b></span>. It will contain the IDs for all the players that you have in your game, sorted alphabetically for easy searching.
+If you have faceserver enabled (which it is by default), just start the game, and then in the <b>kitserver</b> folder, there should appear a text file called <span style="color:#060"><b>playerlist.txt</b></span>. It will contain the IDs for all the players that you have in your game, sorted alphabetically for easy searching.
 </p>
 
 <h5>7.2. How to configure</h5>
@@ -671,15 +681,59 @@ Currently, faceserver doesn't work in Network mode, at least not in the "officia
 online.enabled = 1
 </pre>
 
+<a name="bootserv"><br /></a>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>8. Boot server (bootserv.dll)</h3>
+
+<p>
+Bootserver makes it possible to assign each player a unique pair of boots. Like faceserver, the bootserver makes use of unique ids, which are assigned to each player, and it creates "virtual" boot slots, that only exist during run-time.
+</p>
+
+<img src="bootserv.png"/>
+
+<h5>8.1. How to find out ID for a player</h5>
+<p>
+If you have bootserver enabled (which it is by default), just start the game, and then in the <b>kitserver</b> folder, there should appear a text file called <span style="color:#060"><b>playerlist.txt</b></span>. It will contain the IDs for all the players that you have in your game, sorted alphabetically for easy searching.
+</p>
+
+<h5>8.2. How to configure</h5>
+<p>
+Bootserver uses a map file (<b>GDB/boots/map.txt</b>), similar in format to faceserver: you specify player's unique ID, followed by a filename for his boot:
+</p>
+<p class="devnote">{ID}, {boot-file}</p>
+
+<p>
+The filenames are relative to <b>GDB/boots</b> folder, but inside that you're free to organize them whichever way you want: either one flat directory, or a folder hierarchy. The only important thing is that you correctly specify the paths in the map.txt. The double-quotes around filenames are optional.
+</p>
+
+<p>
+Here are some examples of entries in map.txt:
+
+<pre>
+971, adidas-delpiero.bin
+5786, adidas-green.bin
+</pre>
+</p>
+
+<h5>8.3. Network play</h5>
+<p>
+Currently, bootserver doesn't work in Network mode, at least not in the "official" Konami online rooms. Perhaps, this will change in the future releases of bootserver. There is, however, a configuration setting, which allows the use of bootserver in the so-called "PES-Magazine"-type of network play. By default, that setting is disabled, but you can enable it if you want, in the <b>config.txt</b> file, by changing its value from 0 to 1:
+</p>
+
+<pre>
+[bootserv]
+online.enabled = 1
+</pre>
+
 
 <a name="sched"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
-<h3>8. Scheduler (sched.dll)</h3>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>9. Scheduler (sched.dll)</h3>
 
 <p>
 This module allows to organize a Konami Cup, which is more like the real <b>UEFA Champions League</b>: you play 6 matches in the group, then 2 in each of the knock-out rounds, except the final, where there's only 1 match.
 
-<h5>8.1. How to use</h5>
+<h5>9.1. How to use</h5>
 
 <p>
 Create a new Konami Cup, choose 'Group League'. The Home/Away option will still be greyed out, but ignore that for now. Once you select the teams, and are ready to begin the tournament - i.e. you are at the "Next game" screen, press [<b>PgUp</b>] or [<b>PgDn</b>] keys to get to the "format tweaks" <b>page</b>:
@@ -693,8 +747,8 @@ Press [<b>F2</b>] to switch between the default mode (3 games in group, 1 in eac
 
 
 <a name="rwdata"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
-<h3>9. Read/Write data (rwdata.dll)</h3>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>10. Read/Write data (rwdata.dll)</h3>
 
 <p>
 This little module allows you to redirect the reading and writing operations for <b>Edit Data</b> (PES2008_EDIT01.bin) and <b>System Data</b> (PES2008_OPTION01.bin). This was originally intended for patchmakers that use kitserver as their base, because then the Edit Data file can be included in the patch, and kitserver can make the game work with that file, while keeping the original PES2008_EDIT01.bin unmodified, which also can be useful for easy uninstall of the patch.
@@ -715,8 +769,8 @@ system.data = "option01.bin"
 </p>
 
 <a name="camera"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
-<h3>10. Camera module (camera.dll)</h3>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>11. Camera module (camera.dll)</h3>
 
 <p>
 With a separate (standalone) tool <b>CameraTweak</b> you can choose the camera angle from 1 to 9 - as in older PES versions - something that is not available in PES2008 interface. This module allows to take it one step further: make the angle even wider - choose any value from 0 to 2^32. Angles like 50, 100, 200 give quite a different perspective of play. More fun :)
@@ -731,8 +785,8 @@ angle = 100
 </p>
 
 <a name="time"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
-<h3>11. Time expander (time.dll)</h3>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>12. Time expander (time.dll)</h3>
 
 <p>
 This tiny module allows to stretch the length of the match to normal 90 minutes, if you want, or even beyond that: making the seconds flow slower than normal. Also, another extreme is setting the match time to 1 minute. This is a whole new experience too: you have to really treasure the ball - keep posession, or you risk not getting it back at all, before the final whistle! Also, if you get a scoring chance, better put it away, because chances are it'll be the only one you get.
@@ -749,8 +803,8 @@ cup.time = 1
 </p>
 
 <a name="stadium"><br /></a>
-<p><a class="backlink" href="manual.html#">Top</a></p>
-<h3>12. Stadium server (stadium.dll)</h3>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>13. Stadium server (stadium.dll)</h3>
 
 <p>
 With stadium server, you can have a virtually unlimited number of stadiums, which you can choose before any game - Exhibition, Cup, League, or Master League match. You need to organize them in the GDB: i kept the format of stadium servers for previous PES versions, since people are already familiar with it. But just a quick summary of how things are put together:
@@ -770,7 +824,7 @@ With stadium server, you can have a virtually unlimited number of stadiums, whic
 Stadium folders are all together in one directory - there is no hierarchy possible, but by having the stadiums named systematically, you can make it easy to quickly find the stadium you want.
 </p>
 
-<h5>12.1. Stadium folder format</h5>
+<h5>13.1. Stadium folder format</h5>
 
 <p>
 There are two ways to name the stadium files:
@@ -795,10 +849,10 @@ The second way to name the stadium files relies on a set of predefined - "reserv
 <img src="wembley.png"/>
 </p>
 
-<h5>12.2. Stadium selection</h5>
+<h5>13.2. Stadium selection</h5>
 
 <p>
-You select the stadium before the match, using the same screen as you would do the kit selection. The trick is to switch to the stadium selection <b>page</b> first, by using [<b>PgUp</b>] or [<b>PgDn</b>] keys. (Most of the time, there will only be 2 pages available: kit selection and stadium selection. The only exception is the Cup mode, when you had chosen "Group League" format - in that case there will be 3 pages: kit selection, stadium selection and cup format tweaks.
+You select the stadium before the match, using the same screen as you would do the kit selection. The trick is to switch to the stadium selection <b>page</b> first, by using [<b>PgUp</b>] or [<b>PgDn</b>] keys. (Most of the time, there will only be 3 pages available: kit selection, stadium selection, and ball selection. The only exception is the Cup mode, when you had chosen "Group League" format - in that case there will be additional 4th page - to tweak the competition format.
 </p>
 
 <img src="stadselect.png"/>
@@ -818,7 +872,7 @@ You select the stadium before the match, using the same screen as you would do t
 The last two keys are useful for quick browsing through big collection of stadiums, if you had organized them well. For example, if you prefix all stadium folder names with the country name, then it's easy to quickly skip over all the stadiums from the same country, using either [<b>-</b>] or [<b>=</b>] keys.
 </p>
 
-<h5>12.3. Stadium information file: info.txt</h5>
+<h5>13.3. Stadium information file: info.txt</h5>
 
 <p>
 One other file, which you can place in every stadium folder - is a text file, called <b>info.txt</b>. There you can define one of these 3 properties: <b>name</b>, <b>built</b>, and <b>capacity</b>.
@@ -836,7 +890,7 @@ capacity = 51100
 <p class="devnote">The "name" property is really optional. It is used, when the cut-scene at the beginning of the match shows the stadium name, or in the Exhibition mode, when the stadium selection screen comes up (after you had already chosen your stadium from GDB, on the stadium selection page). If you don't define "name" property, then the stadium folder will be used as the name.
 </p>
 
-<h5>12.4. Home stadium map</h5>
+<h5>13.4. Home stadium map</h5>
 
 <p>
 The <b>GDB\stadiums</b> folder may contain a map.txt file. It is not necessary to have it, to actually use the stadium server, but it can come handy, if you want to assign particular stadiums to certain teams. If you do that, then whenever a team plays at home, the stadium server will automatically select a stadium, which is mapped to this team in the map.txt:
@@ -848,6 +902,54 @@ Here is an example of a really small home-stadiums map:
 <pre>
 6,  "ENGLAND - Wembley Stadium, Wembley, London"
 15, "HOLLAND - De Kuip, Rotterdam"
+</pre>
+</p>
+
+<a name="bserv"><br /></a>
+<p><a class="backlink" href="#">Top</a></p>
+<h3>14. Ball server (bserv.dll)</h3>
+
+<p>
+With ballserver, you can have a virtually unlimited number of balls, which you can choose before any game - Exhibition, Cup, League, or Master League match. You need to organize them in the GDB: create a folder called [b]balls[/b], and put the ball BINs in there:
+</p>
+
+<img src="ballsfolder.png" />
+
+<h5>14.1. Ball selection</h5>
+
+<p>
+You select the ball before the match, using the same screen as you would do the kit selection. The trick is to switch to the stadium selection <b>page</b> first, by using [<b>PgUp</b>] or [<b>PgDn</b>] keys. (Most of the time, there will only be 3 pages available: kit selection, stadium selection, and ball selection. The only exception is the Cup mode, when you had chosen "Group League" format - in that case there will be additional 4th page - to tweak the competition format.
+</p>
+
+<img src="ballselect.png"/>
+
+<p>So, once you're on the ball selection page, you can press the following keys:
+<ul>
+   <li>[<b>7</b>] - reset ball back to "game choice"</li>
+   <li>[<b>8</b>] - select random ball</li>
+   <li>[<b>9</b>] - go to previous ball in the list</li>
+   <li>[<b>0</b>] - go to next ball in the list</li>
+   <li>[<b>-</b>] - go to previous ball, which first letter is different from currently selected one</li>
+   <li>[<b>=</b>] - go to next ball, which first letter is different from currently selected one</li>
+</ul>
+</p>
+
+<p>
+The last two keys are useful for quick browsing through big collection of balls: youo can quickly skip through all the balls starting with the same letter, using either [<b>-</b>] or [<b>=</b>] keys.
+</p>
+
+<h5>14.2. Home ball map</h5>
+
+<p>
+The <b>GDB\balls</b> folder may contain a map.txt file. It is not necessary to have it, to actually use the ballserver, but it can come handy, if you want to assign particular balls to certain teams. If you do that, then whenever a team plays at home, the ballserver will automatically select a ball, which is mapped to this team in the map.txt:
+</p>
+
+<p>
+Here is an example of a really small home-balls map:
+
+<pre>
+6, FA Cup.bin
+21, Euro 2008 ball.bin
 </pre>
 </p>
 
