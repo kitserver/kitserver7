@@ -89,7 +89,7 @@ friend to play for the opposition team.
     </tr>
     <tr><td><a href="#rwdata">Read/Write data 7.4.0.1</a></td>
         <th><b>rwdata.dll</b></th>
-        <td>Manage your edit and system data. Useful for patchmakers - to keep all things in one place and have the ability to keep the original PES2008_EDIT01.bin and PES2008_OPTION01.bin unchanged.</td>
+        <td>Manage your "save"-data. Useful for patchmakers - to redirect all read/write operations from the standard "save" folder, to another one.</td>
     </tr>
     <tr><td><a href="#camera">Camera module 7.3.0</a></td>
         <th><b>camera.dll</b></th>
@@ -182,9 +182,13 @@ dll = lodmixer.dll
 dll = kserv.dll
 dll = afsio.dll
 dll = fserv.dll
+dll = bootserv.dll
+dll = stadium.dll
 dll = afs2fs.dll
 dll = sched.dll
 dll = rwdata.dll
+dll = time.dll
+dll = camera.dll
 
 [lodmixer]
 aspect-ratio.correction.enabled = 1
@@ -192,8 +196,7 @@ controller.check.enabled = 1
 
 [rwdata]
 debug = 1
-edit.data = edit.bin          
-#system.data = "c:\data-files\option.bin"
+data.dir = "mytest-save"
 </pre>
 
 <p>
@@ -750,23 +753,28 @@ Press [<b>F2</b>] to switch between the default mode (3 games in group, 1 in eac
 <p><a class="backlink" href="#">Top</a></p>
 <h3>10. Read/Write data (rwdata.dll)</h3>
 
-<p>
-This little module allows you to redirect the reading and writing operations for <b>Edit Data</b> (PES2008_EDIT01.bin) and <b>System Data</b> (PES2008_OPTION01.bin). This was originally intended for patchmakers that use kitserver as their base, because then the Edit Data file can be included in the patch, and kitserver can make the game work with that file, while keeping the original PES2008_EDIT01.bin unmodified, which also can be useful for easy uninstall of the patch.
+<p class="note">
+IMPORTANT: THE PRINCIPLES AND FUNCTIONALITY OF THIS MODULE HAVE CHANGED. If you used earlier version, please read carefully about the changes in behaviour.
 </p>
 
-<p>You redirect the read/write operations by adding the following section to your kitserver's <b>config.txt</b> file:
+<p>
+This little module allows you to redirect the reading and writing operations for all types of data from the standard KONAMI folder (<b>My Documents/KONAMI/Pro Evolution Soccer 2008/save</b>) to another folder. This module was originally intended for patchmakers that use kitserver as their base, because then Edit Data, System data, replays, and all others can be included in the patch, and kitserver can make the game work with that folder, while keeping the original folder unmodified. This can also be useful for easy switches between patches and simple uninstall operations.
+</p>
+
+<p>You redirect the read/write operations by using <b>data.dir</b> option in the [rwdata] section of your kitserver's <b>config.txt</b> file:
 </p>
 
 <pre>
 [rwdata]
-edit.data = "edit01.bin"
-system.data = "option01.bin"
+data.dir = "mytest-save"
 </pre>
 
-<p>The exact filenames are not important - you can name them whatever you want, just make sure you correctly specify them in the [rwdata] section. You can use either an absolute filename, like: <b>c:\mydata\edit.bin</b>, or a relative filename, like in the example above. For relative names, Kitserver will look for them in <b>GDB\data</b> folder.
+<p class="devnote">One important limitation: the data folder MUST be located in My Documents/KONAMI/Pro Evolution Soccer 2008 folder - in other words, alongside the original "save" folder.</p>
 
-<p class="devnote" style="font-weight:normal">The Edit Data file (PES2008_EDIT01.bin) is also often called "option file", because historically that's how it was named in previous versions of PES. However, with PES2008, it's a little bit confusing terminology, because now another file - PES2008_OPTION01.bin - has the word "option" in its name, even though it doesn't actually contain the data, typically associated with option file, such as: player names and attributes, team, stadium names, and so for, but instead it holds things like: sound settings, camera settings, etc.
-</p>
+<img src="mydocs.png" />
+
+<p class="note">
+If you install somebody's patch that is using <b>rwdata</b> module, and suddenly it looks like all your cups, leagues, master league saves, and replays have dissappeared, don't get alarmed. Your files are probably safe in the game's original <b>save</b> folder, so when you uninstall the patch, you'll see them again. (Or, if you want, you can simply copy them over to the new data folder, which is used by the patch).</p>
 
 <a name="camera"><br /></a>
 <p><a class="backlink" href="#">Top</a></p>
