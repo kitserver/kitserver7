@@ -400,8 +400,8 @@ void bservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
 
     if (_ball_iter == _balls.end())
     {
-        KDrawText(L"game choice", 302, 7, COLOR_BLACK, 26.0f);
-        KDrawText(L"game choice", 300, 5, COLOR_AUTO, 26.0f);
+        KDrawText(L"game choice", 262, 7, COLOR_BLACK, 26.0f);
+        KDrawText(L"game choice", 260, 5, COLOR_AUTO, 26.0f);
     }
     else
     {
@@ -412,8 +412,8 @@ void bservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
         if (extpos != string::npos && extpos+4 == name.size())
             name = name.substr(0,extpos);
 
-        KDrawText(name.c_str(), 302, 7, COLOR_BLACK, 26.0f);
-        KDrawText(name.c_str(), 300, 5, COLOR_INFO, 26.0f);
+        KDrawText(name.c_str(), 262, 7, COLOR_BLACK, 26.0f);
+        KDrawText(name.c_str(), 260, 5, COLOR_INFO, 26.0f);
     }
 }
 
