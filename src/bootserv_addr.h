@@ -1,9 +1,9 @@
 // ADDRESSES for bootserv.cpp
 BYTE allowedGames[] = {
-    gvPES2008demo,
-    //gvPES2008,
-    //gvPES2008v110,
-    //gvPES2008v120,
+    //gvPES2008demo,
+    gvPES2008,
+    gvPES2008v110,
+    gvPES2008v120,
 };
 
 #define CODELEN 11
@@ -25,11 +25,11 @@ DWORD codeArray[][CODELEN] = {
     // PES2008
     {
         0xc96248, 0x41433f,
-        0, 0, 
-        0, 0,
-        0, 0,
-        0,
-        0, 0,
+        0x41dbe1, 0x46b9d1, 
+        0xb6e460, 0xb6e486,
+        0xb6e54a, 0xb6e714,
+        0xb6e9cc,
+        0xb6f02a, 0x7aac96,
     },
     // [Settings] PES2008 PC
     NOCODEADDR,
@@ -37,11 +37,11 @@ DWORD codeArray[][CODELEN] = {
     // PES2008 1.10
     {
         0xc97bd8, 0x413e8f,
-        0, 0,
-        0, 0,
-        0, 0,
-        0,
-        0, 0,
+        0x41dbe1, 0x46c5b1,
+        0xb6e280, 0xb6e2a6,
+        0xb6e36a, 0xb6e534,
+        0xb6e7ec,
+        0xb6ee4a, 0x7ab4d6,
     },
     NOCODEADDR,
     // PES2008 1.20
