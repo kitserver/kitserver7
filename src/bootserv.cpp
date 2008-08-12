@@ -37,6 +37,8 @@
 #define LAST_BOOT_SLOT 7508
 
 #define FIRST_EXTRA_BOOT_SLOT 9000
+#define FIRST_RANDOM_BOOT_SLOT 15000
+#define LAST_EXTRA_BOOT_SLOT 19999
 #define MAX_PLAYERS 5460
 #define MAX_BOOTS MAX_PLAYERS
 
@@ -50,17 +52,25 @@ class bootserv_config_t
 {
 public:
     bool _enable_online;
-    bootserv_config_t() : _enable_online(false) {}
+    bool _random_boots;
+    bootserv_config_t() : 
+        _enable_online(false),
+        _random_boots(false)
+    {}
 };
 
 bootserv_config_t _bootserv_config;
 
 // GLOBALS
 hash_map<DWORD,WORD> _boot_slots;
-wstring* _fast_bin_table[MAX_BOOTS+100];
+WORD _player_boot_slots[MAX_PLAYERS];
+wstring* _fast_bin_table[LAST_EXTRA_BOOT_SLOT - FIRST_EXTRA_BOOT_SLOT + 1];
 
 bool _struct_replaced = false;
+bool _fast_lookup_initialized = false;
 int _num_slots = 8094;
+int _num_random_boots = 0;
+bool _random_mapped = false;
 DWORD _last_playerIndex = 0;
 
 // FUNCTIONS
@@ -73,12 +83,15 @@ void bootservConfig(char* pName, const void* pValue, DWORD a);
 bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize);
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size);
 void InitMaps();
+void EnumerateBoots(wstring dir, int& count);
 void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList);
+void bootservWriteEditData(LPCVOID data, DWORD size);
 
 void bootservAtGetBootIdCallPointA();
 void bootservAtGetBootIdCallPointB();
 void bootservAtGetBootIdCallPointC();
 DWORD GetIdByPlayerIndex(DWORD idx);
+WORD GetIndexByPlayerId(DWORD id);
 void bootservAtProcessBootIdCallPoint();
 void bootservEntranceBootsCallPoint();
 KEXPORT void bootservEntranceBoots(BYTE* pData);
@@ -116,6 +129,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
 		RegisterKModule(THISMOD);
         ZeroMemory(_fast_bin_table, sizeof(_fast_bin_table));
+        ZeroMemory(_player_boot_slots, sizeof(_player_boot_slots));
         LOG1N(L"sizeof(_fast_bin_table) = %d", sizeof(_fast_bin_table));
 
 		if (!checkGameVersion()) {
@@ -148,6 +162,9 @@ void bootservConfig(char* pName, const void* pValue, DWORD a)
         case 2: // disable-online
             _bootserv_config._enable_online = *(DWORD*)pValue == 1;
             break;
+        case 3: // random boots
+            _bootserv_config._random_boots = *(DWORD*)pValue == 1;
+            break;
 	}
 	return;
 }
@@ -163,6 +180,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
     getConfig("bootserv", "debug", DT_DWORD, 1, bootservConfig);
     getConfig("bootserv", "online.enabled", DT_DWORD, 2, bootservConfig);
+    getConfig("bootserv", "random.enabled", DT_DWORD, 3, bootservConfig);
 
     HookCallPoint(code[C_GET_BOOT_ID1] + 4, 
             bootservAtGetBootIdCallPointA, 6, 14);
@@ -185,6 +203,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     // register callbacks
     afsioAddCallback(bootservGetFileInfo);
     addCopyPlayerDataCallback(bootservCopyPlayerData);
+    addWriteEditDataCallback(bootservWriteEditData);
 
     // initialize boots map
     InitMaps();
@@ -254,6 +273,17 @@ void InitMaps()
         }
     }
 
+    if (_bootserv_config._random_boots)
+    {
+        // enumerate all boots and add them to the slots list
+        wstring dir(getPesInfo()->gdbDir);
+        dir += L"GDB\\boots";
+        int count;
+        EnumerateBoots(dir, count);
+        _num_random_boots = count;
+        LOG1N(L"_num_random_boots = %d", _num_random_boots);
+    }
+
     // initialize fast bin lookup table
     for (hash_map<wstring,WORD>::iterator sit = slots.begin();
             sit != slots.end();
@@ -265,14 +295,80 @@ void InitMaps()
             LOG1N1S(L"slot %d <-- boot {%s}", sit->second, sit->first.c_str());
     }
 
-    LOG1N(L"Total GDB boots: %d", slots.size());
+    LOG1N(L"Total GDB boots: %d", max(slots.size(), _num_random_boots));
     if (slots.size() > 0)
         _num_slots = FIRST_EXTRA_BOOT_SLOT + slots.size();
+    if (_num_random_boots > 0)
+        _num_slots = FIRST_RANDOM_BOOT_SLOT + _num_random_boots;
     LOG1N(L"_num_slots = %d", _num_slots);
+}
+
+void EnumerateBoots(wstring dir, int& count)
+{
+	WIN32_FIND_DATA fData;
+    wstring pattern(dir);
+    pattern += L"\\*";
+
+	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
+	if (hff == INVALID_HANDLE_VALUE) 
+	{
+		// none found.
+		return;
+	}
+	while(true)
+	{
+        // bounds check
+        if (count >= MAX_BOOTS)
+        {
+            LOG1N(L"ERROR in bootserver: Too many boots (MAX supported = %d). Random boot enumeration stopped.", MAX_BOOTS);
+            break;
+        }
+
+        // check if this is a directory
+        if (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY
+                && wcscmp(fData.cFileName,L".")!=0 
+                && wcscmp(fData.cFileName,L"..")!=0)
+        {
+            wstring nestedDir(dir);
+            nestedDir += L"\\";
+            nestedDir += fData.cFileName;
+            EnumerateBoots(nestedDir, count);
+        }
+        else if ((fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0
+                && wcsicmp(fData.cFileName,L"map.txt")!=0)
+        {
+            int idx = FIRST_RANDOM_BOOT_SLOT + count;
+
+            wstring bootFile(dir);
+            bootFile += L"\\";
+            bootFile += fData.cFileName;
+            if (k_bootserv.debug)
+                LOG1N1S(L"random boot: %d <-- {%s}", idx, bootFile.c_str());
+
+            _fast_bin_table[idx - FIRST_EXTRA_BOOT_SLOT] =
+                new wstring(bootFile);
+            count++;
+		}
+
+		// proceed to next file
+		if (!FindNextFile(hff, &fData)) break;
+	}
+	FindClose(hff);
 }
 
 void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
 {
+    if (!_fast_lookup_initialized)
+    {
+        for (int i=0; i<MAX_PLAYERS; i++)
+        {
+            hash_map<DWORD,WORD>::iterator it = _boot_slots.find(players[i].id);
+            if (it != _boot_slots.end())
+                _player_boot_slots[i] = it->second;
+        }
+        _fast_lookup_initialized = true;
+    }
+
     if (place==2)
     {
         DWORD menuMode = *(DWORD*)data[MENU_MODE_IDX];
@@ -283,6 +379,32 @@ void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
             _struct_replaced = afsioExtendSlots_cv0(_num_slots);
     }
 
+
+    if (_bootserv_config._random_boots && !_random_mapped)
+    {
+        // randomly map all available boots
+        if (_num_random_boots > 0)
+        {
+            for (WORD i=0; i<MAX_PLAYERS; i++)
+            {
+                if (players[i].id == 0)
+                    continue;
+                if (_player_boot_slots[i]!=0)
+                    continue;
+
+                LARGE_INTEGER num;
+                QueryPerformanceCounter(&num);
+                int idx = num.LowPart % _num_random_boots;
+                //_boot_slots.insert(pair<DWORD,WORD>(
+                //            players[i].id, FIRST_RANDOM_BOOT_SLOT + idx
+                //));
+                _player_boot_slots[i] = FIRST_RANDOM_BOOT_SLOT + idx;
+            }
+            LOG(L"random boots mapped.");
+        }
+        _random_mapped = true;
+    }
+
     multimap<string,DWORD> mm;
     for (WORD i=0; i<MAX_PLAYERS; i++)
     {
@@ -291,13 +413,13 @@ void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
         //if (players[i].padding!=0)
         //    LOG2N(L"id=%d, padding=%d",players[i].id,players[i].padding);
 
-        hash_map<DWORD,WORD>::iterator it = 
-            _boot_slots.find(players[i].id);
-        if (it != _boot_slots.end())
+        //hash_map<DWORD,WORD>::iterator it = 
+        //    _boot_slots.find(players[i].id);
+        //if (it != _boot_slots.end())
+        if (_player_boot_slots[i]!=0)
         {
             players[i].padding = i; // player index
         }
-
         if (writeList && players[i].name[0]!='\0')
         {
             string name(players[i].name);
@@ -329,6 +451,7 @@ void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
 bool OpenFileIfExists(const wchar_t* filename, HANDLE& handle, DWORD& size)
 {
     TRACE1S(L"OpenFileIfExists:: %s", filename);
+
     handle = CreateFile(filename,           // file to open
                        GENERIC_READ,          // open for reading
                        FILE_SHARE_READ,       // share for reading
@@ -353,6 +476,18 @@ bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
     if (afsId != 0 || (binId < FIRST_BOOT_SLOT || binId > LAST_BOOT_SLOT) && binId < FIRST_EXTRA_BOOT_SLOT)
         return false;
 
+    if (binId >= FIRST_RANDOM_BOOT_SLOT && binId < LAST_EXTRA_BOOT_SLOT)
+    {
+        LOG1N(L"loading boot BIN (random boot): %d", binId);
+        wstring* pws = _fast_bin_table[binId - FIRST_EXTRA_BOOT_SLOT];
+        if (pws) 
+        {
+            if (k_bootserv.debug)
+                LOG1N1S(L"%d --> {%s}", binId, pws->c_str());
+            return OpenFileIfExists(pws->c_str(), hfile, fsize);
+        }
+    }
+
     if (binId >= FIRST_EXTRA_BOOT_SLOT && binId < _num_slots)
     {
         LOG1N(L"loading boot BIN: %d", binId);
@@ -362,9 +497,14 @@ bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
             wchar_t filename[1024] = {0};
             swprintf(filename,L"%sGDB\\boots\\%s", getPesInfo()->gdbDir,
                     pws->c_str());
+
+            if (k_bootserv.debug)
+                LOG1N1S(L"%d --> {%s}", binId, filename);
             return OpenFileIfExists(filename, hfile, fsize);
         }
     }
+
+    LOG1N(L"loading boot BIN (standard): %d", binId);
     return false;
 }
 
@@ -452,12 +592,21 @@ KEXPORT DWORD bootservGetBootId1(DWORD boot, BYTE* pPartialPlayerInfo)
         WORD* pPlayerIndex = (WORD*)(pPartialPlayerInfo + 0x3a);
         if (!IsBadReadPtr(pPlayerIndex,2))
         {
-            // lookup player
-            DWORD id = GetIdByPlayerIndex(*pPlayerIndex);
-            hash_map<DWORD,WORD>::iterator sit = _boot_slots.find(id);
-            if (sit != _boot_slots.end())
+            WORD idx = *pPlayerIndex;
+            if (idx>0 && idx<MAX_PLAYERS)
             {
-                return sit->second;
+                // lookup player
+                /*
+                DWORD id = GetIdByPlayerIndex(idx);
+                hash_map<DWORD,WORD>::iterator sit = _boot_slots.find(id);
+                if (sit != _boot_slots.end())
+                {
+                    return sit->second;
+                }
+                */
+                WORD slot = _player_boot_slots[idx];
+                if (slot!=0)
+                    return slot;
             }
         }
     }
@@ -475,15 +624,20 @@ KEXPORT DWORD bootservGetBootId2(DWORD boot)
     WORD idx = _last_playerIndex;
     _last_playerIndex = 0; // reset
 
-    if (idx!=0)
+    if (idx>0 && idx<MAX_PLAYERS)
     {
         // lookup player
+        /*
         DWORD id = GetIdByPlayerIndex(idx);
         hash_map<DWORD,WORD>::iterator sit = _boot_slots.find(id);
         if (sit != _boot_slots.end())
         {
             return sit->second;
         }
+        */
+        WORD slot = _player_boot_slots[idx];
+        if (slot!=0)
+            return slot;
     }
 
     if (boot >= 9)
@@ -498,6 +652,15 @@ DWORD GetIdByPlayerIndex(DWORD idx)
 
     PLAYER_INFO* players = (PLAYER_INFO*)(*(DWORD**)data[EDIT_DATA_PTR] + 1);
     return players[idx].id;
+}
+
+WORD GetIndexByPlayerId(DWORD id)
+{
+    PLAYER_INFO* players = (PLAYER_INFO*)(*(DWORD**)data[EDIT_DATA_PTR] + 1);
+    for (int idx=0; idx<MAX_PLAYERS; idx++)
+        if (players[idx].id == id)
+            return idx;
+    return 0;
 }
 
 void bootservAtProcessBootIdCallPoint()
@@ -566,5 +729,17 @@ KEXPORT void bootservEntranceBoots(BYTE* pData)
         if (id1!=0)
             _last_playerIndex = *pPlayerIndex;
     }
+}
+
+/**
+ * write data callback
+ */
+void bootservWriteEditData(LPCVOID data, DWORD size)
+{
+    LOG(L"Restoring player settings");
+
+    PLAYER_INFO* players = (PLAYER_INFO*)((BYTE*)data + 0x120);
+    for (int i=0; i<MAX_PLAYERS; i++)
+        players[i].padding = 0;
 }
 
