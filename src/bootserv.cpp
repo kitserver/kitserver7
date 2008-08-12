@@ -116,6 +116,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 
 		RegisterKModule(THISMOD);
         ZeroMemory(_fast_bin_table, sizeof(_fast_bin_table));
+        LOG1N(L"sizeof(_fast_bin_table) = %d", sizeof(_fast_bin_table));
 
 		if (!checkGameVersion()) {
 			LOG(L"Sorry, your game version isn't supported!");
@@ -352,9 +353,9 @@ bool bootservGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
     if (afsId != 0 || (binId < FIRST_BOOT_SLOT || binId > LAST_BOOT_SLOT) && binId < FIRST_EXTRA_BOOT_SLOT)
         return false;
 
-    LOG1N(L"loading boot BIN: %d", binId);
-    if (binId >= FIRST_EXTRA_BOOT_SLOT && binId < 20000)
+    if (binId >= FIRST_EXTRA_BOOT_SLOT && binId < _num_slots)
     {
+        LOG1N(L"loading boot BIN: %d", binId);
         wstring* pws = _fast_bin_table[binId - FIRST_EXTRA_BOOT_SLOT];
         if (pws) 
         {
@@ -462,7 +463,7 @@ KEXPORT DWORD bootservGetBootId1(DWORD boot, BYTE* pPartialPlayerInfo)
     }
 
     if (boot >= 9)
-        return FIRST_EXTRA_BOOT_SLOT + (boot-9);
+        return FIRST_BOOT_SLOT;
     return FIRST_BOOT_SLOT + boot;
 }
 
@@ -486,7 +487,7 @@ KEXPORT DWORD bootservGetBootId2(DWORD boot)
     }
 
     if (boot >= 9)
-        return FIRST_EXTRA_BOOT_SLOT + (boot-9);
+        return FIRST_BOOT_SLOT;
     return FIRST_BOOT_SLOT + boot;
 }
 
