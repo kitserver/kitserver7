@@ -18,6 +18,7 @@
 #include "utf8.h"
 #include "replay.h"
 #include "player.h"
+#include "teaminfo.h"
 
 #define lang(s) getTransl("bootserv",s)
 
@@ -86,6 +87,9 @@ void InitMaps();
 void EnumerateBoots(wstring dir, int& count);
 void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList);
 void bootservWriteEditData(LPCVOID data, DWORD size);
+void bootservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode);
+void ReRandomizeBoots();
+void GetCurrentTeams(WORD& home, WORD& away);
 
 void bootservAtGetBootIdCallPointA();
 void bootservAtGetBootIdCallPointB();
@@ -200,13 +204,20 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     HookCallPoint(code[C_ENTRANCE_BOOTS],
             bootservEntranceBootsCallPoint, 6, 1);
 
+    // initialize boots map
+    InitMaps();
+
     // register callbacks
     afsioAddCallback(bootservGetFileInfo);
     addCopyPlayerDataCallback(bootservCopyPlayerData);
     addWriteEditDataCallback(bootservWriteEditData);
 
-    // initialize boots map
-    InitMaps();
+    // Random boots on each match doesn't yet work well,
+    // because we need to make sure the boots aren't re-mapped
+    // in the middle of boot loading operation!
+    //
+    //if (_bootserv_config._random_boots)
+    //    addOverlayCallback(bootservOverlayEvent,false);
 
 	TRACE(L"Hooking done.");
     return D3D_OK;
@@ -334,20 +345,26 @@ void EnumerateBoots(wstring dir, int& count)
             nestedDir += fData.cFileName;
             EnumerateBoots(nestedDir, count);
         }
-        else if ((fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0
-                && wcsicmp(fData.cFileName,L"map.txt")!=0)
+        else if ((fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
         {
-            int idx = FIRST_RANDOM_BOOT_SLOT + count;
+            // check for ".bin" extension. This way we have
+            // a little bit of protection against other types
+            // of files in boots folder.
+            int flen = wcslen(fData.cFileName);
+            if (wcsicmp(fData.cFileName+flen-4, L".bin")==0)
+            {
+                int idx = FIRST_RANDOM_BOOT_SLOT + count;
 
-            wstring bootFile(dir);
-            bootFile += L"\\";
-            bootFile += fData.cFileName;
-            if (k_bootserv.debug)
-                LOG1N1S(L"random boot: %d <-- {%s}", idx, bootFile.c_str());
+                wstring bootFile(dir);
+                bootFile += L"\\";
+                bootFile += fData.cFileName;
+                if (k_bootserv.debug)
+                    LOG1N1S(L"random boot: %d <-- {%s}", idx, bootFile.c_str());
 
-            _fast_bin_table[idx - FIRST_EXTRA_BOOT_SLOT] =
-                new wstring(bootFile);
-            count++;
+                _fast_bin_table[idx - FIRST_EXTRA_BOOT_SLOT] =
+                    new wstring(bootFile);
+                count++;
+            }
 		}
 
 		// proceed to next file
@@ -385,6 +402,10 @@ void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
         // randomly map all available boots
         if (_num_random_boots > 0)
         {
+            LARGE_INTEGER num;
+            QueryPerformanceCounter(&num);
+            srand(num.LowPart);
+
             for (WORD i=0; i<MAX_PLAYERS; i++)
             {
                 if (players[i].id == 0)
@@ -392,9 +413,9 @@ void bootservCopyPlayerData(PLAYER_INFO* players, int place, bool writeList)
                 if (_player_boot_slots[i]!=0)
                     continue;
 
-                LARGE_INTEGER num;
-                QueryPerformanceCounter(&num);
-                int idx = num.LowPart % _num_random_boots;
+                int idx = rand() % _num_random_boots;
+
+                //LOG1N(L"random idx = %d", idx);
                 //_boot_slots.insert(pair<DWORD,WORD>(
                 //            players[i].id, FIRST_RANDOM_BOOT_SLOT + idx
                 //));
@@ -669,10 +690,14 @@ void bootservAtProcessBootIdCallPoint()
         push eax
         mov edx,dword ptr ds:[esi+0x2c]
         shr edx,5
+        mov _last_playerIndex, 0
+        mov eax,dword ptr ds:[esi+0x38]
+        cmp eax,0x01010101
+        jz ex
         mov ax,word ptr ds:[esi+0x3a]
         movzx eax,ax
         mov _last_playerIndex, eax
-        pop eax
+    ex: pop eax
         retn
     }
 }
@@ -741,5 +766,42 @@ void bootservWriteEditData(LPCVOID data, DWORD size)
     PLAYER_INFO* players = (PLAYER_INFO*)((BYTE*)data + 0x120);
     for (int i=0; i<MAX_PLAYERS; i++)
         players[i].padding = 0;
+}
+
+void bootservOverlayEvent(bool overlayOn, bool isExhibitionMode, int delta, DWORD menuMode)
+{
+    if (overlayOn)
+    {
+        WORD home,away;
+        GetCurrentTeams(home,away);
+        if (home != 0xffff && away != 0xffff)
+            ReRandomizeBoots();
+    }
+}
+
+void ReRandomizeBoots()
+{
+    LARGE_INTEGER num;
+    QueryPerformanceCounter(&num);
+    srand(num.LowPart);
+
+    for (WORD i=0; i<MAX_PLAYERS; i++)
+    {
+        if (_player_boot_slots[i] < FIRST_RANDOM_BOOT_SLOT)
+            continue;
+
+        int idx = rand() % _num_random_boots;
+        _player_boot_slots[i] = FIRST_RANDOM_BOOT_SLOT + idx;
+    }
+    LOG(L"random boots re-mapped.");
+}
+
+void GetCurrentTeams(WORD& home, WORD& away)
+{
+    home = 0xffff; away = 0xffff;
+    NEXT_MATCH_DATA_INFO* pNM = 
+        *(NEXT_MATCH_DATA_INFO**)data[NEXT_MATCH_DATA_PTR];
+    if (pNM && pNM->home) home = pNM->home->teamId;
+    if (pNM && pNM->away) away = pNM->away->teamId;
 }
 

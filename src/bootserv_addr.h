@@ -55,12 +55,12 @@ DWORD codeArray[][CODELEN] = {
     },
 };
 
-#define DATALEN 2 
+#define DATALEN 3
 enum {
-    EDIT_DATA_PTR, MENU_MODE_IDX,
+    EDIT_DATA_PTR, MENU_MODE_IDX, NEXT_MATCH_DATA_PTR,
 };
 
-#define NODATAADDR {0,0},
+#define NODATAADDR {0,0,0},
 DWORD dataArray[][DATALEN] = {
     // PES2008 DEMO
     NODATAADDR
@@ -68,19 +68,19 @@ DWORD dataArray[][DATALEN] = {
     NODATAADDR
     // PES2008
     { 
-        0x1250d44, 0x1250fc8,
+        0x1250d44, 0x1250fc8, 0x1250d4c,
     },
     // [Settings] PES2008 PC
     NODATAADDR
     NODATAADDR
     // PES2008 1.10
     { 
-        0x1251d6c, 0x1251ff0,
+        0x1251d6c, 0x1251ff0, 0x1251d74,
     },
     NODATAADDR
     // PES2008 1.20
     {
-        0x1252d68, 0x1252ff0,
+        0x1252d68, 0x1252ff0, 0x1252d70,
     },
 };
 
