@@ -30,6 +30,7 @@ ID3DXFont* myFonts[4][100];
 bool g_bGotFormat = false;
 bool rpPrepared = false;
 bool freeEditModeData = false;
+extern bool _noshade;
 
 
 map<DWORD*, DWORD> g_replacedHeaders;
@@ -476,6 +477,9 @@ HRESULT RestoreDeviceObjects(IDirect3DDevice9* device)
     if (!g_sb_them || !g_sb_me)
     {
         LOG(L"Preparing state blocks...");
+        DWORD numPasses;
+        device->ValidateDevice(&numPasses);
+
         for( UINT which=0; which<2; which++ )
         {
             device->BeginStateBlock();
@@ -542,7 +546,7 @@ HRESULT STDMETHODCALLTYPE newPresent(IDirect3DDevice9* self, CONST RECT* src, CO
 
     if (!g_callChains[hk_D3D_Present].empty())
     {
-        if (NeedShade() && g_sb_them && g_sb_me && g_pVB_shaded)
+        if (NeedShade() && !_noshade && g_sb_them && g_sb_me && g_pVB_shaded)
         {
             g_sb_them->Capture();
             g_sb_me->Apply();
@@ -607,7 +611,8 @@ HRESULT STDMETHODCALLTYPE newReset(IDirect3DDevice9* self, LPVOID params)
 		NextCall(self, params);
 	}
 	
-    InvalidateDeviceObjects(self);
+    if (!_noshade)
+        InvalidateDeviceObjects(self);
 
 	HRESULT res = g_orgReset(self, params);
 	TRACE(L"newReset: Reset() is done. About to return.");
@@ -656,7 +661,8 @@ void kloadGetBackBufferInfo(IDirect3DDevice9* d3dDevice)
 		backBuffer->Release();
 
         // initialize vertext buffers
-        RestoreDeviceObjects(d3dDevice);
+        if (!_noshade)
+            RestoreDeviceObjects(d3dDevice);
 	}
 	
 	return;

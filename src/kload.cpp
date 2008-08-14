@@ -20,6 +20,7 @@
 
 // GLOBALS
 CRITICAL_SECTION g_cs;
+bool _noshade = false;
 
 // VARIABLES
 HINSTANCE hInst = NULL;
@@ -98,6 +99,7 @@ EXTERN_C BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReser
 		_getConfig("kload", "gdb.dir", DT_STRING, 1, kloadConfig);
 		_getConfig("kload", "debug", DT_DWORD, 2, kloadConfig);
 		_getConfig("kload", "lang", DT_STRING, 3, kloadConfig);
+        _getConfig("kload", "noshade", DT_DWORD, 4, kloadConfig);
 		_getConfig("kload", "dll", DT_STRING, C_ALL, (PROCESSCONFIG)kloadLoadDlls);
 		
 		// adjust gdbDir, if it is specified as relative path
@@ -255,6 +257,9 @@ void kloadConfig(char* pName, const void* pValue, DWORD a)
 		case 3:	// lang
 			wcscpy(g_pesinfo.lang, (wchar_t*)pValue);
 			break;
+        case 4: // noshade
+            _noshade = *(DWORD*)pValue == 1;
+            break;
 	}
 	return;
 }
