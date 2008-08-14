@@ -98,8 +98,9 @@ static bool g_presentHooked = false;
 class bserv_config_t
 {
 public:
-    bserv_config_t() : _home_balls_enabled(true) {}
+    bserv_config_t() : _home_balls_enabled(true), _auto_random(false) {}
     bool _home_balls_enabled;
+    bool _auto_random;
 };
 
 bserv_config_t _bserv_config;
@@ -234,6 +235,9 @@ void bservConfig(char* pName, const void* pValue, DWORD a)
         case 2: // home.enabled
             _bserv_config._home_balls_enabled = *(DWORD*)pValue == 1;
             break;
+        case 3: // random.auto
+            _bserv_config._auto_random = *(DWORD*)pValue == 1;
+            break;
 	}
 	return;
 }
@@ -245,6 +249,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
 
     getConfig("bserv", "debug", DT_DWORD, 1, bservConfig);
     getConfig("bserv", "home.enabled", DT_DWORD, 2, bservConfig);
+    getConfig("bserv", "random.auto", DT_DWORD, 3, bservConfig);
 
 	unhookFunction(hk_D3D_CreateDevice, initModule);
     bservInitMaps();
@@ -337,6 +342,24 @@ void ResetIterator()
             _home_balls.find(_home);
         if (iter != _home_balls.end())
             _ball_iter = iter->second;
+    }
+
+    // auto-random
+    if (_bserv_config._auto_random)
+    {
+        LARGE_INTEGER num;
+        QueryPerformanceCounter(&num);
+        int iterations = num.LowPart % MAX_ITERATIONS;
+        ball_iter_t iter = _ball_iter;
+        for (int j=0;j<iterations;j++) {
+            if (iter == _balls.end()) 
+                iter = _balls.begin();
+            else
+                iter++;
+            if (iter == _balls.end()) 
+                iter = _balls.begin();
+        }
+        _ball_iter = iter;
     }
 }
 
