@@ -10,7 +10,7 @@
 #define THISMOD &k_afsio
 
 #define MODID 123
-#define NAMELONG L"AFSIO Module 7.4.0.0"
+#define NAMELONG L"AFSIO Module 7.4.0.1"
 #define NAMESHORT L"AFSIO"
 #define DEFAULT_DEBUG 0
 
@@ -205,26 +205,27 @@ KEXPORT DWORD afsioAfterGetBinBufferSize(GET_BIN_SIZE_STRUCT* gbss, DWORD orgSiz
     if (hfile && fsize)
     {
         DWORD binKey = (gbss->afsId << 16) + gbss->binId;
-        hash_map<DWORD,FILE_STRUCT>::iterator it = g_file_map.find(binKey);
-        if (it == g_file_map.end())
-        {
-            // make new entry
-            FILE_STRUCT fs;
-            fs.hfile = hfile;
-            fs.fsize = fsize;
-            fs.offset = 0;
-            fs.binKey = binKey;
 
+        // make new entry
+        FILE_STRUCT fs;
+        fs.hfile = hfile;
+        fs.fsize = fsize;
+        fs.offset = 0;
+        fs.binKey = binKey;
+
+        pair<hash_map<DWORD,FILE_STRUCT>::iterator,bool> ires =
             g_file_map.insert(pair<DWORD,FILE_STRUCT>(binKey,fs));
-        }
-        else
+        if (!ires.second)
         {
-            // update existing entry (close old file handle)
-            CloseHandle(it->second.hfile);
-            it->second.hfile = hfile;
-            it->second.fsize = fsize;
-            it->second.offset = 0;
-            it->second.binKey = binKey;
+            // replace existing entry
+            LOG2N(L"WARNING: updating existing entry. Handles: %d vs %d",
+                (DWORD)hfile, (DWORD)ires.first->second.hfile);
+            // update existing entry (close old file handle, if different)
+            if (hfile != ires.first->second.hfile)
+                CloseHandle(ires.first->second.hfile);
+            ires.first->second.hfile = hfile;
+            ires.first->second.fsize = fsize;
+            ires.first->second.offset = 0;
         }
 
         // modify buffer size
@@ -309,7 +310,20 @@ KEXPORT void afsioAtGetSize(DWORD afsId, DWORD binId, DWORD* pSizeBytes, DWORD* 
             fs.offset = 0;
             fs.binKey = binKey;
 
-            g_file_map.insert(pair<DWORD,FILE_STRUCT>(binKey,fs));
+            pair<hash_map<DWORD,FILE_STRUCT>::iterator,bool> ires =
+                g_file_map.insert(pair<DWORD,FILE_STRUCT>(binKey,fs));
+            if (!ires.second)
+            {
+                // replace existing entry
+                LOG2N(L"WARNING: updating existing entry. Handles: %d vs %d",
+                    (DWORD)hfile, (DWORD)ires.first->second.hfile);
+                // update existing entry (close old file handle, if different)
+                if (hfile != ires.first->second.hfile)
+                    CloseHandle(ires.first->second.hfile);
+                ires.first->second.hfile = hfile;
+                ires.first->second.fsize = fsize;
+                ires.first->second.offset = 0;
+            }
 
             // modify size
             *pSizeBytes = fsize;
