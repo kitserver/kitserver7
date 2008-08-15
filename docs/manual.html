@@ -176,6 +176,13 @@ In the <b>kitserver</b> folder, there is the program's main configuration file -
 [afsio]
 debug = 0
 
+[bootserv]
+online.enabled = 0
+random.enabled = 1
+
+[bserv]
+random.auto = 1
+
 [fserv]
 online.enabled = 0
 
@@ -184,16 +191,18 @@ debug = 0
 dll = zlib1.dll
 dll = libpng13.dll
 dll = lodmixer.dll
-dll = kserv.dll
 dll = afsio.dll
+dll = kserv.dll
 dll = fserv.dll
 dll = bootserv.dll
 dll = stadium.dll
+dll = bserv.dll
 dll = afs2fs.dll
 dll = sched.dll
 dll = rwdata.dll
 dll = time.dll
 dll = camera.dll
+gdb.dir = "c:\juce\"
 
 [lodmixer]
 aspect-ratio.correction.enabled = 1
@@ -210,7 +219,7 @@ Each module can have its own configuration section, which starts with <b>[<i>mod
 
 <p>To disable a particular module - just comment out the corresponding line in the <b>[kload]</b> section by putting a '#' symbol at the beginning. (Or you can delete that line altogether.)
 </p>
-<p class="note">The order of the DLLs is important. In particular: <b>zlib1.dll</b>, <b>libpng13.dll</b> must be loaded in that order before <b>kserv.dll</b>; also <b>afsio.dll</b> must be loaded before <b>fserv.dll</b> and <b>afs2fs.dll</b></p>
+<p class="note">The order of the DLLs is important. In particular: <b>zlib1.dll</b>, <b>libpng13.dll</b> must be loaded in that order before <b>kserv.dll</b>; also <b>afsio.dll</b> must be loaded before <b>fserv.dll</b>, <b>bserv.dll</b>, <b>bootserv.dll</b>, <b>stadium.dll</b>, and <b>afs2fs.dll</b>. Only in very rare situations you should try re-arranging the DLLs.</p>
 
 <h5>3.3. GDB location</h5>
 <p>
