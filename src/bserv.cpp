@@ -344,8 +344,8 @@ void ResetIterator()
             _ball_iter = iter->second;
     }
 
-    // auto-random
-    if (_bserv_config._auto_random)
+    // auto-random, unless home ball already selected
+    if (_ball_iter == _balls.end() && _bserv_config._auto_random)
     {
         LARGE_INTEGER num;
         QueryPerformanceCounter(&num);
