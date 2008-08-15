@@ -2,6 +2,13 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2008-08-15
+----------
+v7.4.1
+- bootserv: bug-fixes; random boots feature
+- bserv: auto-random feature
+
+
 2008-08-11
 ----------
 v7.4.0
