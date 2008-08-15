@@ -11,6 +11,11 @@
         table {padding:10px 0 10px 0;margin-top:5px;border-right:1px;border-bottom:1px}
         table td {padding:9px;border:1px solid #888}
         table th {padding:5px;border:1px solid #888;background-color:#eef;text-align:left}
+        table.stad_names {padding:0;border-right:1px solid #888;border-bottom:1px solid #888;margin-bottom:20px;}
+        table.stad_names th {font-size:0.8em;}
+        table.stad_names td {font-size:0.8em;}
+        table.stad_names th {padding:5px;border-left:1px solid #888;border-top:1px solid #888;border-right:none;border-bottom:none}
+        table.stad_names td {padding:5px;border-left:1px solid #888;border-top:1px solid #888;border-right:none;border-bottom:none}
         span.kitid {color:#080;font-style:italic}
         pre {background-color:#dfd;border-top:1px solid #668;border-bottom:1px solid #668}
         h5 {color:#668; background-color:#dec; display:block;padding:5px;margin-top:10px;margin-bottom:5px;font-family:arial;font-size:1.0em}
@@ -44,7 +49,7 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-August 11, 2008 - <b>Kitserver 7.4.0</b><br />
+August 15, 2008 - <b>Kitserver 7.4.1</b><br />
 </div>
 <p class="note">
 The most up-to-date version of this documentaion, and the translations to many languages, are located here: <a href="http://kitserver.ath.cx/docs">http://kitserver.ath.cx/docs/</a>
@@ -79,7 +84,7 @@ friend to play for the opposition team.
         <th><b>fserv.dll</b></th>
         <td>Assign special face/hair to any player you want.</td>
     </tr>
-    <tr><td><a href="#bootserv">Bootserver 7.4.0</a></td>
+    <tr><td><a href="#bootserv">Bootserver 7.4.0.4</a></td>
         <th><b>bootserv.dll</b></th>
         <td>Assign unique boots to any player you want.</td>
     </tr>
@@ -99,11 +104,11 @@ friend to play for the opposition team.
         <th><b>time.dll</b></th>
         <td>Set the match time to any number of minutes you want between 1 and 255.</td>
     </tr>
-    <tr><td><a href="#stadium">Stadium server 7.3.2.2</a></td>
+    <tr><td><a href="#stadium">Stadium server 7.3.2.3</a></td>
         <th><b>stadium.dll</b></th>
         <td>Organize your stadiums in the GDB.</td>
     </tr>
-    <tr><td><a href="#bserv">Ball server 7.4.0</a></td>
+    <tr><td><a href="#bserv">Ball server 7.4.0.2</a></td>
         <th><b>bserv.dll</b></th>
         <td>Organize your balls in the GDB.</td>
     </tr>
@@ -718,7 +723,22 @@ Here are some examples of entries in map.txt:
 </pre>
 </p>
 
-<h5>8.3. Network play</h5>
+<h5>8.3. Random boots</h5>
+<p>
+This feature is useful, when you have a large collection of boots, but you only care about a handful of important players to wear the "right" boots. So you map those in the map.txt, but for the rest of the players you don't want to go through the tedious mapping process. What you can do, is enable "random-boots" mode. In that case, all the players will get GDB boots assigned to them when PES2008 starts: the ones mapped in map.txt will get theirs, but other players will be assigned boots randomly from the entire GDB boots collection.
+</p>
+
+<p class="devnote" style="font-weight:normal">Note, that the random assignment is only done once. So a player will wear the same boots, until your exit the game. When you start again, the same player will probably have different boots. <b>It would be nice to have the players change boots each match, but as of now, this is NOT implemented, because of instability it brings to the game.</b></p>
+
+<p>Random boots feature is disabled by default. To enable it, add <b>random.enabled</b> option into [bootserv] section in your config.txt:
+
+<pre>
+[bootserv]
+online.enabled = 0
+random.enabled = 1
+</pre>
+
+<h5>8.4. Network play</h5>
 <p>
 Currently, bootserver doesn't work in Network mode, at least not in the "official" Konami online rooms. Perhaps, this will change in the future releases of bootserver. There is, however, a configuration setting, which allows the use of bootserver in the so-called "PES-Magazine"-type of network play. By default, that setting is disabled, but you can enable it if you want, in the <b>config.txt</b> file, by changing its value from 0 to 1:
 </p>
@@ -846,15 +866,45 @@ There are two ways to name the stadium files:
 The first way is probably simpler, and more convenient, because stadium makers can distribute their stadiums the same way as they been doing so far: just naming the files like <b>unnamed_213.bin</b> or <b>dekuip_381.bin</b>. Also, in this form, stadium can be used both with AFS2FS module (or inserted directly into the cv_1.img file, using traditional tools like AFS Explorer or DKZ Studio), and also with the stadium server, without any need to rename the files.
 </p>
 
-<p>Here's an example of De Kuip stadium files put into a stadium server folder. Notice the <b>nets_40.bin</b> - this allows your stadium to have unique goal nets. Also you can have a *<b>_38</b>* and *<b>_39</b>* files - those are adboards. I don't have them in this example, but they are supported:
+<p>Here's an example of De Kuip stadium files put into a stadium server folder. Notice the <b>nets_40.bin</b> - this allows your stadium to have unique goal nets. Also you can have a *<b>_38</b>*, *<b>_39</b>* files (adboards); *<b>_35</b>*, *<b>_36</b>* (spectators), and *<b>_713</b>* (corner flags). I don't have them in this example, but all of those are supported:
 
 <img src="dekuip.png"/>
 </p>
 
-<p>
-The second way to name the stadium files relies on a set of predefined - "reserved" names. There are 12 stadium files - 4 for each day time: day, evening, night, and they are named like in the screenshot below. The other 3 files that are supported are - 2 for the adboards, and one for goal nets. See how they must be named:
+<p><span class="note">Initial release of Stadium server (7.3.0) didn't work correctly with original PES2008 stadiums.</span> This is because each stadium actually has a total of 42 files. In order for the original stadium to have proper shadows and other effects, all of those files must be included in the stadium folder. Stadium servers 7.3.2 and newer support full range of files. Here's an example of original PES2008 San Siro stadium, extracted from the cv_1.img and organized into a stadium server folder:
 
-<img src="wembley.png"/>
+<img src="sansiro.png"/>
+</p>
+
+<p>
+The second way to name the stadium files relies on a set of predefined - "reserved" names. (I kept this feature for backwards compatibility - in case some stadium makers use those names. But, in my opinion, it's more practical to use the AFS2FS naming conventions - as in first way, described above).
+</p>
+
+<p class="note">Of the 48 stadium BINs, only 18 have alternative "reserved" names. For other BINs you must use the AFS2FS naming rules. See the table below, which uses San Siro staidum as an example:
+</p>
+
+<p>
+<table class="stad_names" cellspacing="0">
+    <tr><th>AFS2FS name</th><th>Alternative reserved name</th></tr>
+    <tr><td>stad_87.bin</td><td>day_summer_mesh.bin</td></tr>
+    <tr><td>stad_89.bin</td><td>day_summer_turf.bin</td></tr>
+    <tr><td>stad_94.bin</td><td>day_winter_mesh.bin</td></tr>
+    <tr><td>stad_96.bin</td><td>day_winter_turf.bin</td></tr>
+    <tr><td>stad_101.bin</td><td>evening_summer_mesh.bin</td></tr>
+    <tr><td>stad_103.bin</td><td>evening_summer_turf.bin</td></tr>
+    <tr><td>stad_108.bin</td><td>evening_winter_mesh.bin</td></tr>
+    <tr><td>stad_110.bin</td><td>evening_winter_turf.bin</td></tr>
+    <tr><td>stad_115.bin</td><td>night_summer_mesh.bin</td></tr>
+    <tr><td>stad_117.bin</td><td>night_summer_turf.bin</td></tr>
+    <tr><td>stad_122.bin</td><td>night_winter_mesh.bin</td></tr>
+    <tr><td>stad_124.bin</td><td>night_winter_turf.bin</td></tr>
+    <tr><td>id_00035.bin</td><td>spec_summer.bin</td></tr>
+    <tr><td>id_00036.bin</td><td>spec_winter.bin</td></tr>
+    <tr><td>adboards_38.bin</td><td>stad_adboards1.bin</td></tr>
+    <tr><td>adboards_39.bin</td><td>stad_adboards2.bin</td></tr>
+    <tr><td>nets_40.bin</td><td>stad_goals.bin</td></tr>
+    <tr><td>flags_713.bin</td><td>stad_flags.bin</td></tr>
+</table>
 </p>
 
 <h5>13.2. Stadium selection</h5>
@@ -918,7 +968,7 @@ Here is an example of a really small home-stadiums map:
 <h3>14. Ball server (bserv.dll)</h3>
 
 <p>
-With ballserver, you can have a virtually unlimited number of balls, which you can choose before any game - Exhibition, Cup, League, or Master League match. You need to organize them in the GDB: create a folder called <b>balls</b>, and put the ball BINs in there:
+With ballserver, you can have a virtually unlimited number of balls, which you can choose before any game - Exhibition, Cup, League, or Master League match. You need to organize them in the GDB: create a folder called [b]balls[/b], and put the ball BINs in there:
 </p>
 
 <img src="ballsfolder.png" />
@@ -926,7 +976,7 @@ With ballserver, you can have a virtually unlimited number of balls, which you c
 <h5>14.1. Ball selection</h5>
 
 <p>
-You select the ball before the match, using the same screen as you would do the kit selection. The trick is to switch to the stadium selection <b>page</b> first, by using [<b>PgUp</b>] or [<b>PgDn</b>] keys. (Most of the time, there will only be 3 pages available: kit selection, stadium selection, and ball selection. The only exception is the Cup mode, when you had chosen "Group League" format - in that case there will be additional 4th page - to tweak the competition format.
+You select the ball before the match, using the same screen as you would do the kit selection. The trick is to switch to the ball selection <b>page</b> first, by using [<b>PgUp</b>] or [<b>PgDn</b>] keys. (Most of the time, there will only be 3 pages available: kit selection, stadium selection, and ball selection. The only exception is the Cup mode, when you had chosen "Group League" format - in that case there will be additional 4th page - to tweak the competition format.
 </p>
 
 <img src="ballselect.png"/>
@@ -961,6 +1011,21 @@ Here is an example of a really small home-balls map:
 </pre>
 </p>
 
+<h5>14.3 Auto-random ball selection</h5>
+
+<p>
+If you have a large collection of balls, and you don't want to manually select the ball before each match, you can enable the "auto-random" selection mode. It works like this: if a team has a home ball assigned to it, then that ball will be selected; but if not, then a random ball will be selected automatically - so you don't need to go to ball selection page and press [<b>8</b>] - it will be done by ballserver.
+</p>
+
+<p>
+This feature is disabled by default. To enable, add <b>random.auto</b> option to the [bserv] section in your config.txt. Like this:
+
+<pre>
+[bserv]
+random.auto = 1
+</pre>
+</p>
+
 <div style="height:20px"></div>
 
 <h2>Credits</h2>
@@ -968,6 +1033,7 @@ Here is an example of a really small home-balls map:
 Programming: <b>juce</b> and <b>Robbie</b><br />
 Beta-testing: <b>ntalex</b>, <b>ASD91</b>, <b>Str@teG</b>, and many others on Evo-Web and PesWe.com forums.<br />
 Ideas for <i>rwdata</i> and <i>afs2fs</i> modules: <b>Str@teG</b><br />
+Many other ideas came from users of <a href="http://forums.evo-web.co.uk">Evo-Web forums</a> and <a href="http://www.peswe.com/fm">PesWe.com forums</a><br />
 uni.txt file: created with help of <span style="color:#060"><b>PES2008 Kit Info Manager</b></span> program by <b>Yogui</b></p>
 
 <p>
