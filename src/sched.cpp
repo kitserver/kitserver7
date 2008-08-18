@@ -334,6 +334,7 @@ KEXPORT void schedAfterWrotePlayoffs(bool checkType)
     {
         LOG1N(L"checkType = %d",checkType);
         LOG1N(L"ss->header.tournamentType = %d",ss->header.tournamentType);
+        LOG1N(L"ss->playoffs = %08x", (DWORD)&ss->playoffs);
 
         if (checkType && (ss->header.tournamentType!=7 && ss->header.tournamentType!=8))
             return; // don't change normal knock-out competitions, unless explicitly told so.
