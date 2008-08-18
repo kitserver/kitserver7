@@ -2073,7 +2073,10 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        swprintf(wbuf, L"P: %s", g_iterHomePL->first.c_str());
+        if (!g_iterHomePL->second.description.empty())
+            swprintf(wbuf, L"P: %s", g_iterHomePL->second.description.c_str());
+        else
+            swprintf(wbuf, L"P: %s", g_iterHomePL->first.c_str());
         KDrawText(wbuf, 200, 7, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 202, 5, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 202, 7, COLOR_BLACK, 30.0f);
@@ -2131,7 +2134,10 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        swprintf(wbuf, L"G: %s", g_iterHomeGK->first.c_str());
+        if (!g_iterHomeGK->second.description.empty())
+            swprintf(wbuf, L"G: %s", g_iterHomeGK->second.description.c_str());
+        else
+            swprintf(wbuf, L"G: %s", g_iterHomeGK->first.c_str());
         KDrawText(wbuf, 200, 35, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 202, 33, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 202, 35, COLOR_BLACK, 30.0f);
@@ -2189,7 +2195,10 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        swprintf(wbuf, L"P: %s", g_iterAwayPL->first.c_str());
+        if (!g_iterAwayPL->second.description.empty())
+            swprintf(wbuf, L"P: %s", g_iterAwayPL->second.description.c_str());
+        else
+            swprintf(wbuf, L"P: %s", g_iterAwayPL->first.c_str());
         KDrawText(wbuf, 600, 7, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 602, 5, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 602, 7, COLOR_BLACK, 30.0f);
@@ -2248,7 +2257,10 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        swprintf(wbuf, L"G: %s", g_iterAwayGK->first.c_str());
+        if (!g_iterAwayGK->second.description.empty())
+            swprintf(wbuf, L"G: %s", g_iterAwayGK->second.description.c_str());
+        else
+            swprintf(wbuf, L"G: %s", g_iterAwayGK->first.c_str());
         KDrawText(wbuf, 600, 35, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 602, 33, COLOR_BLACK, 30.0f);
         KDrawText(wbuf, 602, 35, COLOR_BLACK, 30.0f);
