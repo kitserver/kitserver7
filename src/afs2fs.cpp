@@ -52,6 +52,9 @@ int _fileNameLen = DEFAULT_FILENAMELEN;
 song_map_t* _songs = NULL;
 ball_map_t* _balls = NULL;
 
+#define MAX_IMGDIR_LEN 4096
+wchar_t _imgDir[MAX_IMGDIR_LEN];
+
 // FUNCTIONS
 HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
@@ -122,9 +125,10 @@ int GetNumItems(wstring& folder)
 void InitializeFileNameCache()
 {
     LOG(L"Initializing filename cache...");
+    LOG1S(L"img.dir = {%s}", _imgDir);
 
 	WIN32_FIND_DATA fData;
-    wstring pattern(getPesInfo()->myDir);
+    wstring pattern(_imgDir);
     pattern += L"img\\*.img";
 
 	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
@@ -141,7 +145,7 @@ void InitializeFileNameCache()
             WIN32_FIND_DATA fData1;
             wstring folder(L".\\img\\");
             folder += fData.cFileName;
-            wstring folderpattern(getPesInfo()->myDir);
+            wstring folderpattern(_imgDir);
             folderpattern += folder + L"\\*";
 
             char* key_c = Utf8::unicodeToAnsi(folder.c_str());
@@ -252,6 +256,9 @@ void afsConfig(char* pName, const void* pValue, DWORD a)
 		case 2: // filename.length
 			_fileNameLen = *(DWORD*)pValue;
 			break;
+        case 3: // img.dir
+            wcsncpy(_imgDir, (wchar_t*)pValue, MAX_IMGDIR_LEN-1);
+            break;
 	}
 	return;
 }
@@ -261,8 +268,12 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
     IDirect3DDevice9** ppReturnedDeviceInterface) {
 
+    ZeroMemory(_imgDir, sizeof(_imgDir));
+    wcsncpy(_imgDir, getPesInfo()->myDir, MAX_IMGDIR_LEN-1);
+
     getConfig("afs2fs", "debug", DT_DWORD, 1, afsConfig);
     getConfig("afs2fs", "filename.length", DT_DWORD, 2, afsConfig);
+    getConfig("afs2fs", "img.dir", DT_STRING, 3, afsConfig);
 
 	unhookFunction(hk_D3D_CreateDevice, initModule);
 
@@ -270,7 +281,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     afsioAddCallback(afsGetFileInfo);
 
     InitializeFileNameCache();
-    ZeroMemory(_fast_info_cache,sizeof(FAST_INFO_CACHE_STRUCT)*MAX_FOLDERS);
+    ZeroMemory(_fast_info_cache,sizeof(_fast_info_cache));
 
 	TRACE(L"Hooking done.");
 
@@ -371,7 +382,7 @@ bool afsGetFileInfo(DWORD afsId, DWORD binId, HANDLE& hfile, DWORD& fsize)
 
     // check for a file
     wchar_t filename[1024] = {0};
-    swprintf(filename,L"%s%s\\%s", getPesInfo()->myDir, afsDir, file);
+    swprintf(filename,L"%s%s\\%s", _imgDir, afsDir, file);
     Utf8::free(afsDir);
 
     return OpenFileIfExists(filename, hfile, fsize);
