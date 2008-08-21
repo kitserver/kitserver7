@@ -3,8 +3,8 @@
 #define RES_LANG 1001
 
 VS_VERSION_INFO VERSIONINFO
-	FILEVERSION 7,4,0,0
-	PRODUCTVERSION 7,4,0,0
+	FILEVERSION 7,4,2,0
+	PRODUCTVERSION 7,4,2,0
 	FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
 	FILEFLAGS 0x1L
@@ -20,7 +20,7 @@ BEGIN
 		BLOCK "040904b0"
 		BEGIN
 			VALUE "FileDescription", "KitServer 7 Installer\0"
-			VALUE "FileVersion", "7.4.0.0\0"
+			VALUE "FileVersion", "7.4.2.0\0"
 			VALUE "LegalCopyright", "Copyright © 2005-2008 Juce, Robbie\0"
 			VALUE "Comments", "Installs KitServer 7 to PES2008\0"
 		END
