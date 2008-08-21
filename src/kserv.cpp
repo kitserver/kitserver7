@@ -86,16 +86,6 @@ enum
     BIN_NUMS_PB,
 };
 
-wchar_t* g_afsFiles[] = {
-    L"img\\cv_0.img",
-    L"img\\cs.img",
-    L"img\\rv_e.img",
-    L"img\\rs_e.img",
-    L"img\\cv_1.img",
-    L"",
-    L"img\\pinfo.img",
-};
-
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -108,6 +98,12 @@ bool allQualities = true;
 #define FIRST_KIT_BIN  7523
 #define FIRST_FONT_BIN 2401
 #define FIRST_NUMS_BIN 3425
+
+#define PDATA_IMG 6
+#define SOUTH_KOREA_GK 5
+#define SOUTH_KOREA_PL 6
+#define SOUTH_KOREA_GK_CV0 7547 
+#define SOUTH_KOREA_PL_CV0 7548
 
 // GLOBALS
 CRITICAL_SECTION g_csRead;
@@ -778,10 +774,20 @@ void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexId
 
 bool IsKitBin(DWORD afsId, DWORD binId)
 {
-    if (afsId != 0) return false;
-    else if (FIRST_KIT_BIN <= binId && binId < FIRST_KIT_BIN + NUM_SLOTS*2) return true;
-    else if (FIRST_NUMS_BIN <= binId && binId < FIRST_NUMS_BIN + NUM_SLOTS*4) return true;
-    else if (FIRST_FONT_BIN <= binId && binId < FIRST_FONT_BIN + NUM_SLOTS*4) return true;
+    if (afsId == 0)
+    {
+        if (FIRST_KIT_BIN <= binId && binId < FIRST_KIT_BIN + NUM_SLOTS*2) 
+            return true;
+        else if (FIRST_NUMS_BIN <= binId && binId < FIRST_NUMS_BIN + NUM_SLOTS*4) 
+            return true;
+        else if (FIRST_FONT_BIN <= binId && binId < FIRST_FONT_BIN + NUM_SLOTS*4) 
+            return true;
+    }
+    else if (afsId == PDATA_IMG)
+    {
+        if (binId == SOUTH_KOREA_GK || binId == SOUTH_KOREA_PL)
+            return true;
+    }
     return false;
 }
 
@@ -862,12 +868,19 @@ KEXPORT void kservBeforeLoadBin(LOAD_BIN_STRUCT* s1, LOAD_BIN_STRUCT* s2)
         TRACE4N(L"Structures differ: (%d,%d) vs. (%d,%d)",
                 s1->afsId, s1->binId,
                 s2->afsId, s2->binId);
+
+        // special check for South Korea
+        if (!(s1->afsId==PDATA_IMG && s1->binId==SOUTH_KOREA_GK 
+                    && s2->afsId==0 && s2->binId==SOUTH_KOREA_GK_CV0)
+            && !(s1->afsId==PDATA_IMG && s1->binId==SOUTH_KOREA_PL 
+                && s2->afsId==0 && s2->binId==SOUTH_KOREA_PL_CV0))
         return;
     }
 
     if (IsKitBin(s1->afsId,s1->binId))
     {
-        TRACE2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
+        if (k_kserv.debug)
+            LOG2N(L"Kit bin: (%d,%d)",s1->afsId,s1->binId);
         EnterCriticalSection(&g_csRead);
         DWORD threadId = GetCurrentThreadId();
         hash_map<DWORD,READ_BIN_STRUCT>::iterator it = g_read_bins.find(threadId);
@@ -1860,6 +1873,13 @@ int GetBinType(DWORD id)
     {
         return BIN_NUMS_GA + ((id - FIRST_NUMS_BIN)%4);
     }
+
+    // special logic for South Korea kits in 1.20
+    if (id == SOUTH_KOREA_GK)
+        return BIN_KIT_GK;
+    else if (id == SOUTH_KOREA_PL)
+        return BIN_KIT_PL;
+
     return -1;
 }
 
@@ -1877,6 +1897,13 @@ int GetKitSlot(DWORD id)
     {
         return (id - FIRST_NUMS_BIN)/4;
     }
+
+    // special logic for South Korea kits in 1.20
+    if (id == SOUTH_KOREA_GK)
+        return (SOUTH_KOREA_GK_CV0 - FIRST_KIT_BIN)/2;
+    else if (id == SOUTH_KOREA_PL)
+        return (SOUTH_KOREA_PL_CV0 - FIRST_KIT_BIN)/2;
+
     return -1;
 }
 
