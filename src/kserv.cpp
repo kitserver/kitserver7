@@ -86,6 +86,13 @@ enum
     BIN_NUMS_PB,
 };
 
+class kserv_config_t 
+{
+public:
+    kserv_config_t() : _use_description(true) {}
+    bool _use_description;
+};
+
 // VARIABLES
 HINSTANCE hInst = NULL;
 KMOD k_kserv = {MODID, NAMELONG, NAMESHORT, DEFAULT_DEBUG};
@@ -109,6 +116,8 @@ bool allQualities = true;
 CRITICAL_SECTION g_csRead;
 CRITICAL_SECTION _cs_savedTki;
 CRITICAL_SECTION _cs_slots;
+
+kserv_config_t _kserv_config;
 
 HANDLE g_hfile_cv_0 = INVALID_HANDLE_VALUE;
 FILE *g_FILE_cv_0 = NULL;
@@ -159,6 +168,7 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
     IDirect3DDevice9** ppReturnedDeviceInterface);
+void kservConfig(char* pName, const void* pValue, DWORD a);
 void setQualityChecks();
 void kservRenderPlayer(TexPlayerInfo* tpi, DWORD coll, DWORD num, WORD* orgTexIds, BYTE orgTexMaxNum);
 BOOL WINAPI kservSetFilePointerEx(
@@ -645,6 +655,19 @@ void setQualityChecks()
 	}
 }
 
+void kservConfig(char* pName, const void* pValue, DWORD a)
+{
+	switch (a) {
+		case 1: // debug
+			k_kserv.debug = *(DWORD*)pValue;
+			break;
+        case 2: // disable-online
+            _kserv_config._use_description = *(DWORD*)pValue == 1;
+            break;
+	}
+	return;
+}
+
 HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS *pPresentationParameters, 
@@ -665,6 +688,8 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     LOG1S(L"gdbDir: {%sGDB}",getPesInfo()->gdbDir);
     gdb = new GDB(getPesInfo()->gdbDir, false);
     LOG1N(L"Teams in GDB map: %d", gdb->uni.size());
+
+    getConfig("kserv", "use.description", 1, DT_DWORD, kservConfig);
 
     // Initial iterators reset
     ResetIterators();
@@ -2100,7 +2125,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        if (!g_iterHomePL->second.description.empty())
+        if (_kserv_config._use_description && !g_iterHomePL->second.description.empty())
             swprintf(wbuf, L"P: %s", g_iterHomePL->second.description.c_str());
         else
             swprintf(wbuf, L"P: %s", g_iterHomePL->first.c_str());
@@ -2161,7 +2186,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        if (!g_iterHomeGK->second.description.empty())
+        if (_kserv_config._use_description && !g_iterHomeGK->second.description.empty())
             swprintf(wbuf, L"G: %s", g_iterHomeGK->second.description.c_str());
         else
             swprintf(wbuf, L"G: %s", g_iterHomeGK->first.c_str());
@@ -2222,7 +2247,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        if (!g_iterAwayPL->second.description.empty())
+        if (_kserv_config._use_description && !g_iterAwayPL->second.description.empty())
             swprintf(wbuf, L"P: %s", g_iterAwayPL->second.description.c_str());
         else
             swprintf(wbuf, L"P: %s", g_iterAwayPL->first.c_str());
@@ -2284,7 +2309,7 @@ void kservPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
     else
     {
         wchar_t wbuf[512] = {0};
-        if (!g_iterAwayGK->second.description.empty())
+        if (_kserv_config._use_description && !g_iterAwayGK->second.description.empty())
             swprintf(wbuf, L"G: %s", g_iterAwayGK->second.description.c_str());
         else
             swprintf(wbuf, L"G: %s", g_iterAwayGK->first.c_str());
