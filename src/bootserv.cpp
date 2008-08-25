@@ -54,6 +54,7 @@ class bootserv_config_t
 public:
     bool _enable_online;
     bool _random_boots;
+    wstring _random_skip;
     bootserv_config_t() : 
         _enable_online(false),
         _random_boots(false)
@@ -169,6 +170,22 @@ void bootservConfig(char* pName, const void* pValue, DWORD a)
         case 3: // random boots
             _bootserv_config._random_boots = *(DWORD*)pValue == 1;
             break;
+        case 4: // random.skip
+            _bootserv_config._random_skip = (wchar_t*)pValue;
+            if (!_bootserv_config._random_skip.empty())
+            {
+                _bootserv_config._random_skip += L"\\";
+
+                // normalize the path
+                wstring skipPath(getPesInfo()->gdbDir);
+                skipPath += L"GDB\\boots\\";
+                skipPath += _bootserv_config._random_skip;
+
+                wchar_t fullname[MAX_PATH];
+                GetFullPathName(skipPath.c_str(), MAX_PATH, fullname, 0);
+                _bootserv_config._random_skip = fullname;
+            }
+            break;
 	}
 	return;
 }
@@ -185,6 +202,7 @@ HRESULT STDMETHODCALLTYPE initModule(IDirect3D9* self, UINT Adapter,
     getConfig("bootserv", "debug", DT_DWORD, 1, bootservConfig);
     getConfig("bootserv", "online.enabled", DT_DWORD, 2, bootservConfig);
     getConfig("bootserv", "random.enabled", DT_DWORD, 3, bootservConfig);
+    getConfig("bootserv", "random.skip", DT_STRING, 4, bootservConfig);
 
     HookCallPoint(code[C_GET_BOOT_ID1] + 4, 
             bootservAtGetBootIdCallPointA, 6, 14);
@@ -288,8 +306,15 @@ void InitMaps()
     {
         // enumerate all boots and add them to the slots list
         wstring dir(getPesInfo()->gdbDir);
-        dir += L"GDB\\boots";
+        dir += L"GDB\\boots\\";
+
+        // normalize the path
+        wchar_t fullpath[MAX_PATH];
+        GetFullPathName(dir.c_str(), MAX_PATH, fullpath, 0);
+        dir = fullpath;
+
         int count;
+        LOG(L"Enumerating all boots in GDB...");
         EnumerateBoots(dir, count);
         _num_random_boots = count;
         LOG1N(L"_num_random_boots = %d", _num_random_boots);
@@ -306,7 +331,9 @@ void InitMaps()
             LOG1N1S(L"slot %d <-- boot {%s}", sit->second, sit->first.c_str());
     }
 
-    LOG1N(L"Total GDB boots: %d", max(slots.size(), _num_random_boots));
+    LOG1N(L"Total assigned GDB boots: %d", slots.size());
+    LOG1N(L"Total random GDB boots: %d", _num_random_boots);
+
     if (slots.size() > 0)
         _num_slots = FIRST_EXTRA_BOOT_SLOT + slots.size();
     if (_num_random_boots > 0)
@@ -316,9 +343,16 @@ void InitMaps()
 
 void EnumerateBoots(wstring dir, int& count)
 {
+    // check for skip-path
+    if (wcsicmp(dir.c_str(),_bootserv_config._random_skip.c_str())==0)
+    {
+        LOG1S(L"skipping {%s}: boots from this folder can ONLY BE ASSIGNED MANUALLY (using map.txt)", dir.c_str());
+        return;
+    }
+
 	WIN32_FIND_DATA fData;
     wstring pattern(dir);
-    pattern += L"\\*";
+    pattern += L"*";
 
 	HANDLE hff = FindFirstFile(pattern.c_str(), &fData);
 	if (hff == INVALID_HANDLE_VALUE) 
@@ -341,8 +375,8 @@ void EnumerateBoots(wstring dir, int& count)
                 && wcscmp(fData.cFileName,L"..")!=0)
         {
             wstring nestedDir(dir);
-            nestedDir += L"\\";
             nestedDir += fData.cFileName;
+            nestedDir += L"\\";
             EnumerateBoots(nestedDir, count);
         }
         else if ((fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
