@@ -49,7 +49,7 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-August 15, 2008 - <b>Kitserver 7.4.1</b><br />
+September 4, 2008 - <b>Kitserver 7.4.2</b> *FINALE*<br />
 </div>
 <p class="note">
 The most up-to-date version of this documentation, and the translations to many languages, are located here: <a href="http://kitserver.ath.cx/docs">http://kitserver.ath.cx/docs/</a>
@@ -62,7 +62,7 @@ Below is a quick summary of the available features. Follow the link in the left 
 </p>
 
 <table>
-    <tr><td><a href="#kserv">Kserv 7.3.1.1</a></td>
+    <tr><td><a href="#kserv">Kserv 7.3.1.4</a></td>
         <th><b>kserv.dll</b></th>
         <td>Assign kits to all teams (no re-linking needed), Extra (3rd,4th,etc.) kits. Allows selection of kits in all game modes: Exhbition, Cup, League, Master League.</td>
     </tr>
@@ -76,7 +76,7 @@ Disable controller check for Master League/League/Cup games: this allows your
 friend to play for the opposition team.
         </td>
     </tr>
-    <tr><td><a href="#afs2fs">AFS2FS 7.2.1</a></td>
+    <tr><td><a href="#afs2fs">AFS2FS 7.2.3</a></td>
         <th><b>afs2fs.dll</b></th>
         <td>Manage AFS (.img) game content using files and folders: much easier and quicker to install/remove patches, without the need modify *.img files</td>
     </tr>
@@ -84,11 +84,11 @@ friend to play for the opposition team.
         <th><b>fserv.dll</b></th>
         <td>Assign special face/hair to any player you want.</td>
     </tr>
-    <tr><td><a href="#bootserv">Bootserver 7.4.0.4</a></td>
+    <tr><td><a href="#bootserv">Bootserver 7.4.1.1</a></td>
         <th><b>bootserv.dll</b></th>
         <td>Assign unique boots to any player you want.</td>
     </tr>
-    <tr><td><a href="#sched">Scheduler 7.3.0</a></td>
+    <tr><td><a href="#sched">Scheduler 7.3.1.1</a></td>
         <th><b>sched.dll</b></th>
         <td>Make changes to Konami Cup tournaments: now possible to play Home/Away matches in the groups, and also have Home/Away knock-out stages - ala UEFA Champions League</td>
     </tr>
@@ -96,11 +96,11 @@ friend to play for the opposition team.
         <th><b>rwdata.dll</b></th>
         <td>Manage your "save"-data. Useful for patchmakers - to redirect all read/write operations from the standard "save" folder, to another one.</td>
     </tr>
-    <tr><td><a href="#camera">Camera module 7.3.0</a></td>
+    <tr><td><a href="#camera">Camera module 7.2.0</a></td>
         <th><b>camera.dll</b></th>
         <td>Increase the camera viewing angle for Normal and Wide cameras, and enjoy new playing experience.</td>
     </tr>
-    <tr><td><a href="#time">Time expander 7.3.0</a></td>
+    <tr><td><a href="#time">Time expander 7.2.0</a></td>
         <th><b>time.dll</b></th>
         <td>Set the match time to any number of minutes you want between 1 and 255.</td>
     </tr>
@@ -434,6 +434,15 @@ type3 - curved, type4 - even more curved.</td>
     </tr>
 </table>
 
+<p class="devnote">
+By default, the usage of "description" attribute is enabled, but if you want, you can disable it. To do that, edit your config.txt file, and the following option to the [kserv] section:
+</p>
+
+<pre>
+[kserv]
+use.description = 0
+</pre>
+
 <h5>4.4 Kit Selection</h5>
 
 <p>
@@ -614,7 +623,28 @@ Examples of incorrectly named files:<br /><br />
 <span style="color:#800;font-weight:bold">face.bin</span> - no BIN number.<br />
 </p>
 
-<h5>6.3. Names for balls and songs</h5>
+<h5>6.3. Placement of "img" folder</h5>
+<p>
+By default, the AFS2FS module expects to find the <b>img</b> folder inside the <b>kitserver</b> folder. However, starting from version 7.2.3, it is now possible to configure the location of "img" folder to be anywhere on your hard disk. This makes it easier to both manage your game content - you can keep the "GDB" and "img" folders away from the game/kitserver folders, and also makes for an easier upgrade of kitserver.
+</p>
+
+<p>To specify the location of <b>img</b> folder, use "img.dir" option in [afs2fs] section of the config.txt file. Like this:</p>
+
+<pre>
+[afs2fs]
+img.dir = "c:\mypesfiles\"
+</pre>
+
+<p class="note">Two important things to remember:</p>
+<p>
+<ul>
+    <li>You need to specify the folder that contains "img", not the "img" folder itself. In other words, if the full pathname is <b>c:\mypesfiles\img"</b>, then the option must be: <span style="color:#080"><b>img.dir = "c:\mypesfiles\"</b></span></li>
+    <li>The path MUST end with the backslash ("\") symbol, as in the example above.</li>
+</ul>
+</p>
+
+
+<h5>6.4. Names for balls and songs</h5>
 <p>
 When replacing songs with AFS2FS, it is also possible to change the title of the song and the author name, by using a <b>songs.txt</b> map-file, which should be put into <b>kitserver\names</b> folder.<br />
 <br />
@@ -746,6 +776,17 @@ This feature is useful, when you have a large collection of boots, but you only 
 online.enabled = 0
 random.enabled = 1
 </pre>
+
+<p>You may want to exclude a certain set of boots from the random distribution: maybe those are "special" personalized boots that only the star players are supposed to wear, or something like that. It is now possible with the latest version of the bootserver.</p>
+
+<p>Remember that you can organize the boots into folders whichever way you want, but all boots and folders must be placed under <b>GDB\boots</b>. You can split you boots collection into 2 parts: one will be used for random distribution and the other will not. You will still be able to manually (in map.txt) assign boots to players from either part. To do that, place all your "special" boots into one folder. Let's say, for example, that you have a folder named <b>Special</b>, which is placed immediately inside <b>boots</b>. Then edit your <b>config.txt</b>, and in the [bootserv] section, add a line like this:</p>
+
+<pre>
+random.skip = "Special"
+</pre>
+
+<p>
+This will "hide" all boots and subfolders of <b>GDB\boots\Special</b> from the process of random boots distribution.</p>
 
 <h5>8.4. Network play</h5>
 <p>

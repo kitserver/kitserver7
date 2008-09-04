@@ -1,4 +1,4 @@
-// ADDRESSES for lodmixer.cpp
+// ADDRESSES for sched.cpp
 BYTE allowedGames[] = {
 	gvPES2008,
 	gvPES2008v110,

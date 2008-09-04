@@ -451,13 +451,13 @@ void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
                     else
                         KDrawText(wbuf, 5, 305, COLOR_AUTO, 26.0f);
                         */
-                    KDrawText(L"Format:", 102, 7, COLOR_BLACK, 26.0f);
-                    KDrawText(L"Format:", 100, 5, COLOR_CHOSEN, 26.0f);
-                    KDrawText(wbuf, 202, 7, COLOR_BLACK, 26.0f);
+                    KDrawText(L"Format:", 202, 7, COLOR_BLACK, 26.0f);
+                    KDrawText(L"Format:", 200, 5, COLOR_CHOSEN, 26.0f);
+                    KDrawText(wbuf, 302, 7, COLOR_BLACK, 26.0f);
                     if (OkToChangeGroups(ss))
-                        KDrawText(wbuf, 200, 5, COLOR_INFO, 26.0f);
+                        KDrawText(wbuf, 300, 5, COLOR_INFO, 26.0f);
                     else
-                        KDrawText(wbuf, 200, 5, COLOR_AUTO, 26.0f);
+                        KDrawText(wbuf, 300, 5, COLOR_AUTO, 26.0f);
                 }
 
                 BYTE* num = (BYTE*)&ss->ext.numGamesInF;
@@ -474,11 +474,11 @@ void schedPresent(IDirect3DDevice9* self, CONST RECT* src, CONST RECT* dest,
                     else
                         KDrawText(wbuf, 5, 305+j*20, COLOR_AUTO, 26.0f);
                         */
-                    KDrawText(wbuf, 202+j*65, 7, COLOR_BLACK, 26.0f);
+                    KDrawText(wbuf, 302+j*65, 7, COLOR_BLACK, 26.0f);
                     if (OkToChangePlayoffs(ss))
-                        KDrawText(wbuf, 200+j*65, 5, COLOR_INFO, 26.0f);
+                        KDrawText(wbuf, 300+j*65, 5, COLOR_INFO, 26.0f);
                     else
-                        KDrawText(wbuf, 200+j*65, 5, COLOR_AUTO, 26.0f);
+                        KDrawText(wbuf, 300+j*65, 5, COLOR_AUTO, 26.0f);
                 }
             }
         } // end if (ss)

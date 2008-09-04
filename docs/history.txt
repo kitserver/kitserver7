@@ -2,6 +2,20 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2008-09-04
+----------
+v7.4.2 "FINALE"
+bug-fix/small-features release
+
+- bootserv: added "random.skip" configuration option to specify 
+the boots directory to be skipped when assigning boots randomly
+- afs2fs: adding possibility to put "img" folder outside of kitserver
+- kserv: fix for South Korea kits (specific to Konami patch 1.20) 
+- kserv: support for "description" attribute. (Also possible to turn it off)
+- sched: it used to crash in some tournaments when 
+browsing match schedule. Shouldn't happen anymore.  
+
+
 2008-08-15
 ----------
 v7.4.1
