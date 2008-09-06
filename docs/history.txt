@@ -2,6 +2,12 @@ Kitserver 7 HISTORY notes
 =========================
 
 
+2008-09-06
+----------
+v7.4.3 "GRAND FINALE"
+- kserv: fixed bug with description attribute.
+
+
 2008-09-04
 ----------
 v7.4.2 "FINALE"

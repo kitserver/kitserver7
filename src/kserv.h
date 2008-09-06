@@ -4,7 +4,7 @@
 #include "teaminfo.h"
 
 #define MODID 100
-#define NAMELONG L"Kitserver Module 7.3.1.4"
+#define NAMELONG L"Kitserver Module 7.3.1.5"
 #define NAMESHORT L"KSERV"
 #define DEFAULT_DEBUG 0
 

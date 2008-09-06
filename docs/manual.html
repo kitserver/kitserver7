@@ -49,7 +49,7 @@
 Version history: <a href="history.txt">history.txt</a><br />
 </div>
 <div>
-September 4, 2008 - <b>Kitserver 7.4.2</b> *FINALE*<br />
+September 6, 2008 - <b>Kitserver 7.4.3</b> *GRAND FINALE*<br />
 </div>
 <p class="note">
 The most up-to-date version of this documentation, and the translations to many languages, are located here: <a href="http://kitserver.ath.cx/docs">http://kitserver.ath.cx/docs/</a>
@@ -214,7 +214,7 @@ data.dir = "mytest-save"
 </pre>
 
 <p>
-Each module can have its own configuration section, which starts with <b>[<i>module-name</i>]</b>, and typically has one or more options following it. Now, normally you wouldn't need to modify config.txt file, except for the cases, when you need to modify the behaviour of a particular module (DLL), or enable/disable such DLL. For example: <b>rwdata</b> module reads the "edit.data" and "system.data" settings from config.txt - check <a href="#rwdata"><b>rwdata section</b></a> for more details on this.
+Each module can have its own configuration section, which starts with <b>[<i>module-name</i>]</b>, and typically has one or more options following it. Now, normally you wouldn't need to modify config.txt file, except for the cases, when you need to modify the behaviour of a particular module (DLL), or enable/disable such DLL. For example: <b>rwdata</b> module reads the "data.dir" setting from config.txt - check <a href="#rwdata"><b>rwdata section</b></a> for more details on this.
 </p>
 
 <p>To disable a particular module - just comment out the corresponding line in the <b>[kload]</b> section by putting a '#' symbol at the beginning. (Or you can delete that line altogether.)

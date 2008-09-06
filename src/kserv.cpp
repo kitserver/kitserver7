@@ -661,7 +661,7 @@ void kservConfig(char* pName, const void* pValue, DWORD a)
 		case 1: // debug
 			k_kserv.debug = *(DWORD*)pValue;
 			break;
-        case 2: // disable-online
+        case 2: // use-description
             _kserv_config._use_description = *(DWORD*)pValue == 1;
             break;
 	}
@@ -689,7 +689,11 @@ HRESULT STDMETHODCALLTYPE initKserv(IDirect3D9* self, UINT Adapter,
     gdb = new GDB(getPesInfo()->gdbDir, false);
     LOG1N(L"Teams in GDB map: %d", gdb->uni.size());
 
-    getConfig("kserv", "use.description", 1, DT_DWORD, kservConfig);
+    getConfig("kserv", "debug", DT_DWORD, 1, kservConfig);
+    getConfig("kserv", "use.description", DT_DWORD, 2, kservConfig);
+
+    LOG1N(L"debug = %d", k_kserv.debug);
+    LOG1N(L"use.description = %d", _kserv_config._use_description);
 
     // Initial iterators reset
     ResetIterators();
@@ -1421,7 +1425,8 @@ void DumpData(void* data, size_t size)
 // Load texture from PNG file. Returns the size of loaded texture
 DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename)
 {
-	TRACE1S(L"LoadPNGTexture: loading %s", (wchar_t*)filename);
+    if (k_kserv.debug)
+        LOG1S(L"LoadPNGTexture: loading %s", (wchar_t*)filename);
     DWORD size = 0;
 
     PNGDIB *pngdib;
@@ -1433,7 +1438,7 @@ DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename)
     BYTE* memblk;
     int memblksize;
     if(read_file_to_mem(filename,&memblk, &memblksize)) {
-        TRACE(L"LoadPNGTexture: unable to read PNG file");
+        LOG(L"LoadPNGTexture: unable to read PNG file");
         return 0;
     }
     //TRACE(L"LoadPNGTexture: file read into memory");
@@ -1451,7 +1456,7 @@ DWORD LoadPNGTexture(BITMAPINFO** tex, const wchar_t* filename)
 
 	TRACE1N(L"LoadPNGTexture: *ppDIB = %08x", (DWORD)*ppDIB);
     if (*ppDIB == NULL) {
-		TRACE(L"LoadPNGTexture: ERROR - unable to load PNG image.");
+        LOG(L"LoadPNGTexture: ERROR - unable to load PNG image.");
         return 0;
     }
 
