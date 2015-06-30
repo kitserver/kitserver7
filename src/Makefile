@@ -107,9 +107,9 @@ stadium.dll: stadium.lib afsio.lib stadium.res
 	$(LINK) $(LFLAGS) /out:stadium.dll /DLL stadium.obj configs.obj stadium.res $(LIBS) $(D3DX9) kload.lib afsio.lib
 stadium.obj: stadium.cpp stadium.h stadium_addr.h stadium.rc
 
-kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj
+kload.lib: hook.obj kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj crc32.obj
 kload.dll: kload.lib kload.res
-	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj kload.res $(LIBS) $(D3DX9) winmm.lib
+	$(LINK) $(LFLAGS) /out:kload.dll /DLL kload.obj detect.obj imageutil.obj lang.obj log.obj configs.obj hooklib.obj hook.obj crc32.obj kload.res $(LIBS) $(D3DX9) winmm.lib
 kload.obj: kload.cpp kload.h
 
 kload.res: 
